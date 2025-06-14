@@ -1,21 +1,21 @@
 package processor
 
 import (
-	"path/filepath"
-	"strings"
-
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/eoinhurrell/mdnotes/pkg/template"
 )
 
 // FrontmatterProcessor handles frontmatter operations
 type FrontmatterProcessor struct {
-	preserveOrder bool
+	preserveOrder    bool
+	templateEngine   *template.Engine
 }
 
 // NewFrontmatterProcessor creates a new frontmatter processor
 func NewFrontmatterProcessor() *FrontmatterProcessor {
 	return &FrontmatterProcessor{
-		preserveOrder: true,
+		preserveOrder:  true,
+		templateEngine: template.NewEngine(),
 	}
 }
 
@@ -34,37 +34,11 @@ func (p *FrontmatterProcessor) Ensure(file *vault.VaultFile, field string, defau
 
 	// Process template if string
 	if strVal, ok := defaultValue.(string); ok {
-		processedValue := p.processTemplate(strVal, file)
+		processedValue := p.templateEngine.Process(strVal, file)
 		file.SetField(field, processedValue)
 	} else {
 		file.SetField(field, defaultValue)
 	}
 
 	return true
-}
-
-// processTemplate replaces template variables in a string
-func (p *FrontmatterProcessor) processTemplate(template string, file *vault.VaultFile) string {
-	result := template
-
-	// Replace {{filename}} with base filename without extension
-	if strings.Contains(result, "{{filename}}") {
-		filename := filepath.Base(file.Path)
-		filename = strings.TrimSuffix(filename, filepath.Ext(filename))
-		result = strings.ReplaceAll(result, "{{filename}}", filename)
-	}
-
-	// Replace {{title}} with title field if it exists
-	if strings.Contains(result, "{{title}}") {
-		if title, exists := file.GetField("title"); exists {
-			if titleStr, ok := title.(string); ok {
-				result = strings.ReplaceAll(result, "{{title}}", titleStr)
-			}
-		}
-	}
-
-	// Add more template variables as needed
-	// {{current_date}}, {{uuid}}, etc. can be added here
-
-	return result
 }
