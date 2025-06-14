@@ -3,6 +3,8 @@ package root
 import (
 	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/cmd/frontmatter"
+	"github.com/eoinhurrell/mdnotes/cmd/headings"
+	"github.com/eoinhurrell/mdnotes/cmd/links"
 )
 
 // NewRootCommand creates the root command for mdnotes
@@ -24,6 +26,8 @@ for managing frontmatter, headings, links, and file organization.`,
 
 	// Add subcommands
 	cmd.AddCommand(frontmatter.NewFrontmatterCommand())
+	cmd.AddCommand(headings.NewHeadingsCommand())
+	cmd.AddCommand(links.NewLinksCommand())
 
 	return cmd
 }
