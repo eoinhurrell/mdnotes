@@ -16,7 +16,39 @@ type VaultFile struct {
 	Content      []byte
 	Frontmatter  map[string]interface{}
 	Body         string
+	Links        []Link
+	Headings     []Heading
 	Modified     time.Time
+}
+
+// LinkType represents the type of markdown link
+type LinkType int
+
+const (
+	WikiLink LinkType = iota
+	MarkdownLink
+	EmbedLink
+)
+
+// Link represents a link in markdown content
+type Link struct {
+	Type     LinkType
+	Target   string
+	Text     string
+	Position Position
+}
+
+// Position represents a position in text
+type Position struct {
+	Start int
+	End   int
+}
+
+// Heading represents a markdown heading
+type Heading struct {
+	Level int
+	Text  string
+	Line  int
 }
 
 // Parse extracts frontmatter and body from markdown content
