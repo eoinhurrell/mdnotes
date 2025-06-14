@@ -109,47 +109,100 @@ mdnotes/
 - ✅ **FrontmatterProcessor**: Ensures fields with template variable support
 - ✅ **CLI Structure**: Cobra-based CLI with `frontmatter ensure` command
 
+### Frontmatter Features (Cycle 2 - Complete)
+- ✅ **Validation**: Check required fields and type constraints
+- ✅ **Type Casting**: Convert strings to proper types with auto-detection
+- ✅ **Field Sync**: Synchronize with file system metadata
+- ✅ **Enhanced Templates**: Rich template engine with filters and variables
+
 ### Available Commands
+
+#### Ensure Fields
 ```bash
 # Ensure frontmatter fields exist
-mdnotes frontmatter ensure --field tags --default "[]" --field created --default "{{filename}}" /path/to/vault
+mdnotes frontmatter ensure --field tags --default "[]" --field created --default "{{current_date}}" /path/to/vault
 
-# Dry run to preview changes
-mdnotes frontmatter ensure --field tags --default "[]" --dry-run /path/to/vault
+# With template variables and filters
+mdnotes frontmatter ensure --field id --default "{{filename|slug}}" --field modified --default "{{file_mtime}}" /path/to/vault
+```
 
-# Verbose output
-mdnotes frontmatter ensure --field tags --default "[]" --verbose /path/to/vault
+#### Validate Frontmatter
+```bash
+# Check required fields and types
+mdnotes frontmatter validate --required title --required tags --type tags:array --type priority:number /path/to/vault
+
+# Verbose validation output
+mdnotes frontmatter validate --required title --verbose /path/to/vault
+```
+
+#### Type Casting
+```bash
+# Auto-detect and cast all fields
+mdnotes frontmatter cast --auto-detect /path/to/vault
+
+# Cast specific fields to specific types
+mdnotes frontmatter cast --field created --type created:date --field priority --type priority:number /path/to/vault
+
+# Preview changes with dry-run
+mdnotes frontmatter cast --auto-detect --dry-run /path/to/vault
+```
+
+#### Sync with File System
+```bash
+# Sync modification time
+mdnotes frontmatter sync --field modified --source file-mtime /path/to/vault
+
+# Extract from filename patterns
+mdnotes frontmatter sync --field date --source "filename:pattern:^(\\d{8})" /path/to/vault
+
+# Sync directory structure
+mdnotes frontmatter sync --field category --source "path:dir" /path/to/vault
 ```
 
 ### Template Variables
-Currently supported in default values:
-- `{{filename}}`: Base filename without extension  
-- `{{title}}`: Value from title field if it exists
+Supported in default values and templates:
+- `{{current_date}}`: Current date (YYYY-MM-DD)
+- `{{current_datetime}}`: Current datetime (ISO format)
+- `{{filename}}`: Base filename without extension
+- `{{title}}`: Value from title frontmatter field
+- `{{file_mtime}}`: File modification date
+- `{{relative_path}}`: Relative path from vault root
+- `{{parent_dir}}`: Parent directory name
+- `{{uuid}}`: Generate random UUID v4
 
-## Key Features to Implement
+### Template Filters
+Apply filters using pipe syntax:
+- `{{filename|upper}}`: Uppercase transformation
+- `{{filename|lower}}`: Lowercase transformation
+- `{{title|slug}}`: Convert to URL-friendly slug
+- `{{file_mtime|date:Jan 2, 2006}}`: Custom date formatting
 
-### Frontmatter Management
+### Type Casting
+Supported type conversions:
+- **date**: ISO date strings to time.Time objects
+- **number**: String numbers to int/float
+- **boolean**: String booleans ("true"/"false") to bool
+- **array**: Comma-separated strings to []string
+- **null**: Empty strings to nil
 
-- **Ensure**: Add missing fields with default values (supports templates like `{{current_date}}`)
-- **Validate**: Check against rules for required fields and types
-- **Cast**: Convert string values to proper types (date, number, boolean, array)
-- **Sync**: Update fields from file system data (mtime, filename patterns)
+## Next Development Phases
 
-### Link Processing
+### Cycle 3: Content Operations (Planned)
+- **Heading Management**: Fix H1 issues, ensure title consistency
+- **Link Parsing**: Parse wiki links, markdown links, and embeds
+- **Link Conversion**: Convert between wiki and markdown formats
+- **File Organization**: Rename and move files with link updates
 
-- Parse wiki links: `[[note]]`, `[[note|alias]]`
-- Parse markdown links: `[text](file.md)`
-- Parse embeds: `![[image.png]]`
-- Convert between formats while preserving aliases
-- Update references when files are moved/renamed
-- Always prefer markdown links, and convert wiki links to markdown links where possible.
+### Cycle 4: External Integration (Planned)
+- **Linkding API**: Sync URLs with Linkding bookmarking service
+- **Batch Operations**: Multi-step operations with transaction support
+- **Progress Reporting**: Live progress bars and status updates
 
-### Safety Features
-
-- Dry-run mode for previewing changes
-- Automatic backups before modifications
-- Transaction support with rollback capability
-- File locking during operations
+### Completed Safety Features
+- ✅ **Dry-run mode**: Preview changes without applying them
+- ✅ **Verbose output**: Detailed operation feedback
+- ✅ **Error handling**: Clear error messages with suggestions
+- ✅ **Atomic operations**: File changes are atomic
 
 ## Configuration
 
