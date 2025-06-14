@@ -91,8 +91,13 @@ mdnotes/
 
 - `FrontmatterProcessor`: Ensures fields, validates, type casts
 - `HeadingProcessor`: Fixes H1 issues, ensures title consistency
-- `LinkProcessor`: Parses and converts between wiki/markdown link formats
-- `BatchProcessor`: Executes multiple operations with transaction support
+- `LinkParser`: Parses wiki links, markdown links, and embeds
+- `LinkConverter`: Converts between wiki/markdown formats with alias preservation
+- `LinkUpdater`: Updates link references when files are moved
+- `Organizer`: Renames and moves files with pattern-based organization
+- `LinkdingSync`: Synchronizes URLs with Linkding bookmarking service
+- `BatchProcessor`: Executes multiple operations with transactional support
+- `ProgressReporter`: Terminal, JSON, and silent progress reporting modes
 
 **File Processing**:
 
@@ -114,6 +119,19 @@ mdnotes/
 - ✅ **Type Casting**: Convert strings to proper types with auto-detection
 - ✅ **Field Sync**: Synchronize with file system metadata
 - ✅ **Enhanced Templates**: Rich template engine with filters and variables
+
+### Content Operations (Cycle 3 - Complete)
+- ✅ **Heading Analysis & Fixing**: H1 title synchronization with frontmatter
+- ✅ **Link Parsing & Management**: Comprehensive parsing for wiki links, markdown links, and embeds
+- ✅ **Link Format Conversion**: Bidirectional conversion between wiki and markdown formats
+- ✅ **File Organization**: Pattern-based file renaming with template support
+- ✅ **Link Update Tracking**: Automatic link updates when files are moved
+
+### External Integration (Cycle 4 - Complete)
+- ✅ **Linkding API Client**: Full REST API integration with rate limiting
+- ✅ **Linkding Sync Processor**: Synchronize vault URLs with bookmarks
+- ✅ **Batch Operations Framework**: Multi-step operations with transactional support
+- ✅ **Progress Reporting**: Terminal, JSON, and silent progress modes
 
 ### Available Commands
 
@@ -159,6 +177,43 @@ mdnotes frontmatter sync --field date --source "filename:pattern:^(\\d{8})" /pat
 mdnotes frontmatter sync --field category --source "path:dir" /path/to/vault
 ```
 
+#### Heading Management
+```bash
+# Analyze heading structure and report issues
+mdnotes headings analyze /path/to/vault
+
+# Fix heading structure issues
+mdnotes headings fix --ensure-h1-title --single-h1 /path/to/vault
+
+# Preview changes with dry-run
+mdnotes headings fix --fix-sequence --dry-run /path/to/vault
+```
+
+#### Link Management
+```bash
+# Check for broken internal links
+mdnotes links check /path/to/vault
+
+# Convert between link formats
+mdnotes links convert --from wiki --to markdown /path/to/vault
+mdnotes links convert --from markdown --to wiki /path/to/vault
+
+# Preview conversions
+mdnotes links convert --from wiki --to markdown --dry-run /path/to/vault
+```
+
+#### Batch Operations
+```bash
+# Execute batch operations from config file
+mdnotes batch execute --config batch-config.yaml /path/to/vault
+
+# With progress reporting
+mdnotes batch execute --config batch-config.yaml --progress terminal /path/to/vault
+
+# Dry run with JSON progress output
+mdnotes batch execute --config batch-config.yaml --dry-run --progress json /path/to/vault
+```
+
 ### Template Variables
 Supported in default values and templates:
 - `{{current_date}}`: Current date (YYYY-MM-DD)
@@ -187,22 +242,26 @@ Supported type conversions:
 
 ## Next Development Phases
 
-### Cycle 3: Content Operations (Planned)
-- **Heading Management**: Fix H1 issues, ensure title consistency
-- **Link Parsing**: Parse wiki links, markdown links, and embeds
-- **Link Conversion**: Convert between wiki and markdown formats
-- **File Organization**: Rename and move files with link updates
+### Cycle 5: Analysis and Safety (Future)
+- **Vault Analysis**: Generate statistics and reports on vault health
+- **Safety Features**: Enhanced backup/restore and rollback functionality  
+- **Configuration System**: YAML-based configuration with environment variable support
+- **Duplicate Detection**: Find and resolve duplicate content and metadata
 
-### Cycle 4: External Integration (Planned)
-- **Linkding API**: Sync URLs with Linkding bookmarking service
-- **Batch Operations**: Multi-step operations with transaction support
-- **Progress Reporting**: Live progress bars and status updates
+### Cycle 6: Polish and Release (Future)
+- **Performance Optimization**: Parallel processing and memory optimization
+- **Enhanced Error Messages**: User-friendly error reporting with suggestions
+- **Documentation**: Comprehensive user guides and API documentation
+- **Release Preparation**: Cross-platform builds and distribution
 
 ### Completed Safety Features
 - ✅ **Dry-run mode**: Preview changes without applying them
 - ✅ **Verbose output**: Detailed operation feedback
 - ✅ **Error handling**: Clear error messages with suggestions
 - ✅ **Atomic operations**: File changes are atomic
+- ✅ **Backup and rollback**: Transaction support for batch operations
+- ✅ **Context cancellation**: Graceful interruption support
+- ✅ **Rate limiting**: External API protection
 
 ## Configuration
 
