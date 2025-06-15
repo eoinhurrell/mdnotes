@@ -3,6 +3,8 @@ package vault
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,14 +13,16 @@ import (
 
 // VaultFile represents a markdown file in an Obsidian vault
 type VaultFile struct {
-	Path         string
-	RelativePath string
-	Content      []byte
-	Frontmatter  map[string]interface{}
-	Body         string
-	Links        []Link
-	Headings     []Heading
-	Modified     time.Time
+	Path              string
+	RelativePath      string
+	Content           []byte
+	Frontmatter       map[string]interface{}
+	frontmatterOrder  []string // Preserve original field order
+	originalFrontmatter string // Store original frontmatter text for reference
+	Body              string
+	Links             []Link
+	Headings          []Heading
+	Modified          time.Time
 }
 
 // LinkType represents the type of markdown link
@@ -91,8 +95,14 @@ func (vf *VaultFile) Parse(content []byte) error {
 	frontmatterLines := lines[1:endIndex]
 	frontmatterContent := strings.Join(frontmatterLines, "\n")
 
-	// Parse YAML frontmatter
+	// Parse YAML frontmatter while preserving order
 	if strings.TrimSpace(frontmatterContent) != "" {
+		vf.originalFrontmatter = frontmatterContent
+		
+		// Parse YAML to extract key order
+		vf.frontmatterOrder = extractFieldOrder(frontmatterContent)
+		
+		// Parse YAML content
 		if err := yaml.Unmarshal([]byte(frontmatterContent), &vf.Frontmatter); err != nil {
 			return fmt.Errorf("parsing frontmatter: %w", err)
 		}
@@ -111,7 +121,7 @@ func (vf *VaultFile) Parse(content []byte) error {
 	return nil
 }
 
-// Serialize converts the VaultFile back to markdown content
+// Serialize converts the VaultFile back to markdown content preserving field order
 func (vf *VaultFile) Serialize() ([]byte, error) {
 	var buf bytes.Buffer
 
@@ -119,13 +129,13 @@ func (vf *VaultFile) Serialize() ([]byte, error) {
 	if len(vf.Frontmatter) > 0 {
 		buf.WriteString("---\n")
 		
-		// Serialize frontmatter as YAML
-		yamlData, err := yaml.Marshal(vf.Frontmatter)
+		// Serialize frontmatter preserving order
+		frontmatterYAML, err := vf.serializeFrontmatterWithOrder()
 		if err != nil {
 			return nil, fmt.Errorf("marshaling frontmatter: %w", err)
 		}
 		
-		buf.Write(yamlData)
+		buf.WriteString(frontmatterYAML)
 		buf.WriteString("---\n")
 		
 		// Add blank line after frontmatter if body exists
@@ -151,10 +161,101 @@ func (vf *VaultFile) GetField(key string) (interface{}, bool) {
 	return value, exists
 }
 
-// SetField sets a frontmatter field value
+// SetField sets a frontmatter field value while preserving order
 func (vf *VaultFile) SetField(key string, value interface{}) {
 	if vf.Frontmatter == nil {
 		vf.Frontmatter = make(map[string]interface{})
 	}
+	
+	// Don't add new fields to frontmatterOrder here - let serializeFrontmatterWithOrder handle them
+	// The frontmatterOrder should only contain the original fields to preserve their order
+	
 	vf.Frontmatter[key] = value
+}
+
+// extractFieldOrder extracts the order of fields from the original YAML content
+func extractFieldOrder(yamlContent string) []string {
+	var order []string
+	lines := strings.Split(yamlContent, "\n")
+	
+	// Simple regex to match YAML keys (handles most common cases)
+	keyRegex := regexp.MustCompile(`^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:`)
+	
+	for _, line := range lines {
+		if matches := keyRegex.FindStringSubmatch(line); len(matches) > 2 {
+			key := matches[2]
+			// Only add if not already in order (handles multi-line values)
+			found := false
+			for _, existing := range order {
+				if existing == key {
+					found = true
+					break
+				}
+			}
+			if !found {
+				order = append(order, key)
+			}
+		}
+	}
+	
+	return order
+}
+
+// serializeFrontmatterWithOrder serializes frontmatter while preserving field order
+func (vf *VaultFile) serializeFrontmatterWithOrder() (string, error) {
+	if len(vf.Frontmatter) == 0 {
+		return "", nil
+	}
+	
+	var lines []string
+	processedKeys := make(map[string]bool)
+	
+	// First, write fields in their original order
+	for _, key := range vf.frontmatterOrder {
+		if value, exists := vf.Frontmatter[key]; exists {
+			yamlLine, err := formatYAMLField(key, value)
+			if err != nil {
+				return "", fmt.Errorf("formatting field %s: %w", key, err)
+			}
+			lines = append(lines, yamlLine)
+			processedKeys[key] = true
+		}
+	}
+	
+	// Then, add any new fields that weren't in the original order
+	var newKeys []string
+	for key := range vf.Frontmatter {
+		if !processedKeys[key] {
+			newKeys = append(newKeys, key)
+		}
+	}
+	
+	// Sort new keys for consistent output
+	sort.Strings(newKeys)
+	
+	for _, key := range newKeys {
+		yamlLine, err := formatYAMLField(key, vf.Frontmatter[key])
+		if err != nil {
+			return "", fmt.Errorf("formatting field %s: %w", key, err)
+		}
+		lines = append(lines, yamlLine)
+	}
+	
+	return strings.Join(lines, "\n") + "\n", nil
+}
+
+// formatYAMLField formats a single YAML field properly
+func formatYAMLField(key string, value interface{}) (string, error) {
+	// Create a temporary map with just this field
+	tempMap := map[string]interface{}{key: value}
+	
+	// Marshal to YAML
+	yamlBytes, err := yaml.Marshal(tempMap)
+	if err != nil {
+		return "", err
+	}
+	
+	// Return the line without the trailing newline
+	yamlStr := strings.TrimSpace(string(yamlBytes))
+	return yamlStr, nil
 }
