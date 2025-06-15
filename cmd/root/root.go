@@ -7,6 +7,7 @@ import (
 	"github.com/eoinhurrell/mdnotes/cmd/frontmatter"
 	"github.com/eoinhurrell/mdnotes/cmd/headings"
 	"github.com/eoinhurrell/mdnotes/cmd/links"
+	"github.com/eoinhurrell/mdnotes/cmd/profile"
 )
 
 // NewRootCommand creates the root command for mdnotes
@@ -32,6 +33,7 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.AddCommand(frontmatter.NewFrontmatterCommand())
 	cmd.AddCommand(headings.NewHeadingsCommand())
 	cmd.AddCommand(links.NewLinksCommand())
+	cmd.AddCommand(profile.NewProfileCommand())
 
 	return cmd
 }

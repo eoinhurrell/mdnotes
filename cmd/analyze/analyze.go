@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/analyzer"
 	"github.com/eoinhurrell/mdnotes/internal/config"
+	"github.com/eoinhurrell/mdnotes/internal/errors"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
@@ -47,14 +48,21 @@ func newStatsCommand() *cobra.Command {
 			// Load configuration
 			cfg, err := loadConfig(cmd)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return errors.NewConfigError("", err.Error())
 			}
 
 			// Scan vault files
 			scanner := vault.NewScanner(vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns))
 			files, err := scanner.Walk(vaultPath)
 			if err != nil {
-				return fmt.Errorf("scanning vault: %w", err)
+				if os.IsNotExist(err) {
+					return errors.NewFileNotFoundError(vaultPath, 
+						"Ensure the vault path exists and contains markdown files. Use 'ls' to verify the directory structure.")
+				}
+				if os.IsPermission(err) {
+					return errors.NewPermissionError(vaultPath, "vault scanning")
+				}
+				return errors.WrapError(err, "vault scanning", vaultPath)
 			}
 
 			// Generate statistics

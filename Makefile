@@ -1,4 +1,4 @@
-.PHONY: build test clean install lint fmt vet deps
+.PHONY: build test clean install lint fmt vet deps release snapshot docker
 
 # Build the binary
 build:
@@ -54,3 +54,31 @@ dev-build:
 # Run benchmarks
 bench:
 	go test -bench=. ./...
+
+# Release with goreleaser
+release:
+	goreleaser release --clean
+
+# Create a snapshot release (no tags required)
+snapshot:
+	goreleaser release --snapshot --clean
+
+# Build Docker image
+docker:
+	docker build -t mdnotes:latest .
+
+# Run Docker container
+docker-run:
+	docker run --rm -v $(PWD):/vault mdnotes:latest analyze stats /vault
+
+# Install goreleaser (for development)
+install-goreleaser:
+	go install github.com/goreleaser/goreleaser@latest
+
+# Pre-release checks
+pre-release: clean test bench lint
+	@echo "All checks passed. Ready for release!"
+
+# Development setup
+setup: deps install-goreleaser
+	@echo "Development environment setup complete"
