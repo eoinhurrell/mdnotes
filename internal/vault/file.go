@@ -173,27 +173,40 @@ func (vf *VaultFile) SetField(key string, value interface{}) {
 	vf.Frontmatter[key] = value
 }
 
+
 // extractFieldOrder extracts the order of fields from the original YAML content
 func extractFieldOrder(yamlContent string) []string {
 	var order []string
 	lines := strings.Split(yamlContent, "\n")
 	
-	// Simple regex to match YAML keys (handles most common cases)
-	keyRegex := regexp.MustCompile(`^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:`)
+	// Regex to match YAML keys (including those with spaces)
+	// Matches: key:, "key with spaces":, 'key with spaces':, or unquoted keys with spaces
+	keyRegex := regexp.MustCompile(`^(\s*)(?:"([^"]+)"|'([^']+)'|([a-zA-Z_][a-zA-Z0-9_\s]*?))\s*:`)
 	
 	for _, line := range lines {
-		if matches := keyRegex.FindStringSubmatch(line); len(matches) > 2 {
-			key := matches[2]
-			// Only add if not already in order (handles multi-line values)
-			found := false
-			for _, existing := range order {
-				if existing == key {
-					found = true
-					break
-				}
+		if matches := keyRegex.FindStringSubmatch(line); len(matches) > 1 {
+			// Extract key from the appropriate capture group
+			var key string
+			if matches[2] != "" {
+				key = matches[2] // Quoted with double quotes
+			} else if matches[3] != "" {
+				key = matches[3] // Quoted with single quotes
+			} else if matches[4] != "" {
+				key = strings.TrimSpace(matches[4]) // Unquoted (may have spaces)
 			}
-			if !found {
-				order = append(order, key)
+			
+			if key != "" {
+				// Only add if not already in order (handles multi-line values)
+				found := false
+				for _, existing := range order {
+					if existing == key {
+						found = true
+						break
+					}
+				}
+				if !found {
+					order = append(order, key)
+				}
 			}
 		}
 	}
