@@ -7,7 +7,30 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	
+	"gopkg.in/yaml.v3"
 )
+
+// Date represents a date that serializes as YYYY-MM-DD without quotes in YAML
+type Date struct {
+	time.Time
+}
+
+// MarshalYAML implements yaml.Marshaler to output dates without quotes
+func (d Date) MarshalYAML() (interface{}, error) {
+	// Return a yaml.Node with timestamp tag to avoid quoting
+	node := &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: d.Time.Format("2006-01-02"),
+		Tag:   "!!timestamp",
+	}
+	return node, nil
+}
+
+// String returns the date as YYYY-MM-DD
+func (d Date) String() string {
+	return d.Time.Format("2006-01-02")
+}
 
 // TypeValidator interface for type-specific validation and casting
 type TypeValidator interface {
@@ -94,8 +117,12 @@ func (tc *TypeCaster) isType(value interface{}, typeName string) bool {
 		rv := reflect.ValueOf(value)
 		return rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array
 	case "date":
-		_, ok := value.(time.Time)
-		return ok
+		switch value.(type) {
+		case time.Time, Date:
+			return true
+		default:
+			return false
+		}
 	case "null":
 		return value == nil
 	default:
@@ -118,7 +145,7 @@ func (tc *TypeCaster) getType(value interface{}) string {
 		return "number"
 	case bool:
 		return "boolean"
-	case time.Time:
+	case time.Time, Date:
 		return "date"
 	case nil:
 		return "null"
@@ -145,7 +172,7 @@ func (d *DateValidator) Cast(value string) (interface{}, error) {
 
 	for _, format := range formats {
 		if t, err := time.Parse(format, value); err == nil {
-			return t, nil
+			return Date{Time: t}, nil
 		}
 	}
 

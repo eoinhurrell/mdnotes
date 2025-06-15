@@ -1,8 +1,11 @@
 package processor
 
 import (
+	"strings"
 	"testing"
 	"time"
+	
+	"gopkg.in/yaml.v3"
 )
 
 func TestTypeCaster_Cast(t *testing.T) {
@@ -17,7 +20,7 @@ func TestTypeCaster_Cast(t *testing.T) {
 			name:   "string to date",
 			value:  "2023-01-01",
 			toType: "date",
-			want:   time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+			want:   Date{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 		{
 			name:   "string to number int",
@@ -113,10 +116,20 @@ func TestTypeCaster_Cast(t *testing.T) {
 				return
 			}
 
-			// Special handling for time comparison
+			// Special handling for time/date comparison
 			if wantTime, ok := tt.want.(time.Time); ok {
 				if gotTime, ok := got.(time.Time); ok {
 					if !gotTime.Equal(wantTime) {
+						t.Errorf("Cast() = %v, want %v", got, tt.want)
+					}
+					return
+				}
+			}
+			
+			// Special handling for Date comparison
+			if wantDate, ok := tt.want.(Date); ok {
+				if gotDate, ok := got.(Date); ok {
+					if !gotDate.Time.Equal(wantDate.Time) {
 						t.Errorf("Cast() = %v, want %v", got, tt.want)
 					}
 					return
@@ -205,5 +218,36 @@ func TestTypeCaster_IsType(t *testing.T) {
 				t.Errorf("isType(%v, %s) = %v, want %v", tt.value, tt.typeName, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestDate_YAMLSerialization(t *testing.T) {
+	// Test that Date serializes without quotes in YAML
+	caster := NewTypeCaster()
+	
+	result, err := caster.Cast("2009-03-21", "date")
+	if err != nil {
+		t.Fatalf("Cast() error = %v", err)
+	}
+	
+	data := map[string]interface{}{
+		"start": result,
+	}
+	
+	yamlBytes, err := yaml.Marshal(data)
+	if err != nil {
+		t.Fatalf("yaml.Marshal() error = %v", err)
+	}
+	
+	yamlStr := string(yamlBytes)
+	
+	// Should contain the date without quotes
+	if !strings.Contains(yamlStr, "start: 2009-03-21") {
+		t.Errorf("Expected 'start: 2009-03-21' (without quotes), got: %s", yamlStr)
+	}
+	
+	// Should NOT contain quoted date
+	if strings.Contains(yamlStr, `"2009-03-21"`) {
+		t.Errorf("Date should not be quoted, got: %s", yamlStr)
 	}
 }
