@@ -270,6 +270,10 @@ func runCast(cmd *cobra.Command, args []string) error {
 		parts := strings.Split(spec, ":")
 		if len(parts) == 2 {
 			fieldTypes[parts[0]] = parts[1]
+		} else if len(parts) == 1 && len(fields) == 1 {
+			// If only one field is specified and type doesn't contain ":", 
+			// assume user wants to cast that field to this type
+			fieldTypes[fields[0]] = parts[0]
 		}
 	}
 

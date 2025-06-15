@@ -58,7 +58,25 @@ func NewTypeCaster() *TypeCaster {
 
 // Cast converts a value to the specified type
 func (tc *TypeCaster) Cast(value interface{}, toType string) (interface{}, error) {
-	// Handle already correct type
+	// Special handling for date type - always convert to our custom Date type
+	if toType == "date" {
+		switch v := value.(type) {
+		case Date:
+			// Already our custom Date type
+			return v, nil
+		case time.Time:
+			// Convert time.Time to our custom Date type
+			return Date{Time: v}, nil
+		case string:
+			// Parse string as date
+			validator := tc.validators["date"]
+			return validator.Cast(v)
+		default:
+			return nil, fmt.Errorf("cannot cast %T to date", value)
+		}
+	}
+	
+	// Handle already correct type for non-date types
 	if tc.isType(value, toType) {
 		return value, nil
 	}
