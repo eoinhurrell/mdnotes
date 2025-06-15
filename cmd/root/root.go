@@ -2,6 +2,8 @@ package root
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/eoinhurrell/mdnotes/cmd/analyze"
+	"github.com/eoinhurrell/mdnotes/cmd/batch"
 	"github.com/eoinhurrell/mdnotes/cmd/frontmatter"
 	"github.com/eoinhurrell/mdnotes/cmd/headings"
 	"github.com/eoinhurrell/mdnotes/cmd/links"
@@ -25,6 +27,8 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.PersistentFlags().String("config", "", "Config file (default: .obsidian-admin.yaml)")
 
 	// Add subcommands
+	cmd.AddCommand(analyze.NewAnalyzeCommand())
+	cmd.AddCommand(batch.NewBatchCommand())
 	cmd.AddCommand(frontmatter.NewFrontmatterCommand())
 	cmd.AddCommand(headings.NewHeadingsCommand())
 	cmd.AddCommand(links.NewLinksCommand())
