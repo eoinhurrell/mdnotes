@@ -10,7 +10,15 @@ import (
 
 // Scanner walks directories and finds markdown files
 type Scanner struct {
-	ignorePatterns []string
+	ignorePatterns   []string
+	continueOnErrors bool
+	parseErrors      []ParseError
+}
+
+// ParseError represents a file parsing error
+type ParseError struct {
+	Path  string
+	Error error
 }
 
 // ScannerOption configures a Scanner
@@ -23,10 +31,18 @@ func WithIgnorePatterns(patterns []string) ScannerOption {
 	}
 }
 
+// WithContinueOnErrors configures the scanner to continue on parsing errors
+func WithContinueOnErrors() ScannerOption {
+	return func(s *Scanner) {
+		s.continueOnErrors = true
+	}
+}
+
 // NewScanner creates a new scanner with optional configuration
 func NewScanner(opts ...ScannerOption) *Scanner {
 	s := &Scanner{
 		ignorePatterns: []string{},
+		parseErrors:    []ParseError{},
 	}
 
 	for _, opt := range opts {
@@ -34,6 +50,11 @@ func NewScanner(opts ...ScannerOption) *Scanner {
 	}
 
 	return s
+}
+
+// GetParseErrors returns any parsing errors encountered during scanning
+func (s *Scanner) GetParseErrors() []ParseError {
+	return s.parseErrors
 }
 
 // Walk scans a directory tree and returns all markdown files
@@ -67,6 +88,14 @@ func (s *Scanner) Walk(root string) ([]*VaultFile, error) {
 		// Load the file
 		vf, err := s.loadFile(path, relPath)
 		if err != nil {
+			if s.continueOnErrors {
+				// Store the error and continue
+				s.parseErrors = append(s.parseErrors, ParseError{
+					Path:  relPath,
+					Error: err,
+				})
+				return nil
+			}
 			return fmt.Errorf("loading %s: %w", path, err)
 		}
 

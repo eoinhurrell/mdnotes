@@ -11,6 +11,39 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Date represents a date that serializes as YYYY-MM-DD without quotes in YAML
+type Date struct {
+	time.Time
+}
+
+// MarshalYAML implements yaml.Marshaler to output dates without quotes
+func (d Date) MarshalYAML() (interface{}, error) {
+	// Check if time component is not midnight (00:00:00)
+	hour, min, sec := d.Time.Clock()
+	if hour != 0 || min != 0 || sec != 0 {
+		// Has meaningful time component, format as datetime
+		node := &yaml.Node{
+			Kind:  yaml.ScalarNode,
+			Value: d.Time.Format("2006-01-02 15:04:05"),
+			Tag:   "!!timestamp",
+		}
+		return node, nil
+	}
+	
+	// No time component, format as date only
+	node := &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: d.Time.Format("2006-01-02"),
+		Tag:   "!!timestamp",
+	}
+	return node, nil
+}
+
+// String returns the date as YYYY-MM-DD
+func (d Date) String() string {
+	return d.Time.Format("2006-01-02")
+}
+
 // VaultFile represents a markdown file in an Obsidian vault
 type VaultFile struct {
 	Path              string
@@ -106,6 +139,10 @@ func (vf *VaultFile) Parse(content []byte) error {
 		if err := yaml.Unmarshal([]byte(frontmatterContent), &vf.Frontmatter); err != nil {
 			return fmt.Errorf("parsing frontmatter: %w", err)
 		}
+		
+		// Convert time.Time values to Date type for most fields
+		// Keep datetime fields as time.Time for full timestamp serialization
+		vf.normalizeFieldTypes()
 	}
 
 	// Extract body (everything after closing ---)
@@ -271,4 +308,15 @@ func formatYAMLField(key string, value interface{}) (string, error) {
 	// Return the line without the trailing newline
 	yamlStr := strings.TrimSpace(string(yamlBytes))
 	return yamlStr, nil
+}
+
+// normalizeFieldTypes converts time.Time values to Date type
+// Date type will automatically format as YYYY-MM-DD or YYYY-MM-DD HH:mm:ss based on time component
+func (vf *VaultFile) normalizeFieldTypes() {
+	for field, value := range vf.Frontmatter {
+		if timeValue, ok := value.(time.Time); ok {
+			// Convert all time.Time values to our Date type for smart formatting
+			vf.Frontmatter[field] = Date{Time: timeValue}
+		}
+	}
 }

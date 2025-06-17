@@ -8,29 +8,9 @@ import (
 	"strings"
 	"time"
 	
-	"gopkg.in/yaml.v3"
+	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
-// Date represents a date that serializes as YYYY-MM-DD without quotes in YAML
-type Date struct {
-	time.Time
-}
-
-// MarshalYAML implements yaml.Marshaler to output dates without quotes
-func (d Date) MarshalYAML() (interface{}, error) {
-	// Return a yaml.Node with timestamp tag to avoid quoting
-	node := &yaml.Node{
-		Kind:  yaml.ScalarNode,
-		Value: d.Time.Format("2006-01-02"),
-		Tag:   "!!timestamp",
-	}
-	return node, nil
-}
-
-// String returns the date as YYYY-MM-DD
-func (d Date) String() string {
-	return d.Time.Format("2006-01-02")
-}
 
 // TypeValidator interface for type-specific validation and casting
 type TypeValidator interface {
@@ -61,12 +41,12 @@ func (tc *TypeCaster) Cast(value interface{}, toType string) (interface{}, error
 	// Special handling for date type - always convert to our custom Date type
 	if toType == "date" {
 		switch v := value.(type) {
-		case Date:
+		case vault.Date:
 			// Already our custom Date type
 			return v, nil
 		case time.Time:
 			// Convert time.Time to our custom Date type
-			return Date{Time: v}, nil
+			return vault.Date{Time: v}, nil
 		case string:
 			// Parse string as date
 			validator := tc.validators["date"]
@@ -135,8 +115,10 @@ func (tc *TypeCaster) isType(value interface{}, typeName string) bool {
 		rv := reflect.ValueOf(value)
 		return rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array
 	case "date":
+		// Only consider our custom Date type as already correct
+		// time.Time should be converted to Date for proper YAML serialization
 		switch value.(type) {
-		case time.Time, Date:
+		case vault.Date:
 			return true
 		default:
 			return false
@@ -163,7 +145,7 @@ func (tc *TypeCaster) getType(value interface{}) string {
 		return "number"
 	case bool:
 		return "boolean"
-	case time.Time, Date:
+	case time.Time, vault.Date:
 		return "date"
 	case nil:
 		return "null"
@@ -190,7 +172,7 @@ func (d *DateValidator) Cast(value string) (interface{}, error) {
 
 	for _, format := range formats {
 		if t, err := time.Parse(format, value); err == nil {
-			return Date{Time: t}, nil
+			return vault.Date{Time: t}, nil
 		}
 	}
 

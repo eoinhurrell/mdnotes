@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -39,11 +41,44 @@ func WithHTTPClient(client *http.Client) ClientOption {
 
 // NewClient creates a new Linkding API client
 func NewClient(baseURL, apiToken string, opts ...ClientOption) *Client {
+	// Create a custom dialer that forces IPv4 only
+	dialer := &net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	
+	// Create IPv4-only dial function
+	ipv4OnlyDialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// Force TCP4 instead of TCP to prevent IPv6
+		if network == "tcp" {
+			network = "tcp4"
+		}
+		return dialer.DialContext(ctx, network, addr)
+	}
+
+	// Create a custom HTTP client with robust networking configuration
+	transport := &http.Transport{
+		// Force IPv4-only connections
+		DialContext:           ipv4OnlyDialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          10,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		// Disable HTTP/2 server push
+		DisableCompression: false,
+	}
+
+	httpClient := &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}
+
 	client := &Client{
-		baseURL:    baseURL,
-		apiToken:   apiToken,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
-		rateLimiter: rate.NewLimiter(rate.Limit(10), 1), // Default: 10 req/sec
+		baseURL:     baseURL,
+		apiToken:    apiToken,
+		httpClient:  httpClient,
+		rateLimiter: rate.NewLimiter(rate.Limit(5), 2), // More conservative: 5 req/sec with burst of 2
 	}
 
 	for _, opt := range opts {
@@ -52,6 +87,103 @@ func NewClient(baseURL, apiToken string, opts ...ClientOption) *Client {
 
 	return client
 }
+
+// isRetryableError checks if an error is worth retrying
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	// Check for network errors that are typically transient
+	if netErr, ok := err.(net.Error); ok {
+		return netErr.Timeout() || netErr.Temporary()
+	}
+	
+	// Check for specific connection errors
+	errStr := err.Error()
+	retryableErrors := []string{
+		"connection refused",
+		"connection reset",
+		"connection timeout",
+		"dial tcp",
+		"no such host",
+		"network is unreachable",
+		"i/o timeout",
+		"invalid argument", // IPv6 link-local issues
+	}
+	
+	for _, retryable := range retryableErrors {
+		if strings.Contains(errStr, retryable) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// doRequestWithRetry executes an HTTP request with retry logic
+func (c *Client) doRequestWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
+	const maxRetries = 3
+	const baseDelay = 1 * time.Second
+	
+	var lastErr error
+	
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		// Wait for rate limit
+		if err := c.rateLimiter.Wait(ctx); err != nil {
+			return nil, err
+		}
+		
+		// Clone request for retry (body needs to be reset)
+		var reqClone *http.Request
+		if req.Body != nil {
+			// Read body to buffer for retries
+			body := &bytes.Buffer{}
+			if _, err := body.ReadFrom(req.Body); err != nil {
+				return nil, fmt.Errorf("reading request body: %w", err)
+			}
+			req.Body.Close()
+			
+			// Create clone with fresh body
+			reqClone = req.Clone(ctx)
+			reqClone.Body = &nopCloser{bytes.NewReader(body.Bytes())}
+			req.Body = &nopCloser{bytes.NewReader(body.Bytes())}
+		} else {
+			reqClone = req.Clone(ctx)
+		}
+		
+		resp, err := c.httpClient.Do(reqClone)
+		if err == nil {
+			return resp, nil
+		}
+		
+		lastErr = err
+		
+		// Don't retry if error is not retryable or if this is the last attempt
+		if !isRetryableError(err) || attempt == maxRetries {
+			break
+		}
+		
+		// Calculate delay with exponential backoff
+		delay := time.Duration(attempt+1) * baseDelay
+		
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+			// Continue to next attempt
+		}
+	}
+	
+	return nil, fmt.Errorf("request failed after %d attempts: %w", maxRetries+1, lastErr)
+}
+
+// nopCloser is a helper to create io.ReadCloser from io.Reader
+type nopCloser struct {
+	*bytes.Reader
+}
+
+func (n *nopCloser) Close() error { return nil }
 
 // CreateBookmarkRequest represents a request to create a bookmark
 type CreateBookmarkRequest struct {
@@ -102,11 +234,6 @@ type BookmarkListResponse struct {
 
 // CreateBookmark creates a new bookmark
 func (c *Client) CreateBookmark(ctx context.Context, req CreateBookmarkRequest) (*BookmarkResponse, error) {
-	// Wait for rate limit
-	if err := c.rateLimiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling request: %w", err)
@@ -120,7 +247,7 @@ func (c *Client) CreateBookmark(ctx context.Context, req CreateBookmarkRequest) 
 
 	c.setHeaders(httpReq)
 
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.doRequestWithRetry(ctx, httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
@@ -140,11 +267,6 @@ func (c *Client) CreateBookmark(ctx context.Context, req CreateBookmarkRequest) 
 
 // GetBookmarks retrieves bookmarks from the API
 func (c *Client) GetBookmarks(ctx context.Context) (*BookmarkListResponse, error) {
-	// Wait for rate limit
-	if err := c.rateLimiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-
 	httpReq, err := http.NewRequestWithContext(ctx, "GET",
 		c.baseURL+"/api/bookmarks/", nil)
 	if err != nil {
@@ -153,7 +275,7 @@ func (c *Client) GetBookmarks(ctx context.Context) (*BookmarkListResponse, error
 
 	c.setHeaders(httpReq)
 
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.doRequestWithRetry(ctx, httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
@@ -173,11 +295,6 @@ func (c *Client) GetBookmarks(ctx context.Context) (*BookmarkListResponse, error
 
 // UpdateBookmark updates an existing bookmark
 func (c *Client) UpdateBookmark(ctx context.Context, id int, req UpdateBookmarkRequest) (*BookmarkResponse, error) {
-	// Wait for rate limit
-	if err := c.rateLimiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling request: %w", err)
@@ -191,7 +308,7 @@ func (c *Client) UpdateBookmark(ctx context.Context, id int, req UpdateBookmarkR
 
 	c.setHeaders(httpReq)
 
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.doRequestWithRetry(ctx, httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
@@ -211,11 +328,6 @@ func (c *Client) UpdateBookmark(ctx context.Context, id int, req UpdateBookmarkR
 
 // GetBookmark retrieves a specific bookmark by ID
 func (c *Client) GetBookmark(ctx context.Context, id int) (*BookmarkResponse, error) {
-	// Wait for rate limit
-	if err := c.rateLimiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-
 	httpReq, err := http.NewRequestWithContext(ctx, "GET",
 		c.baseURL+"/api/bookmarks/"+strconv.Itoa(id)+"/", nil)
 	if err != nil {
@@ -224,7 +336,7 @@ func (c *Client) GetBookmark(ctx context.Context, id int) (*BookmarkResponse, er
 
 	c.setHeaders(httpReq)
 
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.doRequestWithRetry(ctx, httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
@@ -244,11 +356,6 @@ func (c *Client) GetBookmark(ctx context.Context, id int) (*BookmarkResponse, er
 
 // DeleteBookmark deletes a bookmark by ID
 func (c *Client) DeleteBookmark(ctx context.Context, id int) error {
-	// Wait for rate limit
-	if err := c.rateLimiter.Wait(ctx); err != nil {
-		return err
-	}
-
 	httpReq, err := http.NewRequestWithContext(ctx, "DELETE",
 		c.baseURL+"/api/bookmarks/"+strconv.Itoa(id)+"/", nil)
 	if err != nil {
@@ -257,7 +364,7 @@ func (c *Client) DeleteBookmark(ctx context.Context, id int) error {
 
 	c.setHeaders(httpReq)
 
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.doRequestWithRetry(ctx, httpReq)
 	if err != nil {
 		return fmt.Errorf("executing request: %w", err)
 	}
@@ -297,4 +404,58 @@ func (c *Client) checkResponse(resp *http.Response) error {
 	default:
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
+}
+
+// CheckBookmarkRequest represents metadata for checking a bookmark
+type CheckBookmarkResponse struct {
+	Bookmark *BookmarkResponse `json:"bookmark"`
+	Metadata struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	} `json:"metadata"`
+	AutoTags []string `json:"auto_tags"`
+}
+
+// CheckBookmark checks if a URL is already bookmarked
+func (c *Client) CheckBookmark(ctx context.Context, url string) (*CheckBookmarkResponse, error) {
+	// Create request with URL parameter
+	httpReq, err := http.NewRequestWithContext(ctx, "GET",
+		c.baseURL+"/api/bookmarks/check/", nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	// Add URL as query parameter
+	q := httpReq.URL.Query()
+	q.Add("url", url)
+	httpReq.URL.RawQuery = q.Encode()
+
+	c.setHeaders(httpReq)
+
+	resp, err := c.doRequestWithRetry(ctx, httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Handle response - for check endpoint, 404 means URL not bookmarked
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// Bookmark exists or no bookmark found - decode response
+		var checkResp CheckBookmarkResponse
+		if err := json.NewDecoder(resp.Body).Decode(&checkResp); err != nil {
+			return nil, fmt.Errorf("decoding response: %w", err)
+		}
+		return &checkResp, nil
+	case http.StatusNotFound:
+		// URL not bookmarked - return empty response
+		return &CheckBookmarkResponse{Bookmark: nil}, nil
+	default:
+		// Use standard error handling for other status codes
+		if err := c.checkResponse(resp); err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, fmt.Errorf("unexpected response handling")  // Should never reach here
 }

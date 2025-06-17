@@ -2,7 +2,6 @@ package headings
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
@@ -133,63 +132,47 @@ func runFix(cmd *cobra.Command, args []string) error {
 		FixSequence:   fixSequence,
 	}
 
-	// Scan files
-	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
-	files, err := scanner.Walk(path)
-	if err != nil {
-		return fmt.Errorf("scanning directory: %w", err)
-	}
-
-	if len(files) == 0 {
-		fmt.Println("No markdown files found")
-		return nil
-	}
-
-	// Fix headings
+	// Create processor
 	headingProcessor := processor.NewHeadingProcessor()
-	processedCount := 0
-
-	for _, file := range files {
-		originalBody := file.Body
-		
-		if err := headingProcessor.Fix(file, rules); err != nil {
-			if verbose {
-				fmt.Printf("✗ %s: Error fixing headings: %v\n", file.RelativePath, err)
-			}
-			continue
-		}
-
-		if file.Body != originalBody {
-			processedCount++
-
-			if !dryRun {
-				// Write the file back
-				content, err := file.Serialize()
-				if err != nil {
-					return fmt.Errorf("serializing %s: %w", file.Path, err)
+	
+	// Setup file processor
+	fileProcessor := &processor.FileProcessor{
+		DryRun:         dryRun,
+		Verbose:        verbose,
+		IgnorePatterns: ignorePatterns,
+		ProcessFile: func(file *vault.VaultFile) (bool, error) {
+			originalBody := file.Body
+			
+			if err := headingProcessor.Fix(file, rules); err != nil {
+				if verbose {
+					fmt.Printf("✗ %s: Error fixing headings: %v\n", file.RelativePath, err)
 				}
+				return false, nil // Don't fail the entire operation
+			}
 
-				if err := os.WriteFile(file.Path, content, 0644); err != nil {
-					return fmt.Errorf("writing %s: %w", file.Path, err)
+			return file.Body != originalBody, nil
+		},
+		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
+			if modified {
+				if verbose {
+					fmt.Printf("✓ %s: Fixed heading structure\n", file.RelativePath)
+				} else {
+					fmt.Printf("✓ Processed: %s\n", file.RelativePath)
 				}
+			} else if verbose {
+				fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
 			}
-
-			if verbose {
-				fmt.Printf("✓ %s: Fixed heading structure\n", file.RelativePath)
-			} else {
-				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
-			}
-		} else if verbose {
-			fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
-		}
+		},
 	}
 
-	// Summary
-	if dryRun {
-		fmt.Printf("\nDry run completed. Would modify %d files.\n", processedCount)
-	} else {
-		fmt.Printf("\nCompleted. Modified %d files.\n", processedCount)
+	// Process files
+	result, err := fileProcessor.ProcessPath(path)
+	if err != nil {
+		return err
 	}
+
+	// Print summary
+	fileProcessor.PrintSummary(result)
 
 	return nil
 }

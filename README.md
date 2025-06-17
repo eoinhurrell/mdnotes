@@ -93,6 +93,18 @@ mdnotes frontmatter ensure \
   /path/to/vault
 ```
 
+**Special Values:**
+```bash
+# Set field to null (not the string "null")
+mdnotes frontmatter ensure --field optional_field --default null /path/to/vault
+
+# Mix null and regular defaults
+mdnotes frontmatter ensure \
+  --field optional_field --default null \
+  --field required_field --default "default_value" \
+  /path/to/vault
+```
+
 **Template Variables:**
 ```bash
 # Use template variables for dynamic defaults
@@ -185,6 +197,17 @@ mdnotes frontmatter cast --field tags --type tags:array /path/to/vault
 
 # String "42" → Number 42
 mdnotes frontmatter cast --field priority --type priority:number /path/to/vault
+```
+
+**Smart Date/DateTime Formatting:**
+mdnotes automatically detects and formats date fields intelligently:
+- **Dates at midnight** (00:00:00) → `YYYY-MM-DD` format (e.g., `2023-01-15`)
+- **Dates with time** → `YYYY-MM-DD HH:mm:ss` format (e.g., `2023-01-15 14:30:00`)
+
+```bash
+# Input: start: "2023-01-15"         → Output: start: 2023-01-15
+# Input: meeting: "2023-01-15 14:30" → Output: meeting: 2023-01-15 14:30:00
+# Input: created: 2023-01-15T10:30:45Z → Output: created: 2023-01-15 10:30:45
 ```
 
 #### `mdnotes frontmatter sync`
@@ -447,6 +470,59 @@ mdnotes batch validate --config batch-config.yaml
 mdnotes batch validate --config batch-config.yaml --verbose
 ```
 
+#### `mdnotes linkding sync`
+Synchronize URLs from vault files to Linkding bookmarks.
+
+**Basic Usage:**
+```bash
+# Sync all files with URLs to Linkding
+mdnotes linkding sync /path/to/vault
+
+# Dry run to preview sync
+mdnotes linkding sync --dry-run /path/to/vault
+
+# Sync with custom field names
+mdnotes linkding sync \
+  --url-field "link" \
+  --title-field "name" \
+  --tags-field "categories" \
+  /path/to/vault
+```
+
+**Requirements:**
+Files must have a `url` frontmatter field to be synced:
+```yaml
+---
+title: Example Article
+url: https://example.com/article
+tags: [programming, tools]
+---
+```
+
+After syncing, the `linkding_id` field is added:
+```yaml
+---
+title: Example Article
+url: https://example.com/article
+tags: [programming, tools]
+linkding_id: 123
+---
+```
+
+#### `mdnotes linkding list`
+List vault files containing URLs and their sync status.
+
+```bash
+# List all files with URLs
+mdnotes linkding list /path/to/vault
+
+# Example output:
+# File                               Status      URL
+# ----                               ------      ---
+# articles/example.md               synced #123  https://example.com
+# bookmarks/todo.md                 unsynced     https://todo.com
+```
+
 ### Global Options
 
 **Available for all commands:**
@@ -469,6 +545,99 @@ mdnotes headings fix --exclude-pattern "templates/*" --ensure-h1-title /vault
 # Process files in specific directory
 mdnotes links check --include-pattern "notes/*" /vault
 ```
+
+## ⚙️ Configuration
+
+mdnotes uses YAML configuration files for advanced settings. The configuration file is automatically loaded from:
+
+1. `./.obsidian-admin.yaml` (current directory)
+2. `./obsidian-admin.yaml` (current directory)
+3. `~/.config/obsidian-admin/config.yaml`
+4. `~/.obsidian-admin.yaml`
+5. `/etc/obsidian-admin/config.yaml`
+
+### Basic Configuration
+
+**Sample `.obsidian-admin.yaml`:**
+```yaml
+version: "1.0"
+
+vault:
+  path: "."
+  ignore_patterns:
+    - ".obsidian/*"
+    - "*.tmp"
+    - "templates/*"
+
+frontmatter:
+  required_fields:
+    - title
+    - tags
+    - created
+  type_rules:
+    fields:
+      created: date
+      modified: date
+      priority: number
+      published: boolean
+      tags: array
+
+linkding:
+  api_url: "${LINKDING_URL}"
+  api_token: "${LINKDING_TOKEN}"
+  sync_title: true
+  sync_tags: true
+
+batch:
+  stop_on_error: false
+  create_backup: true
+  max_workers: 4
+
+safety:
+  backup_retention: "7d"
+  max_backups: 10
+```
+
+### Linkding Integration Setup
+
+**1. Set Environment Variables:**
+```bash
+export LINKDING_URL="https://your-linkding-instance.com"
+export LINKDING_TOKEN="your-api-token-here"
+```
+
+**2. Configure `.obsidian-admin.yaml`:**
+```yaml
+linkding:
+  api_url: "${LINKDING_URL}"
+  api_token: "${LINKDING_TOKEN}"
+  sync_title: true      # Sync note title to bookmark title
+  sync_tags: true       # Sync note tags to bookmark tags
+```
+
+**3. Prepare vault files:**
+```yaml
+---
+title: "Useful Tool"
+url: "https://example.com/tool"
+tags: [productivity, tools]
+description: "A helpful productivity tool"
+---
+
+# Content about the tool
+```
+
+**4. Sync to Linkding:**
+```bash
+# Preview what will be synced
+mdnotes linkding list /path/to/vault
+
+# Sync URLs to bookmarks
+mdnotes linkding sync /path/to/vault
+```
+
+**Environment Variable Support:**
+Configuration values support environment variable expansion using `${VARIABLE_NAME}` syntax. This is recommended for sensitive values like API tokens.
 
 ## 🚀 Performance
 

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 	
+	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,7 +21,7 @@ func TestTypeCaster_Cast(t *testing.T) {
 			name:   "string to date",
 			value:  "2023-01-01",
 			toType: "date",
-			want:   Date{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
+			want:   vault.Date{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 		{
 			name:   "string to number int",
@@ -127,8 +128,8 @@ func TestTypeCaster_Cast(t *testing.T) {
 			}
 			
 			// Special handling for Date comparison
-			if wantDate, ok := tt.want.(Date); ok {
-				if gotDate, ok := got.(Date); ok {
+			if wantDate, ok := tt.want.(vault.Date); ok {
+				if gotDate, ok := got.(vault.Date); ok {
 					if !gotDate.Time.Equal(wantDate.Time) {
 						t.Errorf("Cast() = %v, want %v", got, tt.want)
 					}
@@ -205,7 +206,7 @@ func TestTypeCaster_IsType(t *testing.T) {
 		{"bool is boolean", true, "boolean", true},
 		{"slice is array", []string{"a"}, "array", true},
 		{"interface slice is array", []interface{}{"a"}, "array", true},
-		{"time is date", time.Now(), "date", true},
+		{"custom Date is date", vault.Date{Time: time.Now()}, "date", true},
 		{"string not number", "hello", "number", false},
 		{"number not string", 42, "string", false},
 	}
@@ -266,7 +267,7 @@ func TestTypeCaster_TimeToDate(t *testing.T) {
 	}
 	
 	// Should be our custom Date type
-	dateResult, ok := result.(Date)
+	dateResult, ok := result.(vault.Date)
 	if !ok {
 		t.Fatalf("Expected Date type, got %T", result)
 	}

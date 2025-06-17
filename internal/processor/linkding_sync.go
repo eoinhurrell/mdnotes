@@ -16,7 +16,11 @@ type LinkdingClient interface {
 	UpdateBookmark(ctx context.Context, id int, req linkding.UpdateBookmarkRequest) (*linkding.BookmarkResponse, error)
 	GetBookmark(ctx context.Context, id int) (*linkding.BookmarkResponse, error)
 	DeleteBookmark(ctx context.Context, id int) error
+	CheckBookmark(ctx context.Context, url string) (*linkding.CheckBookmarkResponse, error)
 }
+
+// ProgressCallback is called for each file processed during sync
+type ProgressCallback func(result SyncResult)
 
 // LinkdingSyncConfig configures the Linkding synchronization
 type LinkdingSyncConfig struct {
@@ -31,6 +35,7 @@ type LinkdingSyncConfig struct {
 	SyncDescription  bool   // Whether to sync description to Linkding
 	SyncNotes        bool   // Whether to sync notes to Linkding
 	DryRun           bool   // Whether to perform a dry run
+	ProgressCallback ProgressCallback // Optional callback for real-time progress
 }
 
 // LinkdingSync handles synchronization between vault files and Linkding
@@ -92,6 +97,19 @@ func (ls *LinkdingSync) FindUnsyncedFiles(files []*vault.VaultFile) []*vault.Vau
 	return unsynced
 }
 
+// FindAllSyncableFiles returns all files that have URLs (both synced and unsynced)
+func (ls *LinkdingSync) FindAllSyncableFiles(files []*vault.VaultFile) []*vault.VaultFile {
+	var syncable []*vault.VaultFile
+
+	for _, file := range files {
+		if ls.hasURL(file) {
+			syncable = append(syncable, file)
+		}
+	}
+
+	return syncable
+}
+
 // SyncFile synchronizes a single file with Linkding
 func (ls *LinkdingSync) SyncFile(ctx context.Context, file *vault.VaultFile) error {
 	// Skip if no URL
@@ -99,19 +117,55 @@ func (ls *LinkdingSync) SyncFile(ctx context.Context, file *vault.VaultFile) err
 		return nil
 	}
 
-	// Skip if already synced and not updating
-	if ls.hasLinkdingID(file) {
-		return nil
-	}
-
 	if ls.config.DryRun {
 		return nil
 	}
 
-	// Create bookmark request
-	req := ls.buildCreateRequest(file)
+	url := file.Frontmatter[ls.config.URLField].(string)
 
-	// Create bookmark in Linkding
+	// If file has linkding_id, verify it's still valid
+	if ls.hasLinkdingID(file) {
+		linkdingID, ok := file.Frontmatter[ls.config.IDField].(int)
+		if !ok {
+			// Try converting from float64 (JSON numbers)
+			if f, ok := file.Frontmatter[ls.config.IDField].(float64); ok {
+				linkdingID = int(f)
+			} else {
+				// Invalid ID type, remove and treat as unsynced
+				delete(file.Frontmatter, ls.config.IDField)
+				return ls.SyncFile(ctx, file)
+			}
+		}
+
+		// Verify bookmark still exists
+		_, err := ls.client.GetBookmark(ctx, linkdingID)
+		if err != nil {
+			if strings.Contains(err.Error(), "bookmark not found") {
+				// Bookmark was deleted, remove stale ID and retry
+				delete(file.Frontmatter, ls.config.IDField)
+				return ls.SyncFile(ctx, file)
+			}
+			return fmt.Errorf("verifying bookmark %d: %w", linkdingID, err)
+		}
+
+		// Bookmark exists and is valid, no action needed
+		return nil
+	}
+
+	// File has no linkding_id, check if URL is already bookmarked
+	checkResp, err := ls.client.CheckBookmark(ctx, url)
+	if err != nil {
+		return fmt.Errorf("checking existing bookmark: %w", err)
+	}
+
+	// If bookmark already exists, store the ID
+	if checkResp.Bookmark != nil {
+		file.Frontmatter[ls.config.IDField] = checkResp.Bookmark.ID
+		return nil
+	}
+
+	// Create new bookmark
+	req := ls.buildCreateRequest(file)
 	bookmark, err := ls.client.CreateBookmark(ctx, req)
 	if err != nil {
 		return fmt.Errorf("creating bookmark: %w", err)
@@ -143,11 +197,22 @@ func (ls *LinkdingSync) UpdateExisting(ctx context.Context, file *vault.VaultFil
 		}
 	}
 
+	// First verify the bookmark still exists
+	_, err := ls.client.GetBookmark(ctx, linkdingID)
+	if err != nil {
+		// If bookmark not found, clear the ID and treat as new bookmark
+		if strings.Contains(err.Error(), "bookmark not found") {
+			delete(file.Frontmatter, ls.config.IDField)
+			return ls.SyncFile(ctx, file)
+		}
+		return fmt.Errorf("verifying bookmark %d: %w", linkdingID, err)
+	}
+
 	// Build update request
 	req := ls.buildUpdateRequest(file)
 
 	// Update bookmark in Linkding
-	_, err := ls.client.UpdateBookmark(ctx, linkdingID, req)
+	_, err = ls.client.UpdateBookmark(ctx, linkdingID, req)
 	if err != nil {
 		return fmt.Errorf("updating bookmark %d: %w", linkdingID, err)
 	}
@@ -174,13 +239,15 @@ func (ls *LinkdingSync) SyncBatch(ctx context.Context, files []*vault.VaultFile)
 			continue
 		}
 
-		if ls.hasLinkdingID(file) {
-			result.Action = "skipped"
+		// Store initial state to determine action
+		hadLinkdingID := ls.hasLinkdingID(file)
+		var initialID int
+		if hadLinkdingID {
 			if id, ok := file.Frontmatter[ls.config.IDField].(int); ok {
-				result.BookmarkID = id
+				initialID = id
+			} else if f, ok := file.Frontmatter[ls.config.IDField].(float64); ok {
+				initialID = int(f)
 			}
-			results = append(results, result)
-			continue
 		}
 
 		err := ls.SyncFile(ctx, file)
@@ -188,13 +255,38 @@ func (ls *LinkdingSync) SyncBatch(ctx context.Context, files []*vault.VaultFile)
 			result.Action = "error"
 			result.Error = err
 		} else {
-			result.Action = "created"
-			if id, ok := file.Frontmatter[ls.config.IDField].(int); ok {
-				result.BookmarkID = id
+			// Determine what action was taken
+			if ls.hasLinkdingID(file) {
+				if id, ok := file.Frontmatter[ls.config.IDField].(int); ok {
+					result.BookmarkID = id
+					if hadLinkdingID && initialID == id {
+						result.Action = "verified"
+					} else if hadLinkdingID && initialID != id {
+						result.Action = "updated"
+					} else {
+						result.Action = "created"
+					}
+				} else if f, ok := file.Frontmatter[ls.config.IDField].(float64); ok {
+					result.BookmarkID = int(f)
+					if hadLinkdingID && initialID == int(f) {
+						result.Action = "verified"
+					} else if hadLinkdingID && initialID != int(f) {
+						result.Action = "updated"
+					} else {
+						result.Action = "created"
+					}
+				}
+			} else {
+				result.Action = "skipped"
 			}
 		}
 
 		results = append(results, result)
+		
+		// Call progress callback if provided
+		if ls.config.ProgressCallback != nil {
+			ls.config.ProgressCallback(result)
+		}
 	}
 
 	return results, nil

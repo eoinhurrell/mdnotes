@@ -2,7 +2,6 @@ package links
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -170,53 +169,47 @@ func runConvert(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Scan files
-	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
-	files, err := scanner.Walk(path)
-	if err != nil {
-		return fmt.Errorf("scanning directory: %w", err)
-	}
-
-	if len(files) == 0 {
-		fmt.Println("No markdown files found")
-		return nil
-	}
-
-	// Convert links
+	// Create processor
 	converter := processor.NewLinkConverter()
-	processedCount := 0
-
-	for _, file := range files {
-		if converter.ConvertFile(file, from, to) {
-			processedCount++
-
-			if !dryRun {
-				// Write the file back
-				content, err := file.Serialize()
-				if err != nil {
-					return fmt.Errorf("serializing %s: %w", file.Path, err)
+	
+	// Setup file processor
+	fileProcessor := &processor.FileProcessor{
+		DryRun:         dryRun,
+		Verbose:        verbose,
+		IgnorePatterns: ignorePatterns,
+		ProcessFile: func(file *vault.VaultFile) (bool, error) {
+			return converter.ConvertFile(file, from, to), nil
+		},
+		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
+			if modified {
+				if verbose {
+					fmt.Printf("✓ %s: Converted links from %s to %s format\n", file.RelativePath, fromFormat, toFormat)
+				} else {
+					fmt.Printf("✓ Processed: %s\n", file.RelativePath)
 				}
-
-				if err := os.WriteFile(file.Path, content, 0644); err != nil {
-					return fmt.Errorf("writing %s: %w", file.Path, err)
-				}
+			} else if verbose {
+				fmt.Printf("- Skipped: %s (no links to convert)\n", file.RelativePath)
 			}
+		},
+	}
 
-			if verbose {
-				fmt.Printf("✓ %s: Converted links from %s to %s format\n", file.RelativePath, fromFormat, toFormat)
-			} else {
-				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
-			}
-		} else if verbose {
-			fmt.Printf("- Skipped: %s (no links to convert)\n", file.RelativePath)
+	// Process files
+	result, err := fileProcessor.ProcessPath(path)
+	if err != nil {
+		return err
+	}
+
+	// Print custom summary for link conversion
+	if len(result.Errors) > 0 {
+		for _, err := range result.Errors {
+			fmt.Printf("✗ %v\n", err)
 		}
 	}
 
-	// Summary
 	if dryRun {
-		fmt.Printf("\nDry run completed. Would modify %d files.\n", processedCount)
+		fmt.Printf("\nDry run completed. Would modify %d files.\n", result.ProcessedFiles)
 	} else {
-		fmt.Printf("\nCompleted. Converted links in %d files from %s to %s format.\n", processedCount, fromFormat, toFormat)
+		fmt.Printf("\nCompleted. Converted links in %d files from %s to %s format.\n", result.ProcessedFiles, fromFormat, toFormat)
 	}
 
 	return nil

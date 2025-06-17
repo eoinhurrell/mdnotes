@@ -52,6 +52,14 @@ func (m *MockLinkdingClient) DeleteBookmark(ctx context.Context, id int) error {
 	return args.Error(0)
 }
 
+func (m *MockLinkdingClient) CheckBookmark(ctx context.Context, url string) (*linkding.CheckBookmarkResponse, error) {
+	args := m.Called(ctx, url)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*linkding.CheckBookmarkResponse), args.Error(1)
+}
+
 func TestLinkdingSync_FindUnsyncedFiles(t *testing.T) {
 	files := []*vault.VaultFile{
 		{
@@ -93,6 +101,11 @@ func TestLinkdingSync_FindUnsyncedFiles(t *testing.T) {
 
 func TestLinkdingSync_SyncFile(t *testing.T) {
 	mockClient := &MockLinkdingClient{}
+	// Mock CheckBookmark to return no existing bookmark
+	mockClient.On("CheckBookmark", mock.Anything, "https://example.com").Return(&linkding.CheckBookmarkResponse{
+		Bookmark: nil,
+	}, nil)
+	
 	mockClient.On("CreateBookmark", mock.Anything, mock.MatchedBy(func(req linkding.CreateBookmarkRequest) bool {
 		return req.URL == "https://example.com" &&
 			req.Title == "Example Article" &&
@@ -128,7 +141,12 @@ func TestLinkdingSync_SyncFile(t *testing.T) {
 
 func TestLinkdingSync_SyncFile_AlreadySynced(t *testing.T) {
 	mockClient := &MockLinkdingClient{}
-	// Should not call CreateBookmark
+	// Mock GetBookmark to verify the existing ID is valid
+	mockClient.On("GetBookmark", mock.Anything, 123).Return(&linkding.BookmarkResponse{
+		ID:    123,
+		URL:   "https://example.com",
+		Title: "Existing Bookmark",
+	}, nil)
 
 	sync := NewLinkdingSync(LinkdingSyncConfig{
 		URLField: "url",
@@ -174,6 +192,13 @@ func TestLinkdingSync_SyncFile_NoURL(t *testing.T) {
 
 func TestLinkdingSync_UpdateExisting(t *testing.T) {
 	mockClient := &MockLinkdingClient{}
+	// Mock GetBookmark to verify bookmark exists
+	mockClient.On("GetBookmark", mock.Anything, 123).Return(&linkding.BookmarkResponse{
+		ID:    123,
+		URL:   "https://example.com",
+		Title: "Original Title",
+	}, nil)
+	
 	mockClient.On("UpdateBookmark", mock.Anything, 123, mock.MatchedBy(func(req linkding.UpdateBookmarkRequest) bool {
 		return req.Title == "Updated Title" &&
 			len(req.Tags) == 1 &&
@@ -261,6 +286,21 @@ func TestLinkdingSync_TypeConversion(t *testing.T) {
 func TestLinkdingSync_SyncBatch(t *testing.T) {
 	mockClient := &MockLinkdingClient{}
 	
+	// Mock CheckBookmark calls - no existing bookmarks
+	mockClient.On("CheckBookmark", mock.Anything, "https://example1.com").Return(&linkding.CheckBookmarkResponse{
+		Bookmark: nil,
+	}, nil)
+	mockClient.On("CheckBookmark", mock.Anything, "https://example2.com").Return(&linkding.CheckBookmarkResponse{
+		Bookmark: nil,
+	}, nil)
+	
+	// Mock GetBookmark for file3 which already has linkding_id
+	mockClient.On("GetBookmark", mock.Anything, 103).Return(&linkding.BookmarkResponse{
+		ID:    103,
+		URL:   "https://example3.com",
+		Title: "Existing Bookmark",
+	}, nil)
+	
 	// First file needs to be created
 	mockClient.On("CreateBookmark", mock.Anything, mock.MatchedBy(func(req linkding.CreateBookmarkRequest) bool {
 		return req.URL == "https://example1.com"
@@ -301,7 +341,7 @@ func TestLinkdingSync_SyncBatch(t *testing.T) {
 
 	results, err := sync.SyncBatch(context.Background(), files)
 	assert.NoError(t, err)
-	assert.Len(t, results, 3) // All 3 files were processed (2 created, 1 skipped)
+	assert.Len(t, results, 3) // All 3 files were processed (2 created, 1 verified)
 
 	// Check that IDs were set
 	assert.Equal(t, 101, files[0].Frontmatter["linkding_id"])

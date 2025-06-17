@@ -19,9 +19,9 @@ func NewFrontmatterCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewEnsureCommand())
-	cmd.AddCommand(NewValidateCommand())
 	cmd.AddCommand(NewCastCommand())
 	cmd.AddCommand(NewSyncCommand())
+	cmd.AddCommand(NewCheckCommand())
 
 	return cmd
 }
@@ -33,7 +33,10 @@ func NewEnsureCommand() *cobra.Command {
 		Short: "Ensure frontmatter fields exist with default values",
 		Long: `Ensure that specified frontmatter fields exist in all markdown files.
 If a field is missing, it will be added with the provided default value.
-Supports template variables like {{filename}} and {{current_date}}.`,
+Supports template variables like {{filename}} and {{current_date}}.
+
+Special default values:
+  null - Sets the field to null (not the string "null")`,
 		Args: cobra.ExactArgs(1),
 		RunE: runEnsure,
 	}
@@ -63,176 +66,59 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("number of fields (%d) must match number of defaults (%d)", len(fields), len(defaults))
 	}
 
-	// Create field-default pairs
+	// Create field-default pairs with null value support
 	fieldDefaults := make(map[string]interface{})
 	for i, field := range fields {
-		fieldDefaults[field] = defaults[i]
+		defaultValue := defaults[i]
+		// Handle special null value
+		if defaultValue == "null" {
+			fieldDefaults[field] = nil
+		} else {
+			fieldDefaults[field] = defaultValue
+		}
 	}
 
-	// Check if path exists
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("path error: %w", err)
-	}
-
-	var files []*vault.VaultFile
-
-	if info.IsDir() {
-		// Scan directory
-		scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
-		files, err = scanner.Walk(path)
-		if err != nil {
-			return fmt.Errorf("scanning directory: %w", err)
-		}
-	} else {
-		// Single file
-		if !strings.HasSuffix(path, ".md") {
-			return fmt.Errorf("file must have .md extension")
-		}
-		
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("reading file: %w", err)
-		}
-
-		vf := &vault.VaultFile{Path: path}
-		if err := vf.Parse(content); err != nil {
-			return fmt.Errorf("parsing file: %w", err)
-		}
-		files = []*vault.VaultFile{vf}
-	}
-
-	if len(files) == 0 {
-		fmt.Println("No markdown files found")
-		return nil
+	// Create processor
+	frontmatterProcessor := processor.NewFrontmatterProcessor()
+	
+	// Setup file processor
+	fileProcessor := &processor.FileProcessor{
+		DryRun:         dryRun,
+		Verbose:        verbose,
+		IgnorePatterns: ignorePatterns,
+		ProcessFile: func(file *vault.VaultFile) (bool, error) {
+			fileModified := false
+			for field, defaultValue := range fieldDefaults {
+				if frontmatterProcessor.Ensure(file, field, defaultValue) {
+					fileModified = true
+					if verbose {
+						fmt.Printf("✓ %s: Added field '%s' = %v\n", file.RelativePath, field, defaultValue)
+					}
+				}
+			}
+			return fileModified, nil
+		},
+		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
+			if modified && !verbose {
+				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
+			} else if !modified && verbose {
+				fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
+			}
+		},
 	}
 
 	// Process files
-	processor := processor.NewFrontmatterProcessor()
-	
-	processedCount := 0
-	for _, file := range files {
-		fileModified := false
-
-		for field, defaultValue := range fieldDefaults {
-			if processor.Ensure(file, field, defaultValue) {
-				fileModified = true
-				if verbose {
-					fmt.Printf("✓ %s: Added field '%s' = %v\n", file.RelativePath, field, defaultValue)
-				}
-			}
-		}
-
-		if fileModified {
-			processedCount++
-
-			if !dryRun {
-				// Write the file back
-				content, err := file.Serialize()
-				if err != nil {
-					return fmt.Errorf("serializing %s: %w", file.Path, err)
-				}
-
-				if err := os.WriteFile(file.Path, content, 0644); err != nil {
-					return fmt.Errorf("writing %s: %w", file.Path, err)
-				}
-			}
-
-			if !verbose {
-				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
-			}
-		} else if verbose {
-			fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
-		}
-	}
-
-	// Summary
-	if dryRun {
-		fmt.Printf("\nDry run completed. Would modify %d files.\n", processedCount)
-	} else {
-		fmt.Printf("\nCompleted. Modified %d files.\n", processedCount)
-	}
-
-	return nil
-}
-
-// NewValidateCommand creates the frontmatter validate command
-func NewValidateCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "validate [path]",
-		Short: "Validate frontmatter against rules",
-		Long: `Validate that frontmatter in markdown files meets specified requirements.
-Check for required fields, type validation, and other constraints.`,
-		Args: cobra.ExactArgs(1),
-		RunE: runValidate,
-	}
-
-	cmd.Flags().StringSlice("required", nil, "Required field names")
-	cmd.Flags().StringSlice("type", nil, "Type rules in format field:type")
-	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
-
-	return cmd
-}
-
-func runValidate(cmd *cobra.Command, args []string) error {
-	path := args[0]
-	
-	// Get flags
-	required, _ := cmd.Flags().GetStringSlice("required")
-	typeRules, _ := cmd.Flags().GetStringSlice("type")
-	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
-	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
-
-	// Parse type rules
-	types := make(map[string]string)
-	for _, rule := range typeRules {
-		parts := strings.Split(rule, ":")
-		if len(parts) == 2 {
-			types[parts[0]] = parts[1]
-		}
-	}
-
-	// Scan files
-	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
-	files, err := scanner.Walk(path)
+	result, err := fileProcessor.ProcessPath(path)
 	if err != nil {
-		return fmt.Errorf("scanning directory: %w", err)
+		return err
 	}
 
-	if len(files) == 0 {
-		fmt.Println("No markdown files found")
-		return nil
-	}
-
-	// Validate files
-	validator := processor.NewValidator(processor.ValidationRules{
-		Required: required,
-		Types:    types,
-	})
-
-	totalErrors := 0
-	for _, file := range files {
-		errors := validator.Validate(file)
-		if len(errors) > 0 {
-			totalErrors += len(errors)
-			fmt.Printf("✗ %s:\n", file.RelativePath)
-			for _, err := range errors {
-				fmt.Printf("  - %s\n", err.Error())
-			}
-		} else if verbose {
-			fmt.Printf("✓ %s: valid\n", file.RelativePath)
-		}
-	}
-
-	if totalErrors > 0 {
-		fmt.Printf("\nValidation failed: %d errors in %d files\n", totalErrors, len(files))
-		return fmt.Errorf("validation failed")
-	} else {
-		fmt.Printf("\nValidation passed: %d files checked\n", len(files))
-	}
+	// Print summary
+	fileProcessor.PrintSummary(result)
 
 	return nil
 }
+
 
 // NewCastCommand creates the frontmatter cast command
 func NewCastCommand() *cobra.Command {
@@ -277,92 +163,75 @@ func runCast(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Scan files
-	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
-	files, err := scanner.Walk(path)
-	if err != nil {
-		return fmt.Errorf("scanning directory: %w", err)
-	}
-
-	if len(files) == 0 {
-		fmt.Println("No markdown files found")
-		return nil
-	}
-
-	// Cast fields
+	// Create processor
 	typeCaster := processor.NewTypeCaster()
-	processedCount := 0
+	
+	// Setup file processor
+	fileProcessor := &processor.FileProcessor{
+		DryRun:         dryRun,
+		Verbose:        verbose,
+		IgnorePatterns: ignorePatterns,
+		ProcessFile: func(file *vault.VaultFile) (bool, error) {
+			fileModified := false
 
-	for _, file := range files {
-		fileModified := false
-
-		// Process specified fields
-		for _, field := range fields {
-			if value, exists := file.GetField(field); exists {
-				targetType := fieldTypes[field]
-				if targetType == "" && autoDetect {
-					targetType = typeCaster.AutoDetect(value)
-				}
-				
-				if targetType != "" {
-					if newValue, err := typeCaster.Cast(value, targetType); err == nil {
-						file.SetField(field, newValue)
-						fileModified = true
-						if verbose {
-							fmt.Printf("✓ %s: Cast '%s' from %T to %T\n", file.RelativePath, field, value, newValue)
-						}
-					} else if verbose {
-						fmt.Printf("✗ %s: Failed to cast '%s': %v\n", file.RelativePath, field, err)
+			// Process specified fields
+			for _, field := range fields {
+				if value, exists := file.GetField(field); exists {
+					targetType := fieldTypes[field]
+					if targetType == "" && autoDetect {
+						targetType = typeCaster.AutoDetect(value)
 					}
-				}
-			}
-		}
-
-		// Auto-detect all fields if requested and no specific fields given
-		if autoDetect && len(fields) == 0 {
-			for field, value := range file.Frontmatter {
-				if strVal, ok := value.(string); ok {
-					detectedType := typeCaster.AutoDetect(strVal)
-					if detectedType != "string" {
-						if newValue, err := typeCaster.Cast(strVal, detectedType); err == nil {
+					
+					if targetType != "" {
+						if newValue, err := typeCaster.Cast(value, targetType); err == nil {
 							file.SetField(field, newValue)
 							fileModified = true
 							if verbose {
-								fmt.Printf("✓ %s: Auto-cast '%s' to %s\n", file.RelativePath, field, detectedType)
+								fmt.Printf("✓ %s: Cast '%s' from %T to %T\n", file.RelativePath, field, value, newValue)
+							}
+						} else if verbose {
+							fmt.Printf("✗ %s: Failed to cast '%s': %v\n", file.RelativePath, field, err)
+						}
+					}
+				}
+			}
+
+			// Auto-detect all fields if requested and no specific fields given
+			if autoDetect && len(fields) == 0 {
+				for field, value := range file.Frontmatter {
+					detectedType := typeCaster.AutoDetect(value)
+					if detectedType != "string" {
+						if newValue, err := typeCaster.Cast(value, detectedType); err == nil {
+							// Only modify if the cast actually changed the value type
+							if fmt.Sprintf("%T", newValue) != fmt.Sprintf("%T", value) {
+								file.SetField(field, newValue)
+								fileModified = true
+								if verbose {
+									fmt.Printf("✓ %s: Auto-cast '%s' to %s\n", file.RelativePath, field, detectedType)
+								}
 							}
 						}
 					}
 				}
 			}
-		}
 
-		if fileModified {
-			processedCount++
-
-			if !dryRun {
-				// Write the file back
-				content, err := file.Serialize()
-				if err != nil {
-					return fmt.Errorf("serializing %s: %w", file.Path, err)
-				}
-
-				if err := os.WriteFile(file.Path, content, 0644); err != nil {
-					return fmt.Errorf("writing %s: %w", file.Path, err)
-				}
-			}
-
-			if !verbose {
+			return fileModified, nil
+		},
+		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
+			if modified && !verbose {
 				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
 			}
-		}
+		},
 	}
 
-	// Summary
-	if dryRun {
-		fmt.Printf("\nDry run completed. Would modify %d files.\n", processedCount)
-	} else {
-		fmt.Printf("\nCompleted. Modified %d files.\n", processedCount)
+	// Process files
+	result, err := fileProcessor.ProcessPath(path)
+	if err != nil {
+		return err
 	}
+
+	// Print summary
+	fileProcessor.PrintSummary(result)
 
 	return nil
 }
@@ -408,7 +277,88 @@ func runSync(cmd *cobra.Command, args []string) error {
 		fieldSources[field] = sources[i]
 	}
 
-	// Scan files
+	// Create processor
+	sync := processor.NewFrontmatterSync()
+	
+	// Setup file processor
+	fileProcessor := &processor.FileProcessor{
+		DryRun:         dryRun,
+		Verbose:        verbose,
+		IgnorePatterns: ignorePatterns,
+		ProcessFile: func(file *vault.VaultFile) (bool, error) {
+			fileModified := false
+			for field, source := range fieldSources {
+				if sync.SyncField(file, field, source) {
+					fileModified = true
+					if verbose {
+						value, _ := file.GetField(field)
+						fmt.Printf("✓ %s: Synced '%s' = %v\n", file.RelativePath, field, value)
+					}
+				}
+			}
+			return fileModified, nil
+		},
+		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
+			if modified && !verbose {
+				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
+			} else if !modified && verbose {
+				fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
+			}
+		},
+	}
+
+	// Process files
+	result, err := fileProcessor.ProcessPath(path)
+	if err != nil {
+		return err
+	}
+
+	// Print summary
+	fileProcessor.PrintSummary(result)
+
+	return nil
+}
+
+// NewCheckCommand creates the frontmatter check command
+func NewCheckCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "check [path]",
+		Short: "Check frontmatter for parsing issues and validate against rules",
+		Long: `Check all markdown files for frontmatter parsing issues and validate against rules.
+This command identifies files with malformed YAML frontmatter and can also validate
+that frontmatter meets specified requirements like required fields and type constraints.`,
+		Args: cobra.ExactArgs(1),
+		RunE: runCheck,
+	}
+
+	cmd.Flags().StringSlice("required", nil, "Required field names")
+	cmd.Flags().StringSlice("type", nil, "Type rules in format field:type")
+	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
+	cmd.Flags().Bool("parsing-only", false, "Only check for YAML parsing issues, skip validation rules")
+
+	return cmd
+}
+
+func runCheck(cmd *cobra.Command, args []string) error {
+	path := args[0]
+	
+	// Get flags
+	required, _ := cmd.Flags().GetStringSlice("required")
+	typeRules, _ := cmd.Flags().GetStringSlice("type")
+	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
+	parsingOnly, _ := cmd.Flags().GetBool("parsing-only")
+	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+
+	// Parse type rules
+	types := make(map[string]string)
+	for _, rule := range typeRules {
+		parts := strings.Split(rule, ":")
+		if len(parts) == 2 {
+			types[parts[0]] = parts[1]
+		}
+	}
+
+	// Scan files using the proper scanner with ignore patterns
 	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
 	files, err := scanner.Walk(path)
 	if err != nil {
@@ -420,52 +370,91 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Sync fields
-	sync := processor.NewFrontmatterSync()
-	processedCount := 0
-
+	// Phase 1: Check for parsing issues
+	var parsingIssues []string
+	var validFiles []*vault.VaultFile
+	
 	for _, file := range files {
-		fileModified := false
-
-		for field, source := range fieldSources {
-			if sync.SyncField(file, field, source) {
-				fileModified = true
+		// Files from scanner are already parsed, but check if there were errors
+		if file.Frontmatter == nil {
+			// Try to parse again to get the specific error
+			content, readErr := os.ReadFile(file.Path)
+			if readErr != nil {
+				parsingIssues = append(parsingIssues, fmt.Sprintf("✗ %s: Failed to read file - %v", file.RelativePath, readErr))
+				continue
+			}
+			
+			parseErr := file.Parse(content)
+			if parseErr != nil {
+				parsingIssues = append(parsingIssues, fmt.Sprintf("✗ %s: %v", file.RelativePath, parseErr))
 				if verbose {
-					value, _ := file.GetField(field)
-					fmt.Printf("✓ %s: Synced '%s' = %v\n", file.RelativePath, field, value)
+					fmt.Printf("✗ %s: %v\n", file.RelativePath, parseErr)
 				}
+				continue
 			}
 		}
-
-		if fileModified {
-			processedCount++
-
-			if !dryRun {
-				// Write the file back
-				content, err := file.Serialize()
-				if err != nil {
-					return fmt.Errorf("serializing %s: %w", file.Path, err)
-				}
-
-				if err := os.WriteFile(file.Path, content, 0644); err != nil {
-					return fmt.Errorf("writing %s: %w", file.Path, err)
-				}
-			}
-
-			if !verbose {
-				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
-			}
-		} else if verbose {
-			fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
+		
+		validFiles = append(validFiles, file)
+		if verbose {
+			fmt.Printf("✓ %s: Parsing OK\n", file.RelativePath)
 		}
 	}
 
-	// Summary
-	if dryRun {
-		fmt.Printf("\nDry run completed. Would modify %d files.\n", processedCount)
+	// Report parsing issues
+	if len(parsingIssues) > 0 {
+		if !verbose {
+			for _, issue := range parsingIssues {
+				fmt.Println(issue)
+			}
+		}
+		fmt.Printf("\nFound %d files with parsing issues out of %d total files\n", len(parsingIssues), len(files))
+		
+		// If only checking parsing, return here
+		if parsingOnly {
+			return fmt.Errorf("frontmatter parsing issues found")
+		}
+	}
+
+	// Phase 2: Validate against rules (if not parsing-only and rules are specified)
+	if !parsingOnly && (len(required) > 0 || len(types) > 0) {
+		validator := processor.NewValidator(processor.ValidationRules{
+			Required: required,
+			Types:    types,
+		})
+
+		totalValidationErrors := 0
+		for _, file := range validFiles {
+			errors := validator.Validate(file)
+			if len(errors) > 0 {
+				totalValidationErrors += len(errors)
+				fmt.Printf("✗ %s (validation):\n", file.RelativePath)
+				for _, err := range errors {
+					fmt.Printf("  - %s\n", err.Error())
+				}
+			} else if verbose {
+				fmt.Printf("✓ %s: Validation OK\n", file.RelativePath)
+			}
+		}
+
+		if totalValidationErrors > 0 {
+			fmt.Printf("\nValidation failed: %d validation errors in %d files\n", totalValidationErrors, len(validFiles))
+			if len(parsingIssues) > 0 {
+				return fmt.Errorf("found both parsing issues and validation errors")
+			}
+			return fmt.Errorf("validation failed")
+		} else {
+			fmt.Printf("\nValidation passed: %d files validated\n", len(validFiles))
+		}
+	}
+
+	// Final summary
+	if len(parsingIssues) == 0 {
+		if parsingOnly || (len(required) == 0 && len(types) == 0) {
+			fmt.Printf("✓ All %d files have valid frontmatter\n", len(files))
+		}
 	} else {
-		fmt.Printf("\nCompleted. Modified %d files.\n", processedCount)
+		return fmt.Errorf("frontmatter issues found")
 	}
-
+	
 	return nil
 }

@@ -214,6 +214,21 @@ mdnotes batch execute --config batch-config.yaml --progress terminal /path/to/va
 mdnotes batch execute --config batch-config.yaml --dry-run --progress json /path/to/vault
 ```
 
+#### Linkding Integration
+```bash
+# List vault files with URLs and sync status
+mdnotes linkding list /path/to/vault
+
+# Sync URLs to Linkding bookmarks
+mdnotes linkding sync /path/to/vault
+
+# Preview sync without making changes
+mdnotes linkding sync --dry-run --verbose /path/to/vault
+
+# Sync with custom field names
+mdnotes linkding sync --url-field "link" --title-field "name" /path/to/vault
+```
+
 ### Template Variables
 Supported in default values and templates:
 - `{{current_date}}`: Current date (YYYY-MM-DD)

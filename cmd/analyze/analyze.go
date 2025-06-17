@@ -51,8 +51,11 @@ func newStatsCommand() *cobra.Command {
 				return errors.NewConfigError("", err.Error())
 			}
 
-			// Scan vault files
-			scanner := vault.NewScanner(vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns))
+			// Scan vault files with error tolerance
+			scanner := vault.NewScanner(
+				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
+				vault.WithContinueOnErrors(),
+			)
 			files, err := scanner.Walk(vaultPath)
 			if err != nil {
 				if os.IsNotExist(err) {
@@ -63,6 +66,16 @@ func newStatsCommand() *cobra.Command {
 					return errors.NewPermissionError(vaultPath, "vault scanning")
 				}
 				return errors.WrapError(err, "vault scanning", vaultPath)
+			}
+
+			// Report any parsing errors encountered
+			parseErrors := scanner.GetParseErrors()
+			if len(parseErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(parseErrors))
+				for _, parseErr := range parseErrors {
+					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
+				}
+				fmt.Fprintf(os.Stderr, "\n")
 			}
 
 			// Generate statistics
@@ -121,11 +134,31 @@ func newDuplicatesCommand() *cobra.Command {
 				return fmt.Errorf("loading config: %w", err)
 			}
 
-			// Scan vault files
-			scanner := vault.NewScanner(vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns))
+			// Scan vault files with error tolerance
+			scanner := vault.NewScanner(
+				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
+				vault.WithContinueOnErrors(),
+			)
 			files, err := scanner.Walk(vaultPath)
 			if err != nil {
-				return fmt.Errorf("scanning vault: %w", err)
+				if os.IsNotExist(err) {
+					return errors.NewFileNotFoundError(vaultPath, 
+						"Ensure the vault path exists and contains markdown files. Use 'ls' to verify the directory structure.")
+				}
+				if os.IsPermission(err) {
+					return errors.NewPermissionError(vaultPath, "vault scanning")
+				}
+				return errors.WrapError(err, "vault scanning", vaultPath)
+			}
+
+			// Report any parsing errors encountered
+			parseErrors := scanner.GetParseErrors()
+			if len(parseErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(parseErrors))
+				for _, parseErr := range parseErrors {
+					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
+				}
+				fmt.Fprintf(os.Stderr, "\n")
 			}
 
 			// Find duplicates
@@ -174,11 +207,31 @@ func newHealthCommand() *cobra.Command {
 				return fmt.Errorf("loading config: %w", err)
 			}
 
-			// Scan vault files
-			scanner := vault.NewScanner(vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns))
+			// Scan vault files with error tolerance
+			scanner := vault.NewScanner(
+				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
+				vault.WithContinueOnErrors(),
+			)
 			files, err := scanner.Walk(vaultPath)
 			if err != nil {
-				return fmt.Errorf("scanning vault: %w", err)
+				if os.IsNotExist(err) {
+					return errors.NewFileNotFoundError(vaultPath, 
+						"Ensure the vault path exists and contains markdown files. Use 'ls' to verify the directory structure.")
+				}
+				if os.IsPermission(err) {
+					return errors.NewPermissionError(vaultPath, "vault scanning")
+				}
+				return errors.WrapError(err, "vault scanning", vaultPath)
+			}
+
+			// Report any parsing errors encountered
+			parseErrors := scanner.GetParseErrors()
+			if len(parseErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(parseErrors))
+				for _, parseErr := range parseErrors {
+					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
+				}
+				fmt.Fprintf(os.Stderr, "\n")
 			}
 
 			// Generate health report
