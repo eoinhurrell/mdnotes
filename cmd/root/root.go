@@ -12,6 +12,7 @@ import (
 	"github.com/eoinhurrell/mdnotes/cmd/links"
 	"github.com/eoinhurrell/mdnotes/cmd/linkding"
 	"github.com/eoinhurrell/mdnotes/cmd/profile"
+	"github.com/eoinhurrell/mdnotes/cmd/rename"
 )
 
 // NewRootCommand creates the root command for mdnotes
@@ -55,6 +56,7 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.AddCommand(links.NewLinksCommand())
 	cmd.AddCommand(linkding.NewLinkdingCommand())
 	cmd.AddCommand(profile.NewProfileCommand())
+	cmd.AddCommand(rename.NewRenameCommand())
 
 	// Add completion command as well for more standard approach
 	cmd.AddCommand(newCompletionCommand())
