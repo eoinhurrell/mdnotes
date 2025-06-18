@@ -133,10 +133,39 @@ PowerShell:
 
 // setupCustomCompletions adds custom completion functions for file paths and other common arguments
 func setupCustomCompletions(cmd *cobra.Command) {
-	// Set completion for vault path arguments (directories)
-	cmd.RegisterFlagCompletionFunc("config", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"yaml", "yml"}, cobra.ShellCompDirectiveFilterFileExt
-	})
+	// Set completion for config files globally
+	cmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
+	
+	// Add completion for commands that need path arguments
+	for _, subCmd := range cmd.Commands() {
+		switch subCmd.Name() {
+		case "frontmatter", "headings", "links", "analyze", "batch":
+			// These commands take vault/directory paths
+			subCmd.ValidArgsFunction = CompleteDirs
+			
+		case "rename":
+			// Rename takes a source file as first argument
+			subCmd.ValidArgsFunction = CompleteMarkdownFiles
+			
+		case "linkding":
+			// Linkding takes vault paths
+			subCmd.ValidArgsFunction = CompleteDirs
+		}
+		
+		// Add completion for common flags across commands
+		subCmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
+		subCmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
+		
+		// Add specific completions for frontmatter commands
+		if subCmd.Name() == "frontmatter" {
+			setupFrontmatterCompletions(subCmd)
+		}
+		
+		// Add specific completions for rename command
+		if subCmd.Name() == "rename" {
+			setupRenameCompletions(subCmd)
+		}
+	}
 }
 
 // CompleteDirs provides directory completion
@@ -152,4 +181,72 @@ func CompleteMarkdownFiles(cmd *cobra.Command, args []string, toComplete string)
 // CompleteConfigFiles provides config file completion
 func CompleteConfigFiles(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	return []string{"yaml", "yml"}, cobra.ShellCompDirectiveFilterFileExt
+}
+
+// CompleteIgnorePatterns provides completion for ignore patterns
+func CompleteIgnorePatterns(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	patterns := []string{
+		".obsidian/*",
+		"*.tmp",
+		"*.bak",
+		".DS_Store",
+		"*.swp",
+		"*.swo",
+		"node_modules/*",
+		".git/*",
+	}
+	return patterns, cobra.ShellCompDirectiveNoFileComp
+}
+
+// setupFrontmatterCompletions sets up completion for frontmatter subcommands
+func setupFrontmatterCompletions(cmd *cobra.Command) {
+	for _, subCmd := range cmd.Commands() {
+		switch subCmd.Name() {
+		case "ensure", "set", "cast", "sync", "check", "download":
+			// All frontmatter subcommands take paths
+			subCmd.ValidArgsFunction = CompleteDirs
+		}
+		
+		// Special completions for specific commands
+		if subCmd.Name() == "download" {
+			subCmd.RegisterFlagCompletionFunc("attribute", CompleteCommonAttributes)
+		}
+	}
+}
+
+// setupRenameCompletions sets up completion for rename command
+func setupRenameCompletions(cmd *cobra.Command) {
+	// First argument is source file (markdown)
+	// Second argument should allow any filename/path
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			// First argument: source file
+			return []string{"md"}, cobra.ShellCompDirectiveFilterFileExt
+		}
+		// Second argument: new name/path (no specific completion)
+		return nil, cobra.ShellCompDirectiveDefault
+	}
+	
+	cmd.RegisterFlagCompletionFunc("vault", CompleteDirs)
+}
+
+// CompleteCommonAttributes provides completion for common frontmatter attributes
+func CompleteCommonAttributes(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	attributes := []string{
+		"cover",
+		"image", 
+		"avatar",
+		"thumbnail",
+		"icon",
+		"banner",
+		"photo",
+		"picture",
+		"attachment",
+		"document",
+		"file",
+		"url",
+		"link",
+		"resource",
+	}
+	return attributes, cobra.ShellCompDirectiveNoFileComp
 }

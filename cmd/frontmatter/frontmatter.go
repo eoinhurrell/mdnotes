@@ -1,11 +1,15 @@
 package frontmatter
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/eoinhurrell/mdnotes/internal/config"
+	"github.com/eoinhurrell/mdnotes/internal/downloader"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
@@ -23,6 +27,7 @@ func NewFrontmatterCommand() *cobra.Command {
 	cmd.AddCommand(NewCastCommand())
 	cmd.AddCommand(NewSyncCommand())
 	cmd.AddCommand(NewCheckCommand())
+	cmd.AddCommand(NewDownloadCommand())
 
 	return cmd
 }
@@ -631,4 +636,206 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 	
 	return nil
+}
+
+// NewDownloadCommand creates the frontmatter download command
+func NewDownloadCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "download [path]",
+		Short: "Download web resources from frontmatter attributes",
+		Long: `Download web resources referenced in frontmatter attributes and convert them to local references.
+
+The command:
+1. Scans frontmatter fields for HTTP/HTTPS URLs
+2. Downloads the resources to the configured attachments directory
+3. Renames the original attribute to <attribute>-original
+4. Replaces the attribute value with a wiki link to the downloaded file
+
+Example:
+  # Download all web resources in frontmatter
+  mdnotes frontmatter download /vault/path
+  
+  # Download only specific attributes
+  mdnotes frontmatter download --attribute cover --attribute image /vault/path
+  
+  # Preview what would be downloaded
+  mdnotes frontmatter download --dry-run /vault/path`,
+		Args: cobra.ExactArgs(1),
+		RunE: runDownload,
+	}
+
+	cmd.Flags().StringSlice("attribute", nil, "Only download specific attributes (default: all URL attributes)")
+	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
+	cmd.Flags().String("config", "", "Config file path")
+
+	return cmd
+}
+
+func runDownload(cmd *cobra.Command, args []string) error {
+	path := args[0]
+	
+	// Get flags
+	targetAttributes, _ := cmd.Flags().GetStringSlice("attribute")
+	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
+	configPath, _ := cmd.Flags().GetString("config")
+	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
+	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+
+	// Load configuration
+	cfg, err := loadConfigWithPath(configPath)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	// Create downloader
+	downloader, err := newDownloaderFromConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("creating downloader: %w", err)
+	}
+
+	// Scan files
+	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
+	files, err := scanner.Walk(path)
+	if err != nil {
+		return fmt.Errorf("scanning directory: %w", err)
+	}
+
+	if len(files) == 0 {
+		fmt.Println("No markdown files found")
+		return nil
+	}
+
+	if verbose {
+		fmt.Printf("Scanned %d files\n", len(files))
+	}
+
+	// Process files
+	totalDownloads := 0
+	totalFiles := 0
+	errors := []error{}
+
+	for _, file := range files {
+		downloads, fileErrors := processFileDownloads(file, downloader, targetAttributes, dryRun, verbose)
+		if len(downloads) > 0 {
+			totalFiles++
+			totalDownloads += len(downloads)
+			
+			// Save file if not dry run and has modifications
+			if !dryRun && len(downloads) > 0 {
+				content, err := file.Serialize()
+				if err != nil {
+					errors = append(errors, fmt.Errorf("serializing %s: %w", file.RelativePath, err))
+					continue
+				}
+				
+				if err := os.WriteFile(file.Path, content, 0644); err != nil {
+					errors = append(errors, fmt.Errorf("saving %s: %w", file.RelativePath, err))
+					continue
+				}
+			}
+		}
+		
+		errors = append(errors, fileErrors...)
+	}
+
+	// Print summary
+	if len(errors) > 0 {
+		for _, err := range errors {
+			fmt.Printf("✗ %v\n", err)
+		}
+	}
+
+	if dryRun {
+		fmt.Printf("\nDry run completed. Would download %d resources from %d files.\n", totalDownloads, totalFiles)
+	} else {
+		fmt.Printf("\nCompleted. Downloaded %d resources from %d files.\n", totalDownloads, totalFiles)
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("%d errors occurred during processing", len(errors))
+	}
+
+	return nil
+}
+
+// Helper functions for download command
+
+func loadConfigWithPath(configPath string) (*config.Config, error) {
+	if configPath != "" {
+		return config.LoadConfigFromFile(configPath)
+	}
+	
+	// Use default config search paths
+	paths := config.GetDefaultConfigPaths()
+	return config.LoadConfigWithFallback(paths)
+}
+
+func newDownloaderFromConfig(cfg *config.Config) (*downloader.Downloader, error) {
+	return downloader.NewDownloader(cfg.Downloads)
+}
+
+func processFileDownloads(file *vault.VaultFile, dl *downloader.Downloader, targetAttributes []string, dryRun, verbose bool) ([]string, []error) {
+	var downloads []string
+	var errors []error
+	
+	// Get base filename for generating download names
+	baseFilename := strings.TrimSuffix(filepath.Base(file.RelativePath), filepath.Ext(file.RelativePath))
+	
+	for attribute, value := range file.Frontmatter {
+		// Skip if targeting specific attributes and this isn't one of them
+		if len(targetAttributes) > 0 {
+			found := false
+			for _, target := range targetAttributes {
+				if attribute == target {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+		
+		// Check if value is a string URL
+		urlStr, ok := value.(string)
+		if !ok {
+			continue
+		}
+		
+		if !downloader.IsValidURL(urlStr) {
+			continue
+		}
+		
+		// Found a downloadable URL
+		if dryRun {
+			fmt.Printf("Would download: %s.%s = %s\n", file.RelativePath, attribute, urlStr)
+			downloads = append(downloads, attribute)
+			continue
+		}
+		
+		if verbose {
+			fmt.Printf("Downloading: %s.%s = %s\n", file.RelativePath, attribute, urlStr)
+		}
+		
+		// Download the resource
+		ctx := context.Background()
+		result, err := dl.DownloadResource(ctx, urlStr, baseFilename, attribute)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("%s.%s: %w", file.RelativePath, attribute, err))
+			continue
+		}
+		
+		if verbose {
+			fmt.Printf("✓ Downloaded: %s (%d bytes) -> %s\n", urlStr, result.Size, result.LocalPath)
+		}
+		
+		// Update frontmatter
+		originalAttribute := attribute + "-original"
+		file.Frontmatter[originalAttribute] = urlStr
+		file.Frontmatter[attribute] = downloader.GenerateWikiLink(result.LocalPath)
+		
+		downloads = append(downloads, attribute)
+	}
+	
+	return downloads, errors
 }

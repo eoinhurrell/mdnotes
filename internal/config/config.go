@@ -20,6 +20,7 @@ type Config struct {
 	Linkding    LinkdingConfig    `yaml:"linkding"`
 	Batch       BatchConfig       `yaml:"batch"`
 	Safety      SafetyConfig      `yaml:"safety"`
+	Downloads   DownloadConfig    `yaml:"downloads"`
 }
 
 // VaultConfig contains vault-specific settings
@@ -58,6 +59,14 @@ type BatchConfig struct {
 type SafetyConfig struct {
 	BackupRetention string `yaml:"backup_retention"`
 	MaxBackups      int    `yaml:"max_backups"`
+}
+
+// DownloadConfig contains settings for downloading resources
+type DownloadConfig struct {
+	AttachmentsDir string `yaml:"attachments_dir"`
+	Timeout        string `yaml:"timeout"`
+	UserAgent      string `yaml:"user_agent"`
+	MaxFileSize    int64  `yaml:"max_file_size"`
 }
 
 // LoadConfig loads configuration from a reader with environment variable expansion
@@ -134,6 +143,12 @@ func DefaultConfig() *Config {
 		Safety: SafetyConfig{
 			BackupRetention: "24h",
 			MaxBackups:      50,
+		},
+		Downloads: DownloadConfig{
+			AttachmentsDir: "./resources/attachments",
+			Timeout:        "30s",
+			UserAgent:      "mdnotes/1.0",
+			MaxFileSize:    10 * 1024 * 1024, // 10MB
 		},
 	}
 }
@@ -252,6 +267,20 @@ func (c *Config) Merge(other Config) *Config {
 	}
 	if other.Safety.MaxBackups != 0 {
 		result.Safety.MaxBackups = other.Safety.MaxBackups
+	}
+
+	// Downloads config
+	if other.Downloads.AttachmentsDir != "" {
+		result.Downloads.AttachmentsDir = other.Downloads.AttachmentsDir
+	}
+	if other.Downloads.Timeout != "" {
+		result.Downloads.Timeout = other.Downloads.Timeout
+	}
+	if other.Downloads.UserAgent != "" {
+		result.Downloads.UserAgent = other.Downloads.UserAgent
+	}
+	if other.Downloads.MaxFileSize != 0 {
+		result.Downloads.MaxFileSize = other.Downloads.MaxFileSize
 	}
 
 	return &result
