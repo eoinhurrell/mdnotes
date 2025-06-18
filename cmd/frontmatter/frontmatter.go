@@ -642,21 +642,21 @@ func runCheck(cmd *cobra.Command, args []string) error {
 func NewDownloadCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "download [path]",
-		Short: "Download web resources from frontmatter attributes",
-		Long: `Download web resources referenced in frontmatter attributes and convert them to local references.
+		Short: "Download web resources from frontmatter fields",
+		Long: `Download web resources referenced in frontmatter fields and convert them to local references.
 
 The command:
 1. Scans frontmatter fields for HTTP/HTTPS URLs
 2. Downloads the resources to the configured attachments directory
-3. Renames the original attribute to <attribute>-original
-4. Replaces the attribute value with a wiki link to the downloaded file
+3. Renames the original field to <field>-original
+4. Replaces the field value with a wiki link to the downloaded file
 
 Example:
   # Download all web resources in frontmatter
   mdnotes frontmatter download /vault/path
   
-  # Download only specific attributes
-  mdnotes frontmatter download --attribute cover --attribute image /vault/path
+  # Download only specific fields
+  mdnotes frontmatter download --field cover --field image /vault/path
   
   # Preview what would be downloaded
   mdnotes frontmatter download --dry-run /vault/path`,
@@ -664,7 +664,7 @@ Example:
 		RunE: runDownload,
 	}
 
-	cmd.Flags().StringSlice("attribute", nil, "Only download specific attributes (default: all URL attributes)")
+	cmd.Flags().StringSlice("field", nil, "Only download specific fields (default: all URL fields)")
 	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
 	cmd.Flags().String("config", "", "Config file path")
 
@@ -675,7 +675,7 @@ func runDownload(cmd *cobra.Command, args []string) error {
 	path := args[0]
 	
 	// Get flags
-	targetAttributes, _ := cmd.Flags().GetStringSlice("attribute")
+	targetFields, _ := cmd.Flags().GetStringSlice("field")
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	configPath, _ := cmd.Flags().GetString("config")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
@@ -693,11 +693,10 @@ func runDownload(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating downloader: %w", err)
 	}
 
-	// Scan files
-	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
-	files, err := scanner.Walk(path)
+	// Load files (handle both files and directories)
+	files, err := loadFilesForProcessing(path, ignorePatterns)
 	if err != nil {
-		return fmt.Errorf("scanning directory: %w", err)
+		return fmt.Errorf("loading files: %w", err)
 	}
 
 	if len(files) == 0 {
@@ -715,7 +714,7 @@ func runDownload(cmd *cobra.Command, args []string) error {
 	errors := []error{}
 
 	for _, file := range files {
-		downloads, fileErrors := processFileDownloads(file, downloader, targetAttributes, dryRun, verbose)
+		downloads, fileErrors := processFileDownloads(file, downloader, targetFields, dryRun, verbose)
 		if len(downloads) > 0 {
 			totalFiles++
 			totalDownloads += len(downloads)
@@ -774,19 +773,19 @@ func newDownloaderFromConfig(cfg *config.Config) (*downloader.Downloader, error)
 	return downloader.NewDownloader(cfg.Downloads)
 }
 
-func processFileDownloads(file *vault.VaultFile, dl *downloader.Downloader, targetAttributes []string, dryRun, verbose bool) ([]string, []error) {
+func processFileDownloads(file *vault.VaultFile, dl *downloader.Downloader, targetFields []string, dryRun, verbose bool) ([]string, []error) {
 	var downloads []string
 	var errors []error
 	
 	// Get base filename for generating download names
 	baseFilename := strings.TrimSuffix(filepath.Base(file.RelativePath), filepath.Ext(file.RelativePath))
 	
-	for attribute, value := range file.Frontmatter {
-		// Skip if targeting specific attributes and this isn't one of them
-		if len(targetAttributes) > 0 {
+	for field, value := range file.Frontmatter {
+		// Skip if targeting specific fields and this isn't one of them
+		if len(targetFields) > 0 {
 			found := false
-			for _, target := range targetAttributes {
-				if attribute == target {
+			for _, target := range targetFields {
+				if field == target {
 					found = true
 					break
 				}
@@ -808,34 +807,74 @@ func processFileDownloads(file *vault.VaultFile, dl *downloader.Downloader, targ
 		
 		// Found a downloadable URL
 		if dryRun {
-			fmt.Printf("Would download: %s.%s = %s\n", file.RelativePath, attribute, urlStr)
-			downloads = append(downloads, attribute)
+			fmt.Printf("Would download: %s.%s = %s\n", file.RelativePath, field, urlStr)
+			downloads = append(downloads, field)
 			continue
 		}
 		
 		if verbose {
-			fmt.Printf("Downloading: %s.%s = %s\n", file.RelativePath, attribute, urlStr)
+			fmt.Printf("Downloading: %s.%s = %s\n", file.RelativePath, field, urlStr)
 		}
 		
 		// Download the resource
 		ctx := context.Background()
-		result, err := dl.DownloadResource(ctx, urlStr, baseFilename, attribute)
+		result, err := dl.DownloadResource(ctx, urlStr, baseFilename, field)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("%s.%s: %w", file.RelativePath, attribute, err))
+			errors = append(errors, fmt.Errorf("%s.%s: %w", file.RelativePath, field, err))
 			continue
 		}
 		
 		if verbose {
-			fmt.Printf("✓ Downloaded: %s (%d bytes) -> %s\n", urlStr, result.Size, result.LocalPath)
+			if result.Skipped {
+				fmt.Printf("⚠ Skipped: %s (file already exists) -> %s\n", urlStr, result.LocalPath)
+			} else {
+				fmt.Printf("✓ Downloaded: %s (%d bytes) -> %s\n", urlStr, result.Size, result.LocalPath)
+			}
 		}
 		
 		// Update frontmatter
-		originalAttribute := attribute + "-original"
-		file.Frontmatter[originalAttribute] = urlStr
-		file.Frontmatter[attribute] = downloader.GenerateWikiLink(result.LocalPath)
+		originalField := field + "-original"
+		file.Frontmatter[originalField] = urlStr
+		file.Frontmatter[field] = downloader.GenerateWikiLink(result.LocalPath)
 		
-		downloads = append(downloads, attribute)
+		downloads = append(downloads, field)
 	}
 	
 	return downloads, errors
+}
+
+// loadFilesForProcessing loads files from the given path, handling both files and directories
+func loadFilesForProcessing(path string, ignorePatterns []string) ([]*vault.VaultFile, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("path error: %w", err)
+	}
+
+	if info.IsDir() {
+		// Use scanner for directories
+		scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
+		return scanner.Walk(path)
+	} else {
+		// Handle single file
+		if !strings.HasSuffix(path, ".md") {
+			return nil, fmt.Errorf("file must have .md extension")
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading file: %w", err)
+		}
+
+		vf := &vault.VaultFile{
+			Path:         path,
+			RelativePath: filepath.Base(path),
+			Modified:     info.ModTime(),
+		}
+		
+		if err := vf.Parse(content); err != nil {
+			return nil, fmt.Errorf("parsing file: %w", err)
+		}
+
+		return []*vault.VaultFile{vf}, nil
+	}
 }

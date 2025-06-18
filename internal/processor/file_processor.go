@@ -3,6 +3,7 @@ package processor
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/eoinhurrell/mdnotes/internal/vault"
@@ -110,7 +111,17 @@ func (fp *FileProcessor) loadFiles(path string) ([]*vault.VaultFile, error) {
 			return nil, fmt.Errorf("reading file: %w", err)
 		}
 
-		vf := &vault.VaultFile{Path: path}
+		// Get file info for modification time
+		fileInfo, err := os.Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf("getting file info: %w", err)
+		}
+
+		vf := &vault.VaultFile{
+			Path:         path,
+			RelativePath: filepath.Base(path),
+			Modified:     fileInfo.ModTime(),
+		}
 		if err := vf.Parse(content); err != nil {
 			return nil, fmt.Errorf("parsing file: %w", err)
 		}

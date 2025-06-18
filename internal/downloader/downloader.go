@@ -25,7 +25,13 @@ type Downloader struct {
 
 // NewDownloader creates a new downloader with the given configuration
 func NewDownloader(cfg config.DownloadConfig) (*Downloader, error) {
-	timeout, err := time.ParseDuration(cfg.Timeout)
+	// Use default timeout if empty
+	timeoutStr := cfg.Timeout
+	if timeoutStr == "" {
+		timeoutStr = "30s"
+	}
+	
+	timeout, err := time.ParseDuration(timeoutStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid timeout duration: %w", err)
 	}
@@ -39,11 +45,34 @@ func NewDownloader(cfg config.DownloadConfig) (*Downloader, error) {
 		},
 	}
 
+	// Apply defaults for empty values
+	userAgent := cfg.UserAgent
+	if userAgent == "" {
+		userAgent = "mdnotes/1.0"
+	}
+	
+	maxFileSize := cfg.MaxFileSize
+	if maxFileSize == 0 {
+		maxFileSize = 10 * 1024 * 1024 // 10MB
+	}
+	
+	attachmentsDir := cfg.AttachmentsDir
+	if attachmentsDir == "" {
+		attachmentsDir = "./resources/attachments"
+	}
+	
+	// Update config with defaults
+	finalConfig := cfg
+	finalConfig.Timeout = timeoutStr
+	finalConfig.UserAgent = userAgent
+	finalConfig.MaxFileSize = maxFileSize
+	finalConfig.AttachmentsDir = attachmentsDir
+
 	return &Downloader{
 		client:      client,
-		config:      cfg,
-		userAgent:   cfg.UserAgent,
-		maxFileSize: cfg.MaxFileSize,
+		config:      finalConfig,
+		userAgent:   userAgent,
+		maxFileSize: maxFileSize,
 	}, nil
 }
 
@@ -54,6 +83,7 @@ type DownloadResult struct {
 	ContentType  string
 	Size         int64
 	Extension    string
+	Skipped      bool // Indicates file already existed and was skipped
 }
 
 // DownloadResource downloads a resource from a URL to a local file
@@ -104,6 +134,18 @@ func (d *Downloader) DownloadResource(ctx context.Context, urlStr, baseFilename,
 		return nil, fmt.Errorf("creating attachments directory: %w", err)
 	}
 
+	// Check if file already exists
+	if stat, err := os.Stat(localPath); err == nil {
+		return &DownloadResult{
+			LocalPath:   localPath,
+			OriginalURL: urlStr,
+			ContentType: resp.Header.Get("Content-Type"),
+			Size:        stat.Size(), // Use existing file size
+			Extension:   extension,
+			Skipped:     true, // Mark as skipped
+		}, nil // Not an error, just skipped
+	}
+
 	// Create local file
 	file, err := os.Create(localPath)
 	if err != nil {
@@ -132,6 +174,7 @@ func (d *Downloader) DownloadResource(ctx context.Context, urlStr, baseFilename,
 		ContentType: resp.Header.Get("Content-Type"),
 		Size:        bytesWritten,
 		Extension:   extension,
+		Skipped:     false, // Actually downloaded
 	}, nil
 }
 

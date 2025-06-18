@@ -209,7 +209,7 @@ func setupFrontmatterCompletions(cmd *cobra.Command) {
 		
 		// Special completions for specific commands
 		if subCmd.Name() == "download" {
-			subCmd.RegisterFlagCompletionFunc("attribute", CompleteCommonAttributes)
+			subCmd.RegisterFlagCompletionFunc("field", CompleteCommonFields)
 		}
 	}
 }
@@ -230,9 +230,9 @@ func setupRenameCompletions(cmd *cobra.Command) {
 	cmd.RegisterFlagCompletionFunc("vault", CompleteDirs)
 }
 
-// CompleteCommonAttributes provides completion for common frontmatter attributes
-func CompleteCommonAttributes(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	attributes := []string{
+// CompleteCommonFields provides completion for common frontmatter fields
+func CompleteCommonFields(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	fields := []string{
 		"cover",
 		"image", 
 		"avatar",
@@ -248,5 +248,5 @@ func CompleteCommonAttributes(cmd *cobra.Command, args []string, toComplete stri
 		"link",
 		"resource",
 	}
-	return attributes, cobra.ShellCompDirectiveNoFileComp
+	return fields, cobra.ShellCompDirectiveNoFileComp
 }
