@@ -19,6 +19,7 @@ func NewFrontmatterCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewEnsureCommand())
+	cmd.AddCommand(NewSetCommand())
 	cmd.AddCommand(NewCastCommand())
 	cmd.AddCommand(NewSyncCommand())
 	cmd.AddCommand(NewCheckCommand())
@@ -43,6 +44,7 @@ Special default values:
 
 	cmd.Flags().StringSlice("field", nil, "Field name to ensure (can be specified multiple times)")
 	cmd.Flags().StringSlice("default", nil, "Default value for field (can be specified multiple times)")
+	cmd.Flags().StringSlice("type", nil, "Type rules in format field:type (optional, for type checking)")
 	cmd.Flags().Bool("recursive", true, "Process subdirectories")
 	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
 
@@ -58,12 +60,22 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 	// Get flags
 	fields, _ := cmd.Flags().GetStringSlice("field")
 	defaults, _ := cmd.Flags().GetStringSlice("default")
+	typeRules, _ := cmd.Flags().GetStringSlice("type")
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
 	if len(fields) != len(defaults) {
 		return fmt.Errorf("number of fields (%d) must match number of defaults (%d)", len(fields), len(defaults))
+	}
+
+	// Parse type rules
+	types := make(map[string]string)
+	for _, rule := range typeRules {
+		parts := strings.Split(rule, ":")
+		if len(parts) == 2 {
+			types[parts[0]] = parts[1]
+		}
 	}
 
 	// Create field-default pairs with null value support
@@ -78,8 +90,12 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Create processor
+	// Create processors
 	frontmatterProcessor := processor.NewFrontmatterProcessor()
+	typeCaster := processor.NewTypeCaster()
+	validator := processor.NewValidator(processor.ValidationRules{
+		Types: types,
+	})
 	
 	// Setup file processor
 	fileProcessor := &processor.FileProcessor{
@@ -88,6 +104,8 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 		IgnorePatterns: ignorePatterns,
 		ProcessFile: func(file *vault.VaultFile) (bool, error) {
 			fileModified := false
+			
+			// Phase 1: Ensure fields exist with default values
 			for field, defaultValue := range fieldDefaults {
 				if frontmatterProcessor.Ensure(file, field, defaultValue) {
 					fileModified = true
@@ -96,6 +114,32 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 					}
 				}
 			}
+			
+			// Phase 2: Check and fix types
+			for field, expectedType := range types {
+				if value, exists := file.GetField(field); exists {
+					// Check if field has correct type
+					errors := validator.Validate(file)
+					for _, err := range errors {
+						if strings.Contains(err.Error(), fmt.Sprintf("field '%s' must be of type %s", field, expectedType)) {
+							// Try to cast the field to the correct type
+							if newValue, castErr := typeCaster.Cast(value, expectedType); castErr == nil {
+								file.SetField(field, newValue)
+								fileModified = true
+								if verbose {
+									fmt.Printf("✓ %s: Fixed type for '%s' (%T -> %T)\n", file.RelativePath, field, value, newValue)
+								}
+							} else {
+								// Non-halting error: report but continue
+								fmt.Printf("✗ %s: Field '%s' has wrong type (expected %s, got %T) and cannot be cast: %v\n", 
+									file.RelativePath, field, expectedType, value, castErr)
+							}
+							break
+						}
+					}
+				}
+			}
+			
 			return fileModified, nil
 		},
 		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
@@ -119,6 +163,136 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// NewSetCommand creates the frontmatter set command
+func NewSetCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set [path]",
+		Short: "Set frontmatter fields to specific values",
+		Long: `Set frontmatter fields to specific values in all markdown files.
+Unlike 'ensure', this command always updates the field to the specified value,
+even if it already exists. Supports template variables and type casting.
+
+Special values:
+  null - Sets the field to null (not the string "null")`,
+		Args: cobra.ExactArgs(1),
+		RunE: runSet,
+	}
+
+	cmd.Flags().StringSlice("field", nil, "Field name to set (can be specified multiple times)")
+	cmd.Flags().StringSlice("value", nil, "Value for field (can be specified multiple times)")
+	cmd.Flags().StringSlice("type", nil, "Type rules in format field:type (optional, for type casting)")
+	cmd.Flags().Bool("recursive", true, "Process subdirectories")
+	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
+
+	cmd.MarkFlagRequired("field")
+	cmd.MarkFlagRequired("value")
+
+	return cmd
+}
+
+func runSet(cmd *cobra.Command, args []string) error {
+	path := args[0]
+	
+	// Get flags
+	fields, _ := cmd.Flags().GetStringSlice("field")
+	values, _ := cmd.Flags().GetStringSlice("value")
+	typeRules, _ := cmd.Flags().GetStringSlice("type")
+	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
+	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
+	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+
+	if len(fields) != len(values) {
+		return fmt.Errorf("number of fields (%d) must match number of values (%d)", len(fields), len(values))
+	}
+
+	// Parse type rules
+	types := make(map[string]string)
+	for _, rule := range typeRules {
+		parts := strings.Split(rule, ":")
+		if len(parts) == 2 {
+			types[parts[0]] = parts[1]
+		}
+	}
+
+	// Create field-value pairs with null value support
+	fieldValues := make(map[string]interface{})
+	for i, field := range fields {
+		value := values[i]
+		// Handle special null value
+		if value == "null" {
+			fieldValues[field] = nil
+		} else {
+			fieldValues[field] = value
+		}
+	}
+
+	// Create processors
+	typeCaster := processor.NewTypeCaster()
+	
+	// Setup file processor
+	fileProcessor := &processor.FileProcessor{
+		DryRun:         dryRun,
+		Verbose:        verbose,
+		IgnorePatterns: ignorePatterns,
+		ProcessFile: func(file *vault.VaultFile) (bool, error) {
+			fileModified := false
+			
+			for field, value := range fieldValues {
+				// Get current value for comparison
+				currentValue, exists := file.GetField(field)
+				
+				// Set the new value
+				processedValue := value
+				
+				// Apply type casting if specified
+				if expectedType, hasType := types[field]; hasType && value != nil {
+					if castValue, err := typeCaster.Cast(value, expectedType); err == nil {
+						processedValue = castValue
+						if verbose {
+							fmt.Printf("✓ %s: Cast value for '%s' to %s\n", file.RelativePath, field, expectedType)
+						}
+					} else {
+						// Non-halting error: report but continue with original value
+						fmt.Printf("✗ %s: Cannot cast value for '%s' to %s: %v (using original value)\n", 
+							file.RelativePath, field, expectedType, err)
+					}
+				}
+				
+				// Set the field value
+				file.SetField(field, processedValue)
+				fileModified = true
+				
+				if verbose {
+					if exists {
+						fmt.Printf("✓ %s: Updated field '%s': %v -> %v\n", file.RelativePath, field, currentValue, processedValue)
+					} else {
+						fmt.Printf("✓ %s: Set field '%s' = %v\n", file.RelativePath, field, processedValue)
+					}
+				}
+			}
+			
+			return fileModified, nil
+		},
+		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
+			if modified && !verbose {
+				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
+			} else if !modified && verbose {
+				fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
+			}
+		},
+	}
+
+	// Process files
+	result, err := fileProcessor.ProcessPath(path)
+	if err != nil {
+		return err
+	}
+
+	// Print summary
+	fileProcessor.PrintSummary(result)
+
+	return nil
+}
 
 // NewCastCommand creates the frontmatter cast command
 func NewCastCommand() *cobra.Command {
