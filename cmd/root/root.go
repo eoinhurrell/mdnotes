@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/cmd/analyze"
-	"github.com/eoinhurrell/mdnotes/cmd/batch"
 	"github.com/eoinhurrell/mdnotes/cmd/frontmatter"
 	"github.com/eoinhurrell/mdnotes/cmd/headings"
 	"github.com/eoinhurrell/mdnotes/cmd/links"
@@ -23,7 +22,7 @@ func NewRootCommand() *cobra.Command {
 		Use:   "mdnotes",
 		Short: "A CLI tool for managing Obsidian markdown notes",
 		Long: `mdnotes is a command-line tool designed to automate and standardize 
-administrative tasks for Obsidian vaults. It provides powerful batch operations 
+administrative tasks for Obsidian vaults. It provides powerful operations 
 for managing frontmatter, headings, links, and file organization.`,
 		Version: "1.0.0",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -50,7 +49,6 @@ for managing frontmatter, headings, links, and file organization.`,
 
 	// Add subcommands
 	cmd.AddCommand(analyze.NewAnalyzeCommand())
-	cmd.AddCommand(batch.NewBatchCommand())
 	cmd.AddCommand(frontmatter.NewFrontmatterCommand())
 	cmd.AddCommand(headings.NewHeadingsCommand())
 	cmd.AddCommand(links.NewLinksCommand())
@@ -139,7 +137,7 @@ func setupCustomCompletions(cmd *cobra.Command) {
 	// Add completion for commands that need path arguments
 	for _, subCmd := range cmd.Commands() {
 		switch subCmd.Name() {
-		case "frontmatter", "headings", "links", "analyze", "batch":
+		case "frontmatter", "headings", "links", "analyze":
 			// These commands take vault/directory paths
 			subCmd.ValidArgsFunction = CompleteDirs
 			

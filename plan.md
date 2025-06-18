@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The mdnotes CLI has **significantly exceeded** its original 6-cycle development plan, achieving 100% of planned features plus substantial additional functionality. This plan focuses on refining the tool for excellent local usage rather than expanding into ecosystem features.
+The mdnotes CLI has **significantly exceeded** its original 6-cycle development plan, achieving 100% of planned features plus substantial additional functionality. This plan focuses on refining the tool for excellent local usage and redesigning the CLI interface for maximum usability while maintaining logical command groupings.
 
 ## Current Implementation Status
 
@@ -53,190 +53,341 @@ The mdnotes CLI has **significantly exceeded** its original 6-cycle development 
 - Enhanced configuration system
 - Advanced error handling with suggestions
 
-## Enhancement Plan for Local Usage
+## CLI Interface Redesign Plan
 
-### Phase 1: Documentation and Usability (Week 1)
+### Current Problems with CLI Structure
 
-**Goal**: Make the tool more discoverable and easier to use locally.
+1. **Redundant batch command**: Every command already works on folders, batch command is unnecessary
+2. **Verbose command names**: Commands are too long for frequent daily use
+3. **Missing short aliases**: No quick access to common operations
+4. **Inconsistent flag usage**: Verbose and other flags behave differently across commands
+5. **Limited query capabilities**: No way to search or filter based on frontmatter
 
-#### Documentation Improvements
-- Complete user guide with practical examples
-- Configuration reference with all options
-- Troubleshooting guide for common issues
-- Command reference with usage patterns
+### New Improved CLI Structure
 
-#### CLI Usability Enhancements
-- Improved help text with better examples
-- Interactive mode for complex operations
-- Configuration wizard for first-time setup
-- Better progress reporting for long operations
+#### Core Command Groups (with aliases and shortcuts)
 
-#### Implementation Tasks
 ```bash
-# Documentation
-- docs/user-guide.md: Complete workflow examples
-- docs/configuration.md: All config options with examples
-- docs/troubleshooting.md: Common problems and solutions
-- README.md: Quick start and feature overview
+# Frontmatter Management (alias: fm)
+mdnotes frontmatter ensure [path]     # mdnotes fm ensure / mdnotes fm e
+mdnotes frontmatter set [path]        # mdnotes fm set / mdnotes fm s
+mdnotes frontmatter cast [path]       # mdnotes fm cast / mdnotes fm c
+mdnotes frontmatter sync [path]       # mdnotes fm sync / mdnotes fm sy
+mdnotes frontmatter check [path]      # mdnotes fm check / mdnotes fm ch
+mdnotes frontmatter query [path]      # mdnotes fm query / mdnotes fm q
+mdnotes frontmatter download [path]   # mdnotes fm download / mdnotes fm d
 
-# CLI Improvements
-- Interactive prompts for frontmatter ensure/set commands
-- Progress bars for batch operations
-- --examples flag for commands showing usage patterns
-- Improved error messages with context and suggestions
+# Content Operations
+mdnotes headings fix [path]           # mdnotes headings f
+mdnotes links check [path]            # mdnotes links c
+mdnotes links convert [path]          # mdnotes links co
+mdnotes links graph [path]            # mdnotes links g
+
+# File Operations  
+mdnotes rename <file> <new>           # mdnotes r
+mdnotes organize [path]               # mdnotes o (future: smart file organization)
+
+# External Integration
+mdnotes linkding sync [path]          # mdnotes ld sync / mdnotes ld s
+mdnotes linkding list [path]          # mdnotes ld list / mdnotes ld l
+
+# Analysis & Utilities
+mdnotes analyze health [path]         # mdnotes a health / mdnotes a h
+mdnotes analyze links [path]          # mdnotes a links / mdnotes a l
+mdnotes analyze content [path]        # mdnotes a content / mdnotes a c
+mdnotes analyze trends [path]         # mdnotes a trends / mdnotes a t
+mdnotes profile [command]             # mdnotes p
 ```
 
-### Phase 2: Code Quality and Performance (Week 2)
+#### Quick Access Shortcuts (for power users)
 
-**Goal**: Optimize performance and ensure code maintainability.
-
-#### Performance Optimization
-- Benchmark large vaults (10k+ files)
-- Memory usage optimization
-- Parallel processing for bulk operations
-- Caching for repeated operations
-
-#### Code Quality Improvements
-- Test coverage analysis and gap filling
-- Enhanced error handling patterns
-- Code documentation for internal packages
-- Linting rule improvements
-
-#### Implementation Tasks
 ```bash
-# Performance
-- Parallel processing for frontmatter operations
-- Memory profiling and optimization
-- Cached file parsing for repeated operations
-- Streaming processing for very large vaults
-
-# Code Quality
-- Add missing unit tests for edge cases
-- Document all public APIs
-- Consistent error handling patterns
-- Performance benchmarks for core operations
+# Ultra-short aliases for most common operations
+mdnotes e [path]     # Shortcut for: frontmatter ensure
+mdnotes s [path]     # Shortcut for: frontmatter set  
+mdnotes q [path]     # Shortcut for: frontmatter query
+mdnotes f [path]     # Shortcut for: headings fix
+mdnotes c [path]     # Shortcut for: links check
+mdnotes r <file>     # Shortcut for: rename
 ```
 
-### Phase 3: Advanced Features (Week 3)
+### New Commands and Enhanced Functionality
 
-**Goal**: Add sophisticated features that enhance daily usage.
-
-#### Vault Analytics
-- Comprehensive health dashboard
-- Link graph analysis and orphaned file detection
-- Content quality metrics
-- Change tracking and trends
-
-#### Automation Features
-- Watch mode for real-time file monitoring
-- Scheduled batch operations
-- Template-based file generation
-- Smart duplicate handling
-
-#### Implementation Tasks
+#### Frontmatter Query Command (NEW)
 ```bash
-# Analytics
-- `analyze health`: Comprehensive vault health report
-- `analyze links`: Link graph and connectivity analysis
-- `analyze trends`: Change patterns over time
-- `analyze quality`: Writing and structure quality metrics
+# Find files based on frontmatter criteria
+mdnotes frontmatter query [path] --where "tags contains 'project'"
+mdnotes fm q [path] --where "priority > 3"
+mdnotes fm q [path] --where "created after 2024-01-01"
+mdnotes fm q [path] --missing "tags"
+mdnotes fm q [path] --field "title,tags,priority" --format table
 
-# Automation
-- `watch`: Monitor vault for changes and auto-process
-- `generate`: Create files from templates
-- `organize auto`: Smart file organization based on content
-- `deduplicate`: Intelligent duplicate resolution
+# Examples:
+mdnotes fm q . --where "status = 'draft'" --count
+mdnotes fm q . --missing "created" --fix-with "{{current_date}}"
+mdnotes fm q . --duplicates "title"
 ```
 
-### Phase 4: Advanced Configuration and Safety (Week 4)
-
-**Goal**: Make the tool more configurable and safer for daily use.
-
-#### Enhanced Configuration
-- Profile-based configurations
-- Environment-specific settings
-- Command-specific configurations
-- Configuration validation and suggestions
-
-#### Safety and Recovery
-- Enhanced backup management
-- Operation rollback capabilities
-- Conflict resolution strategies
-- Data integrity checks
-
-#### Implementation Tasks
+#### Enhanced Organize Command (FUTURE)
 ```bash
-# Configuration
-- Multiple configuration profiles
-- Environment variable expansion
-- Configuration validation with helpful errors
-- Default configuration generation
-
-# Safety
-- Automatic backup rotation
-- Operation history and rollback
-- File integrity verification
-- Conflict detection and resolution
+# Smart file organization based on content/metadata
+mdnotes organize [path] --by "date"           # Organize by creation date
+mdnotes organize [path] --by "tags"           # Organize by tag structure  
+mdnotes organize [path] --by "template"       # Use custom organization template
+mdnotes organize [path] --auto                # AI-powered organization suggestions
 ```
 
-## Technical Requirements
+#### Content Generation Commands (FUTURE)
+```bash
+# Generate content from templates
+mdnotes generate note --template "daily" --date "2024-01-15"
+mdnotes generate index --for "projects"
+mdnotes generate summary --from "meeting-notes"
+```
 
-### Performance Targets
-- **Large Vaults**: Handle 10,000+ files efficiently
-- **Memory Usage**: O(1) memory per file for most operations
-- **Processing Speed**: <100ms per file for simple operations
-- **Startup Time**: <500ms cold start
+### Global Flag Guidelines
 
-### Quality Standards
-- **Test Coverage**: >90% for core packages, >80% for commands
-- **Documentation**: Every public function and command documented
-- **Error Handling**: All errors include helpful context and suggestions
-- **Cross-Platform**: Works identically on Linux, macOS, Windows
+#### Consistent Flag Behavior Across All Commands
 
-### Usability Goals
-- **Learning Curve**: Common operations learnable in <30 minutes
-- **Error Recovery**: Clear guidance for all error conditions
-- **Configuration**: Sensible defaults, easy customization
-- **Feedback**: Clear progress indication for long operations
+**Required Flags (same behavior everywhere):**
 
-## Implementation Priority
+```bash
+--dry-run, -n
+  # Preview changes without applying them
+  # Shows exactly what would be changed
+  # For query commands: shows what would be found
+  # ALWAYS safe to use
 
-### High Priority (Immediate Value)
-1. **Documentation completion**: User guide, configuration reference
-2. **Performance optimization**: Large vault handling
-3. **Enhanced error messages**: Better user feedback
-4. **Interactive configuration**: Setup wizard
+--verbose, -v  
+  # Detailed output with progress information
+  # Prints filepath of EVERY file examined
+  # Shows what action was taken (or skipped) for each file
+  # Includes timing information for operations
+  # Example output:
+  #   "Examining: /vault/note1.md - Added field 'tags' = []"
+  #   "Examining: /vault/note2.md - Skipped (field exists)"
+  #   "Examining: /vault/note3.md - Fixed heading structure"
 
-### Medium Priority (Quality of Life)
-1. **Vault analytics**: Health and quality metrics
-2. **Watch mode**: Real-time processing
-3. **Advanced safety**: Backup management and rollback
-4. **Template system**: File generation
+--quiet, -q
+  # Suppress all output except errors and final summary
+  # Overrides --verbose if both specified
+  # Only shows critical errors and final counts
 
-### Low Priority (Nice to Have)
-1. **Link graph visualization**: Graphical representation
-2. **Advanced automation**: Complex rule-based processing
-3. **Plugin architecture**: Extensible processing system
-4. **Export formats**: Additional output options
+--config, -c <path>
+  # Specify configuration file path
+  # Overrides default config search locations
+```
 
-## Success Metrics
+**Optional Flags (command-specific but consistent naming):**
 
-### User Experience
-- Setup time: <5 minutes from install to productive use
-- Common operations: Discoverable through help system
-- Error handling: All errors actionable with clear guidance
-- Performance: Responsive for typical vault sizes (1000-5000 files)
+```bash
+--recursive, -R
+  # Process subdirectories (default: true for directories)
+  # Can be disabled with --recursive=false
 
-### Technical Excellence
-- Test suite: Comprehensive coverage with realistic test data
-- Memory efficiency: Stable memory usage regardless of vault size
-- Error boundaries: Graceful handling of all error conditions
-- Code quality: Clean, documented, maintainable codebase
+--ignore <patterns>
+  # File/directory patterns to ignore
+  # Default: [".obsidian/*", "*.tmp"]
+  # Can specify multiple times
 
-### Practical Value
-- Daily workflow: Seamlessly integrates with Obsidian usage
-- Data safety: Never loses user data, always recoverable
-- Reliability: Consistent behavior across different environments
-- Maintainability: Easy to extend and modify for new needs
+--format <type>
+  # Output format for query/analysis commands
+  # Options: table, json, csv, yaml
+  # Default: table for terminal, json for scripts
 
-This plan transforms mdnotes from an excellent CLI tool into a comprehensive local Obsidian management solution while maintaining focus on practical daily usage rather than ecosystem features.
+--limit, -l <number>
+  # Limit number of results (for query commands)
+  # Default: unlimited
+
+--sort <field>
+  # Sort results by field (for query commands)  
+  # Options: name, date, size, etc.
+
+--filter <expression>
+  # Advanced filtering (for query commands)
+  # Uses simple expression language
+```
+
+#### Flag Usage Examples
+
+```bash
+# Verbose mode shows every file examined
+mdnotes fm ensure /vault --field tags --default "[]" --verbose
+# Output:
+#   Examining: /vault/project1.md - Added field 'tags' = []
+#   Examining: /vault/project2.md - Skipped (field exists)  
+#   Examining: /vault/notes/daily.md - Added field 'tags' = []
+#   Summary: 3 files examined, 2 modified
+
+# Dry run shows what would happen
+mdnotes headings fix /vault --dry-run --verbose
+# Output:
+#   Would examine: /vault/project1.md - Would fix H1 title mismatch
+#   Would examine: /vault/project2.md - Would skip (headings OK)
+#   Dry run summary: 2 files would be examined, 1 would be modified
+
+# Quiet mode only shows summary
+mdnotes fm check /vault --quiet
+# Output:
+#   Validation passed: 150 files validated
+
+# Query with formatting
+mdnotes fm query /vault --where "tags contains 'urgent'" --format table --verbose
+# Output:
+#   Examining: /vault/project1.md - Matches query
+#   Examining: /vault/project2.md - No match (no 'urgent' tag)
+#   ┌──────────────┬─────────┬──────────┐
+#   │ File         │ Title   │ Tags     │
+#   ├──────────────┼─────────┼──────────┤
+#   │ project1.md  │ Project │ urgent   │
+#   └──────────────┴─────────┴──────────┘
+```
+
+### Key Improvements
+
+1. **Preserved Command Scopes**: Frontmatter, headings, links, etc. remain logically grouped
+2. **Multiple Access Patterns**: 
+   - Full commands: `mdnotes frontmatter ensure`
+   - Group aliases: `mdnotes fm ensure` 
+   - Subcommand aliases: `mdnotes fm e`
+   - Ultra-short: `mdnotes e`
+3. **Automatic Batch Processing**: All commands work on files/folders without separate batch command
+4. **Consistent Flag Behavior**: Same flags work the same way across all commands
+5. **Extensible Design**: Easy to add new commands in existing groups
+
+### Command Consolidation Mapping
+
+**Batch Command Elimination:**
+```bash
+# Before: Complex batch configuration
+batch execute --config batch.yaml /vault
+
+# After: Direct command usage (automatic batch on folders)
+mdnotes fm ensure /vault --field tags --default "[]"
+mdnotes headings fix /vault
+mdnotes links check /vault
+```
+
+**Enhanced Access Patterns:**
+```bash
+# Verbose traditional approach
+mdnotes frontmatter ensure /vault --field tags --default "[]"
+
+# Moderate shortcut
+mdnotes fm ensure /vault --field tags --default "[]"  
+
+# Power user shortcut
+mdnotes e /vault --field tags --default "[]"
+```
+
+### Implementation Plan
+
+#### Phase 1: CLI Restructure (Week 1)
+
+**Goal**: Implement improved command structure while preserving logical groupings
+
+##### Task 1.1: Remove Batch Command
+- Remove `cmd/batch/` directory entirely
+- Update root command to remove batch registration
+- Document migration path for existing batch users
+
+##### Task 1.2: Add Command Aliases
+- Add group aliases: `fm` for frontmatter, `a` for analyze, etc.
+- Add subcommand aliases: `e` for ensure, `s` for set, etc.
+- Add ultra-short global shortcuts for most common commands
+- Update shell completion for all alias variations
+
+##### Task 1.3: Implement Frontmatter Query Command
+```go
+// New query command structure
+mdnotes frontmatter query [path] [flags]
+  --where <expression>     # Filter criteria
+  --missing <field>        # Find files missing field
+  --duplicates <field>     # Find duplicate values
+  --field <list>           # Select specific fields to show
+  --format <type>          # Output format
+  --count                  # Just show count
+  --fix-with <value>       # Auto-fix missing fields
+```
+
+##### Task 1.4: Standardize Flag Behavior
+- Implement consistent --verbose behavior across all commands
+- Ensure --dry-run works identically everywhere
+- Add --format support to appropriate commands
+- Update help text to show flag behavior clearly
+
+#### Phase 2: Enhanced Features (Week 2)
+
+**Goal**: Add powerful new functionality while maintaining simplicity
+
+##### Task 2.1: Enhanced Query Language
+```bash
+# Simple comparisons
+--where "priority > 3"
+--where "status = 'draft'"
+--where "tags contains 'urgent'"
+
+# Date comparisons  
+--where "created after 2024-01-01"
+--where "modified within 7 days"
+
+# Complex expressions
+--where "priority > 3 AND status != 'done'"
+--where "tags contains 'project' OR tags contains 'work'"
+```
+
+##### Task 2.2: Smart Organization Features
+- Pattern-based file organization
+- Template-driven folder structures
+- Automatic tagging suggestions
+- Duplicate detection and resolution
+
+##### Task 2.3: Enhanced Analysis
+- Link graph visualization (text-based)
+- Content quality scoring
+- Vault growth trends
+- Health monitoring dashboard
+
+#### Phase 3: Polish and Future-Proofing (Week 3)
+
+**Goal**: Ensure excellent user experience and extensibility
+
+##### Task 3.1: Comprehensive Testing
+- Test all alias combinations work correctly
+- Verify flag consistency across commands
+- Performance testing with large vaults
+- User experience testing with real workflows
+
+##### Task 3.2: Documentation and Examples
+- Create comprehensive command reference
+- Add practical workflow examples
+- Document flag usage patterns
+- Create migration guide from old CLI
+
+##### Task 3.3: Future Command Framework
+- Design extensible command structure
+- Plan for AI-powered features
+- Consider plugin architecture
+- Document command development guidelines
+
+### Success Metrics
+
+#### Usability Improvements
+- **Command Efficiency**: Common tasks reduced to 2-3 characters (`mdnotes e`)
+- **Learning Curve**: Multiple access patterns accommodate different user types
+- **Discoverability**: Clear help system with examples and aliases
+- **Power User Features**: Query and filter capabilities for advanced workflows
+
+#### Technical Excellence
+- **Consistency**: All flags behave identically across commands
+- **Performance**: No regression in processing speed
+- **Extensibility**: Easy to add new commands and features
+- **Reliability**: Comprehensive error handling and recovery
+
+#### User Experience Goals
+- **Flexibility**: Works for both beginners and power users
+- **Efficiency**: Multiple ways to access functionality
+- **Clarity**: Verbose mode provides complete transparency
+- **Safety**: Dry-run mode works everywhere
+
+This redesigned CLI maintains logical command organization while dramatically improving usability through multiple access patterns, consistent flag behavior, and powerful new query capabilities.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **mdnotes** - a Go CLI tool for managing Obsidian markdown notes. The tool provides batch operations for frontmatter management, heading fixes, link conversions, and external service integrations like Linkding.
+This is **mdnotes** - a Go CLI tool for managing Obsidian markdown notes. The tool provides operations for frontmatter management, heading fixes, link conversions, and external service integrations like Linkding.
 
 ## Development Commands
 
@@ -202,17 +202,6 @@ mdnotes links convert --from markdown --to wiki /path/to/vault
 mdnotes links convert --from wiki --to markdown --dry-run /path/to/vault
 ```
 
-#### Batch Operations
-```bash
-# Execute batch operations from config file
-mdnotes batch execute --config batch-config.yaml /path/to/vault
-
-# With progress reporting
-mdnotes batch execute --config batch-config.yaml --progress terminal /path/to/vault
-
-# Dry run with JSON progress output
-mdnotes batch execute --config batch-config.yaml --dry-run --progress json /path/to/vault
-```
 
 #### Linkding Integration
 ```bash
@@ -330,4 +319,66 @@ Provide clear, actionable error messages with:
 - Follow Go error wrapping patterns with `fmt.Errorf` and `%w`
 - Use structured logging for debugging
 - Atomic file operations to prevent corruption
+
+## CLI Changes and Migration Guide
+
+### Batch Command Removal (v1.1+)
+
+**REMOVED**: The `batch` command has been eliminated as redundant. All commands now automatically work in batch mode when processing directories.
+
+#### Migration from Batch Commands
+
+**Before (DEPRECATED):**
+```bash
+# Old batch configuration approach
+mdnotes batch execute --config batch-config.yaml /vault/path
+
+# Batch configuration file (batch-config.yaml):
+operations:
+  - name: "Ensure frontmatter fields"
+    command: "frontmatter.ensure"
+    parameters:
+      fields: ["tags", "created"]
+      defaults: ["[]", "{{current_date}}"]
+```
+
+**After (RECOMMENDED):**
+```bash
+# Direct command usage - automatic batch processing on directories
+mdnotes frontmatter ensure /vault/path --field tags --default "[]" --field created --default "{{current_date}}"
+
+# Individual operations (replace complex batch config with direct commands)
+mdnotes frontmatter ensure /vault/path --field tags --default "[]"
+mdnotes frontmatter cast /vault/path --auto-detect
+mdnotes headings fix /vault/path
+mdnotes links check /vault/path
+```
+
+#### Key Benefits of the New Approach
+
+1. **Simpler**: No need for separate configuration files
+2. **More Direct**: Clear command-to-action mapping
+3. **Better Discoverability**: Commands are obvious and self-documenting
+4. **Consistent**: All commands work the same way on files and directories
+5. **Faster**: Less overhead and configuration parsing
+
+#### Automatic Batch Processing
+
+All commands now automatically detect whether the path is a file or directory:
+
+- **File path**: Processes single file (e.g., `note.md`)
+- **Directory path**: Recursively processes all `.md` files in directory
+- **Same flags**: All flags work identically for both scenarios
+- **Progress reporting**: Automatic progress indication for multiple files
+
+#### Command Flag Standardization
+
+All commands now support consistent flag behavior:
+
+```bash
+--dry-run, -n     # Preview changes (works on all commands)
+--verbose, -v     # Show every file examined and action taken
+--quiet, -q       # Only show errors and final summary
+--config, -c      # Specify config file path
+```
 

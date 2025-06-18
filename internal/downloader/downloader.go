@@ -186,26 +186,26 @@ func (d *Downloader) determineExtension(resp *http.Response, urlStr string) stri
 		// Remove charset and other parameters
 		mediaType, _, err := mime.ParseMediaType(contentType)
 		if err == nil {
-			// Get extension from MIME type
-			if exts, err := mime.ExtensionsByType(mediaType); err == nil && len(exts) > 0 {
-				return exts[0] // Return the first (usually most common) extension
+			// Use custom mapping for Obsidian-compatible extensions
+			if ext := d.getObsidianCompatibleExtension(mediaType); ext != "" {
+				return ext
 			}
 		}
 	}
 
-	// Fall back to URL path extension
+	// Fall back to URL path extension, but fix known problematic extensions
 	parsedURL, err := url.Parse(urlStr)
 	if err == nil {
 		ext := filepath.Ext(parsedURL.Path)
 		if ext != "" {
-			return ext
+			return d.normalizeExtensionForObsidian(ext)
 		}
 	}
 
 	// Default extensions for common types
 	if strings.Contains(contentType, "image/") {
 		if strings.Contains(contentType, "jpeg") || strings.Contains(contentType, "jpg") {
-			return ".jpg"
+			return ".jpeg"
 		} else if strings.Contains(contentType, "png") {
 			return ".png"
 		} else if strings.Contains(contentType, "gif") {
@@ -217,6 +217,62 @@ func (d *Downloader) determineExtension(resp *http.Response, urlStr string) stri
 
 	// If all else fails, use .bin
 	return ".bin"
+}
+
+// getObsidianCompatibleExtension returns Obsidian-compatible extensions for common MIME types
+func (d *Downloader) getObsidianCompatibleExtension(mediaType string) string {
+	// Map of MIME types to Obsidian-compatible extensions
+	extensionMap := map[string]string{
+		// Image formats - use extensions that Obsidian recognizes
+		"image/jpeg":    ".jpeg",
+		"image/jpg":     ".jpeg", 
+		"image/png":     ".png",
+		"image/gif":     ".gif",
+		"image/webp":    ".webp",
+		"image/svg+xml": ".svg",
+		"image/bmp":     ".bmp",
+		"image/tiff":    ".tiff",
+		"image/x-icon":  ".ico",
+		
+		// Document formats
+		"application/pdf": ".pdf",
+		"text/plain":      ".txt",
+		"text/markdown":   ".md",
+		"text/html":       ".html",
+		
+		// Audio formats
+		"audio/mpeg":  ".mp3",
+		"audio/wav":   ".wav",
+		"audio/ogg":   ".ogg",
+		"audio/mp4":   ".m4a",
+		
+		// Video formats  
+		"video/mp4":  ".mp4",
+		"video/webm": ".webm",
+		"video/ogg":  ".ogv",
+	}
+	
+	return extensionMap[mediaType]
+}
+
+// normalizeExtensionForObsidian fixes problematic file extensions for Obsidian compatibility
+func (d *Downloader) normalizeExtensionForObsidian(ext string) string {
+	// Convert to lowercase for consistent comparison
+	lowerExt := strings.ToLower(ext)
+	
+	// Map of problematic extensions to Obsidian-compatible ones
+	normalizeMap := map[string]string{
+		".jpe":   ".jpeg", // Fix the main issue - jpe is not recognized by Obsidian
+		".jpg":   ".jpeg", // Prefer .jpeg over .jpg for consistency
+		".tif":   ".tiff", // Prefer full extension name
+		".htm":   ".html", // Prefer full extension name
+	}
+	
+	if normalized := normalizeMap[lowerExt]; normalized != "" {
+		return normalized
+	}
+	
+	return ext // Return original if no normalization needed
 }
 
 // IsValidURL checks if a string looks like a downloadable HTTP/HTTPS URL
