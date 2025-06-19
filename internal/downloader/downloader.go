@@ -30,7 +30,7 @@ func NewDownloader(cfg config.DownloadConfig) (*Downloader, error) {
 	if timeoutStr == "" {
 		timeoutStr = "30s"
 	}
-	
+
 	timeout, err := time.ParseDuration(timeoutStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid timeout duration: %w", err)
@@ -50,17 +50,17 @@ func NewDownloader(cfg config.DownloadConfig) (*Downloader, error) {
 	if userAgent == "" {
 		userAgent = "mdnotes/1.0"
 	}
-	
+
 	maxFileSize := cfg.MaxFileSize
 	if maxFileSize == 0 {
 		maxFileSize = 10 * 1024 * 1024 // 10MB
 	}
-	
+
 	attachmentsDir := cfg.AttachmentsDir
 	if attachmentsDir == "" {
 		attachmentsDir = "./resources/attachments"
 	}
-	
+
 	// Update config with defaults
 	finalConfig := cfg
 	finalConfig.Timeout = timeoutStr
@@ -78,12 +78,12 @@ func NewDownloader(cfg config.DownloadConfig) (*Downloader, error) {
 
 // DownloadResult contains information about a downloaded file
 type DownloadResult struct {
-	LocalPath    string
-	OriginalURL  string
-	ContentType  string
-	Size         int64
-	Extension    string
-	Skipped      bool // Indicates file already existed and was skipped
+	LocalPath   string
+	OriginalURL string
+	ContentType string
+	Size        int64
+	Extension   string
+	Skipped     bool // Indicates file already existed and was skipped
 }
 
 // DownloadResource downloads a resource from a URL to a local file
@@ -225,7 +225,7 @@ func (d *Downloader) getObsidianCompatibleExtension(mediaType string) string {
 	extensionMap := map[string]string{
 		// Image formats - use extensions that Obsidian recognizes
 		"image/jpeg":    ".jpeg",
-		"image/jpg":     ".jpeg", 
+		"image/jpg":     ".jpeg",
 		"image/png":     ".png",
 		"image/gif":     ".gif",
 		"image/webp":    ".webp",
@@ -233,25 +233,25 @@ func (d *Downloader) getObsidianCompatibleExtension(mediaType string) string {
 		"image/bmp":     ".bmp",
 		"image/tiff":    ".tiff",
 		"image/x-icon":  ".ico",
-		
+
 		// Document formats
 		"application/pdf": ".pdf",
 		"text/plain":      ".txt",
 		"text/markdown":   ".md",
 		"text/html":       ".html",
-		
+
 		// Audio formats
-		"audio/mpeg":  ".mp3",
-		"audio/wav":   ".wav",
-		"audio/ogg":   ".ogg",
-		"audio/mp4":   ".m4a",
-		
-		// Video formats  
+		"audio/mpeg": ".mp3",
+		"audio/wav":  ".wav",
+		"audio/ogg":  ".ogg",
+		"audio/mp4":  ".m4a",
+
+		// Video formats
 		"video/mp4":  ".mp4",
 		"video/webm": ".webm",
 		"video/ogg":  ".ogv",
 	}
-	
+
 	return extensionMap[mediaType]
 }
 
@@ -259,19 +259,19 @@ func (d *Downloader) getObsidianCompatibleExtension(mediaType string) string {
 func (d *Downloader) normalizeExtensionForObsidian(ext string) string {
 	// Convert to lowercase for consistent comparison
 	lowerExt := strings.ToLower(ext)
-	
+
 	// Map of problematic extensions to Obsidian-compatible ones
 	normalizeMap := map[string]string{
-		".jpe":   ".jpeg", // Fix the main issue - jpe is not recognized by Obsidian
-		".jpg":   ".jpeg", // Prefer .jpeg over .jpg for consistency
-		".tif":   ".tiff", // Prefer full extension name
-		".htm":   ".html", // Prefer full extension name
+		".jpe": ".jpeg", // Fix the main issue - jpe is not recognized by Obsidian
+		".jpg": ".jpeg", // Prefer .jpeg over .jpg for consistency
+		".tif": ".tiff", // Prefer full extension name
+		".htm": ".html", // Prefer full extension name
 	}
-	
+
 	if normalized := normalizeMap[lowerExt]; normalized != "" {
 		return normalized
 	}
-	
+
 	return ext // Return original if no normalization needed
 }
 
@@ -293,9 +293,9 @@ func IsValidURL(str string) bool {
 func GenerateWikiLink(localPath string) string {
 	// Convert to forward slashes for consistency
 	linkPath := filepath.ToSlash(localPath)
-	
+
 	// Remove leading ./ if present
 	linkPath = strings.TrimPrefix(linkPath, "./")
-	
+
 	return fmt.Sprintf("[[%s]]", linkPath)
 }

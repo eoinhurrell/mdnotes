@@ -48,16 +48,16 @@ func (e *Engine) processVariable(variable string, file *vault.VaultFile) string 
 	// Split variable and filters: variable|filter1:param|filter2
 	parts := strings.Split(variable, "|")
 	varName := strings.TrimSpace(parts[0])
-	
+
 	// Get the value
 	value := e.getVariableValue(varName, file)
-	
+
 	// Apply filters
 	for i := 1; i < len(parts); i++ {
 		filter := strings.TrimSpace(parts[i])
 		value = e.applyFilter(value, filter)
 	}
-	
+
 	return value
 }
 
@@ -102,7 +102,7 @@ func (e *Engine) applyFilter(value, filter string) string {
 	// Split filter and parameters: filter:param1:param2
 	parts := strings.Split(filter, ":")
 	filterName := parts[0]
-	
+
 	switch filterName {
 	case "upper":
 		return strings.ToUpper(value)
@@ -124,14 +124,14 @@ func (e *Engine) applyFilter(value, filter string) string {
 func (e *Engine) slugify(s string) string {
 	// Convert to lowercase
 	s = strings.ToLower(s)
-	
+
 	// Replace spaces and special characters with hyphens
 	reg := regexp.MustCompile(`[^a-z0-9]+`)
 	s = reg.ReplaceAllString(s, "-")
-	
+
 	// Remove leading/trailing hyphens
 	s = strings.Trim(s, "-")
-	
+
 	return s
 }
 
@@ -144,13 +144,13 @@ func (e *Engine) formatDate(dateStr, layout string) string {
 		"2006-01-02",
 		"2006-01-02 15:04:05",
 	}
-	
+
 	for _, format := range formats {
 		if t, err := time.Parse(format, dateStr); err == nil {
 			return t.Format(layout)
 		}
 	}
-	
+
 	// If parsing fails, return original string
 	return dateStr
 }
@@ -168,11 +168,11 @@ func (e *Engine) generateUUID() string {
 			0x8000|(e.currentTime.Nanosecond()>>8)&0x3fff,
 			e.currentTime.Nanosecond())
 	}
-	
+
 	// Set version (4) and variant bits
 	b[6] = (b[6] & 0x0f) | 0x40 // Version 4
 	b[8] = (b[8] & 0x3f) | 0x80 // Variant 10
-	
+
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }

@@ -24,17 +24,17 @@ type ProgressCallback func(result SyncResult)
 
 // LinkdingSyncConfig configures the Linkding synchronization
 type LinkdingSyncConfig struct {
-	URLField         string // Frontmatter field containing the URL
-	IDField          string // Frontmatter field to store Linkding ID
-	TitleField       string // Frontmatter field containing the title
-	TagsField        string // Frontmatter field containing tags
-	DescriptionField string // Frontmatter field containing description
-	NotesField       string // Frontmatter field containing notes
-	SyncTitle        bool   // Whether to sync title to Linkding
-	SyncTags         bool   // Whether to sync tags to Linkding
-	SyncDescription  bool   // Whether to sync description to Linkding
-	SyncNotes        bool   // Whether to sync notes to Linkding
-	DryRun           bool   // Whether to perform a dry run
+	URLField         string           // Frontmatter field containing the URL
+	IDField          string           // Frontmatter field to store Linkding ID
+	TitleField       string           // Frontmatter field containing the title
+	TagsField        string           // Frontmatter field containing tags
+	DescriptionField string           // Frontmatter field containing description
+	NotesField       string           // Frontmatter field containing notes
+	SyncTitle        bool             // Whether to sync title to Linkding
+	SyncTags         bool             // Whether to sync tags to Linkding
+	SyncDescription  bool             // Whether to sync description to Linkding
+	SyncNotes        bool             // Whether to sync notes to Linkding
+	DryRun           bool             // Whether to perform a dry run
 	ProgressCallback ProgressCallback // Optional callback for real-time progress
 }
 
@@ -46,10 +46,10 @@ type LinkdingSync struct {
 
 // SyncResult represents the result of a sync operation
 type SyncResult struct {
-	File      *vault.VaultFile
-	Action    string // "created", "updated", "skipped", "error"
+	File       *vault.VaultFile
+	Action     string // "created", "updated", "skipped", "error"
 	BookmarkID int
-	Error     error
+	Error      error
 }
 
 // NewLinkdingSync creates a new Linkding sync processor
@@ -282,7 +282,7 @@ func (ls *LinkdingSync) SyncBatch(ctx context.Context, files []*vault.VaultFile)
 		}
 
 		results = append(results, result)
-		
+
 		// Call progress callback if provided
 		if ls.config.ProgressCallback != nil {
 			ls.config.ProgressCallback(result)
@@ -425,7 +425,7 @@ func (ls *LinkdingSync) convertToStringSlice(value interface{}) []string {
 		if str == "" {
 			return []string{}
 		}
-		
+
 		// Handle comma-separated tags
 		if strings.Contains(str, ",") {
 			var result []string
@@ -436,7 +436,7 @@ func (ls *LinkdingSync) convertToStringSlice(value interface{}) []string {
 			}
 			return result
 		}
-		
+
 		return []string{str}
 
 	default:

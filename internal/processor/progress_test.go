@@ -52,7 +52,7 @@ func TestTerminalProgress_ProgressBar(t *testing.T) {
 	// Test 50% progress
 	progress.Update(5, "Half done")
 	output := buf.String()
-	
+
 	// Should have some filled characters and some empty
 	assert.Contains(t, output, "█")
 	assert.Contains(t, output, "░")
@@ -82,7 +82,7 @@ func TestJSONProgress(t *testing.T) {
 
 	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	
+
 	// Should have 3 lines (start, progress, complete)
 	assert.Len(t, lines, 3)
 
@@ -108,23 +108,23 @@ func TestNewProgressReporter(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "terminal reporter",
-			opts: ProgressOptions{Type: "terminal"},
+			name:     "terminal reporter",
+			opts:     ProgressOptions{Type: "terminal"},
 			expected: "*processor.TerminalProgress",
 		},
 		{
-			name: "json reporter",
-			opts: ProgressOptions{Type: "json"},
+			name:     "json reporter",
+			opts:     ProgressOptions{Type: "json"},
 			expected: "*processor.JSONProgress",
 		},
 		{
-			name: "silent reporter",
-			opts: ProgressOptions{Type: "silent"},
+			name:     "silent reporter",
+			opts:     ProgressOptions{Type: "silent"},
 			expected: "*processor.SilentProgress",
 		},
 		{
-			name: "default to terminal",
-			opts: ProgressOptions{Type: ""},
+			name:     "default to terminal",
+			opts:     ProgressOptions{Type: ""},
 			expected: "*processor.TerminalProgress",
 		},
 	}
@@ -145,14 +145,14 @@ func TestTerminalProgress_ETA(t *testing.T) {
 	progress.width = 10
 
 	progress.Start(10)
-	
+
 	// Simulate some time passing
 	progress.startTime = time.Now().Add(-2 * time.Second)
-	
+
 	buf.Reset()
 	progress.Update(2, "Test")
 	output := buf.String()
-	
+
 	// Should contain ETA
 	assert.Contains(t, output, "ETA:")
 }
@@ -173,18 +173,17 @@ func TestTerminalProgress_ZeroTotal(t *testing.T) {
 
 func TestProgressOptions_CustomWriter(t *testing.T) {
 	var buf bytes.Buffer
-	
+
 	opts := ProgressOptions{
 		Type:   "terminal",
 		Writer: &buf,
 		Width:  15,
 	}
-	
+
 	reporter := NewProgressReporter(opts)
 	reporter.Start(5)
 	reporter.Update(1, "Test")
-	
+
 	assert.NotEmpty(t, buf.String())
 	assert.Contains(t, buf.String(), "1/5")
 }
-

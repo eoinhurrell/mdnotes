@@ -106,7 +106,7 @@ func TestDryRun_JSONReport(t *testing.T) {
 		Changes: []Change{
 			{Field: "tags", NewValue: []string{}, Action: "add"},
 		},
-		Description: "Add tags field",
+		Description:       "Add tags field",
 		EstimatedDuration: 100 * time.Millisecond,
 	})
 
@@ -122,20 +122,20 @@ func TestDryRun_SummaryStats(t *testing.T) {
 
 	// Add various operations
 	dryRun.Record(Operation{
-		Type: "frontmatter.ensure",
-		File: "file1.md",
+		Type:    "frontmatter.ensure",
+		File:    "file1.md",
 		Changes: []Change{{Field: "tags", Action: "add"}},
 	})
 
 	dryRun.Record(Operation{
-		Type: "frontmatter.ensure",
-		File: "file2.md",
+		Type:    "frontmatter.ensure",
+		File:    "file2.md",
 		Changes: []Change{{Field: "title", Action: "add"}},
 	})
 
 	dryRun.Record(Operation{
-		Type: "headings.fix",
-		File: "file3.md",
+		Type:    "headings.fix",
+		File:    "file3.md",
 		Changes: []Change{{Field: "heading", Action: "modify"}},
 	})
 
@@ -158,20 +158,20 @@ func TestDryRun_FilterOperations(t *testing.T) {
 
 	// Add operations for different files
 	dryRun.Record(Operation{
-		Type: "frontmatter.ensure",
-		File: "important.md",
+		Type:    "frontmatter.ensure",
+		File:    "important.md",
 		Changes: []Change{{Field: "tags", Action: "add"}},
 	})
 
 	dryRun.Record(Operation{
-		Type: "headings.fix",
-		File: "other.md",
+		Type:    "headings.fix",
+		File:    "other.md",
 		Changes: []Change{{Field: "heading", Action: "modify"}},
 	})
 
 	dryRun.Record(Operation{
-		Type: "frontmatter.cast",
-		File: "important.md",
+		Type:    "frontmatter.cast",
+		File:    "important.md",
 		Changes: []Change{{Field: "priority", Action: "cast"}},
 	})
 

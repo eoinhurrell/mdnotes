@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/spf13/cobra"
 )
 
 // NewLinksCommand creates the links command
@@ -42,10 +42,16 @@ Reports links that point to non-existent files.`,
 
 func runCheck(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	// Scan files
 	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
@@ -55,7 +61,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(files) == 0 {
-		fmt.Println("No markdown files found")
+		if !quiet {
+			fmt.Println("No markdown files found")
+		}
 		return nil
 	}
 
@@ -77,16 +85,21 @@ func runCheck(cmd *cobra.Command, args []string) error {
 
 	for _, file := range files {
 		linkParser.UpdateFile(file)
-		
+
+		fileHasBrokenLinks := false
+		fileLinksCount := 0
+
 		for _, link := range file.Links {
 			totalLinks++
-			
+			fileLinksCount++
+
 			// Normalize link target for checking
 			target := link.Target
 			if link.Type == vault.WikiLink && !strings.HasSuffix(target, ".md") && !strings.Contains(target, ".") {
 				// Wiki links might not have extension
 				if !existingFiles[target] && !existingFiles[target+".md"] {
 					brokenLinks++
+					fileHasBrokenLinks = true
 					fmt.Printf("✗ %s: broken link [[%s]]\n", file.RelativePath, target)
 				} else if verbose {
 					fmt.Printf("✓ %s: valid link [[%s]]\n", file.RelativePath, target)
@@ -95,6 +108,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 				// Regular links with extensions
 				if !existingFiles[target] {
 					brokenLinks++
+					fileHasBrokenLinks = true
 					linkText := formatLinkForDisplay(link)
 					fmt.Printf("✗ %s: broken link %s\n", file.RelativePath, linkText)
 				} else if verbose {
@@ -103,14 +117,29 @@ func runCheck(cmd *cobra.Command, args []string) error {
 				}
 			}
 		}
+
+		// Show examining message for verbose mode
+		if verbose {
+			if fileLinksCount == 0 {
+				fmt.Printf("Examining: %s - No links found\n", file.RelativePath)
+			} else if fileHasBrokenLinks {
+				fmt.Printf("Examining: %s - Found broken links\n", file.RelativePath)
+			} else {
+				fmt.Printf("Examining: %s - All %d links valid\n", file.RelativePath, fileLinksCount)
+			}
+		}
 	}
 
 	// Summary
 	if brokenLinks > 0 {
-		fmt.Printf("\nCheck completed: %d broken links found out of %d total links\n", brokenLinks, totalLinks)
+		if !quiet {
+			fmt.Printf("\nCheck completed: %d broken links found out of %d total links\n", brokenLinks, totalLinks)
+		}
 		return fmt.Errorf("found %d broken links", brokenLinks)
 	} else {
-		fmt.Printf("\nCheck completed: all %d links are valid\n", totalLinks)
+		if !quiet {
+			fmt.Printf("\nCheck completed: all %d links are valid\n", totalLinks)
+		}
 	}
 
 	return nil
@@ -138,13 +167,19 @@ Markdown format: [text](note.md)`,
 
 func runConvert(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	fromFormat, _ := cmd.Flags().GetString("from")
 	toFormat, _ := cmd.Flags().GetString("to")
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	// Parse formats
 	var from, to processor.LinkFormat
@@ -173,24 +208,27 @@ func runConvert(cmd *cobra.Command, args []string) error {
 
 	// Create processor
 	converter := processor.NewLinkConverter()
-	
+
 	// Setup file processor
 	fileProcessor := &processor.FileProcessor{
 		DryRun:         dryRun,
 		Verbose:        verbose,
+		Quiet:          quiet,
 		IgnorePatterns: ignorePatterns,
 		ProcessFile: func(file *vault.VaultFile) (bool, error) {
-			return converter.ConvertFile(file, from, to), nil
+			modified := converter.ConvertFile(file, from, to)
+			if verbose {
+				if modified {
+					fmt.Printf("Examining: %s - Converted links from %s to %s format\n", file.RelativePath, fromFormat, toFormat)
+				} else {
+					fmt.Printf("Examining: %s - No links to convert\n", file.RelativePath)
+				}
+			}
+			return modified, nil
 		},
 		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
-			if modified {
-				if verbose {
-					fmt.Printf("✓ %s: Converted links from %s to %s format\n", file.RelativePath, fromFormat, toFormat)
-				} else {
-					fmt.Printf("✓ Processed: %s\n", file.RelativePath)
-				}
-			} else if verbose {
-				fmt.Printf("- Skipped: %s (no links to convert)\n", file.RelativePath)
+			if modified && !verbose && !quiet {
+				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
 			}
 		},
 	}

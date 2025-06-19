@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/spf13/cobra"
 )
 
 // NewRenameCommand creates the rename command
@@ -43,12 +43,18 @@ Examples:
 func runRename(cmd *cobra.Command, args []string) error {
 	sourceFile := args[0]
 	newName := args[1]
-	
+
 	// Get flags
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	vaultRoot, _ := cmd.Flags().GetString("vault")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	// Validate source file exists
 	if _, err := os.Stat(sourceFile); os.IsNotExist(err) {
@@ -135,10 +141,10 @@ func runRename(cmd *cobra.Command, args []string) error {
 
 	// Create link updater
 	linkUpdater := processor.NewLinkUpdater()
-	
+
 	// Update links in all files
 	modifiedFiles := linkUpdater.UpdateBatch(files, []processor.FileMove{move})
-	
+
 	if verbose && len(modifiedFiles) > 0 {
 		fmt.Printf("Updated links in %d files:\n", len(modifiedFiles))
 		for _, file := range modifiedFiles {
@@ -152,7 +158,7 @@ func runRename(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("serializing updated file %s: %w", file.RelativePath, err)
 		}
-		
+
 		if err := os.WriteFile(file.Path, content, 0644); err != nil {
 			return fmt.Errorf("saving updated file %s: %w", file.RelativePath, err)
 		}
@@ -169,9 +175,11 @@ func runRename(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("renaming file: %w", err)
 	}
 
-	fmt.Printf("✓ Renamed: %s -> %s\n", sourceRel, targetRel)
-	if len(modifiedFiles) > 0 {
-		fmt.Printf("✓ Updated %d files with references\n", len(modifiedFiles))
+	if !quiet {
+		fmt.Printf("✓ Renamed: %s -> %s\n", sourceRel, targetRel)
+		if len(modifiedFiles) > 0 {
+			fmt.Printf("✓ Updated %d files with references\n", len(modifiedFiles))
+		}
 	}
 
 	return nil
@@ -192,7 +200,7 @@ func showLinkReferences(sourceRel, vaultRoot string, ignorePatterns []string, ve
 	for _, file := range files {
 		linkParser.UpdateFile(file)
 		fileReferences := 0
-		
+
 		for _, link := range file.Links {
 			// Check if this link references our source file
 			if linksToFile(link, sourceRel) {
@@ -206,6 +214,14 @@ func showLinkReferences(sourceRel, vaultRoot string, ignorePatterns []string, ve
 				}
 				fileReferences++
 				totalReferences++
+			}
+		}
+
+		if verbose {
+			if fileReferences > 0 {
+				fmt.Printf("Examining: %s - Found %d references to update\n", file.RelativePath, fileReferences)
+			} else {
+				fmt.Printf("Examining: %s - No references found\n", file.RelativePath)
 			}
 		}
 	}
@@ -222,14 +238,14 @@ func showLinkReferences(sourceRel, vaultRoot string, ignorePatterns []string, ve
 // linksToFile checks if a link references the given file
 func linksToFile(link vault.Link, targetFile string) bool {
 	target := link.Target
-	
+
 	// Normalize paths for comparison
 	targetFile = filepath.ToSlash(targetFile)
 	target = filepath.ToSlash(target)
-	
+
 	// Remove .md extension from target file for wiki link comparison
 	targetWithoutExt := strings.TrimSuffix(targetFile, ".md")
-	
+
 	switch link.Type {
 	case vault.WikiLink:
 		// Wiki links might not have .md extension
@@ -241,11 +257,11 @@ func linksToFile(link vault.Link, targetFile string) bool {
 			return target+".md" == targetFile
 		}
 		return target == targetFile
-		
+
 	case vault.MarkdownLink, vault.EmbedLink:
 		// Direct comparison for markdown and embed links
 		return target == targetFile
-		
+
 	default:
 		return false
 	}

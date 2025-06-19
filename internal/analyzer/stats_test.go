@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAnalyzer_GenerateStats(t *testing.T) {
@@ -117,7 +117,7 @@ func TestAnalyzer_FindContentDuplicates(t *testing.T) {
 
 func TestAnalyzer_AnalyzeField(t *testing.T) {
 	analyzer := NewAnalyzer()
-	
+
 	files := []*vault.VaultFile{
 		{
 			Path: "file1.md",
@@ -143,14 +143,14 @@ func TestAnalyzer_AnalyzeField(t *testing.T) {
 			},
 		},
 		{
-			Path: "file4.md",
+			Path:        "file4.md",
 			Frontmatter: map[string]interface{}{}, // Missing fields
 		},
 	}
 
 	analysis := analyzer.AnalyzeField(files, "priority")
 	assert.Equal(t, "priority", analysis.FieldName)
-	assert.Equal(t, 3, analysis.TotalFiles) // Files that have the field
+	assert.Equal(t, 3, analysis.TotalFiles)   // Files that have the field
 	assert.Equal(t, 1, analysis.MissingCount) // Files that don't have the field
 	assert.Equal(t, 2, analysis.UniqueValues)
 	assert.Equal(t, map[interface{}]int{1: 2, 2: 1}, analysis.ValueDistribution)
@@ -208,24 +208,24 @@ func TestAnalyzer_FindOrphanedFiles(t *testing.T) {
 	}
 
 	orphaned := analyzer.FindOrphanedFiles(files)
-	
+
 	// Convert to paths for easier testing
 	orphanedPaths := make([]string, len(orphaned))
 	for i, f := range orphaned {
 		orphanedPaths[i] = f.Path
 	}
-	
+
 	// Only linked.md should NOT be orphaned (because linker.md links to it)
 	// All other files should be orphaned
 	assert.Contains(t, orphanedPaths, "orphaned.md")
 	assert.Contains(t, orphanedPaths, "self-referencing.md") // Self-references don't count
-	assert.Contains(t, orphanedPaths, "linker.md") // Nothing links to this
-	assert.NotContains(t, orphanedPaths, "linked.md") // This is linked by linker.md
+	assert.Contains(t, orphanedPaths, "linker.md")           // Nothing links to this
+	assert.NotContains(t, orphanedPaths, "linked.md")        // This is linked by linker.md
 }
 
 func TestAnalyzer_GetHealthScore(t *testing.T) {
 	analyzer := NewAnalyzer()
-	
+
 	tests := []struct {
 		name     string
 		files    []*vault.VaultFile
@@ -282,7 +282,7 @@ func createTestVault(t *testing.T) *TestVault {
 				"tags":  []interface{}{"project", "important"},
 				"id":    "proj-001",
 			},
-			Body: "# Project One\n\n## Overview\n\nContent here\n\nSee [[project2]] for related work",
+			Body:    "# Project One\n\n## Overview\n\nContent here\n\nSee [[project2]] for related work",
 			Content: []byte("---\ntitle: Project One\ntags: [project, important]\nid: proj-001\n---\n\n# Project One\n\n## Overview\n\nContent here"),
 			Links: []vault.Link{
 				{Type: vault.WikiLink, Target: "project2", Text: "project2"},
@@ -299,9 +299,9 @@ func createTestVault(t *testing.T) *TestVault {
 				"tags":  []interface{}{"project"},
 				"id":    "proj-002",
 			},
-			Body: "# Project Two\n\n## Details\n\nMore content",
+			Body:    "# Project Two\n\n## Details\n\nMore content",
 			Content: []byte("---\ntitle: Project Two\ntags: [project]\nid: proj-002\n---\n\n# Project Two\n\n## Details\n\nMore content"),
-			Links: []vault.Link{},
+			Links:   []vault.Link{},
 			Headings: []vault.Heading{
 				{Level: 1, Text: "Project Two", Line: 1},
 				{Level: 2, Text: "Details", Line: 3},
@@ -312,19 +312,19 @@ func createTestVault(t *testing.T) *TestVault {
 			Frontmatter: map[string]interface{}{
 				"title": "Random Notes",
 			},
-			Body: "# Random Notes\n\nSome notes without much structure",
+			Body:    "# Random Notes\n\nSome notes without much structure",
 			Content: []byte("---\ntitle: Random Notes\n---\n\n# Random Notes\n\nSome notes without much structure"),
-			Links: []vault.Link{},
+			Links:   []vault.Link{},
 			Headings: []vault.Heading{
 				{Level: 1, Text: "Random Notes", Line: 1},
 			},
 		},
 		{
-			Path: "no-frontmatter.md",
+			Path:        "no-frontmatter.md",
 			Frontmatter: map[string]interface{}{},
-			Body: "# No Frontmatter\n\nThis file has no frontmatter",
-			Content: []byte("# No Frontmatter\n\nThis file has no frontmatter"),
-			Links: []vault.Link{},
+			Body:        "# No Frontmatter\n\nThis file has no frontmatter",
+			Content:     []byte("# No Frontmatter\n\nThis file has no frontmatter"),
+			Links:       []vault.Link{},
 			Headings: []vault.Heading{
 				{Level: 1, Text: "No Frontmatter", Line: 1},
 			},

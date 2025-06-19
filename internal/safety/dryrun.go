@@ -204,9 +204,9 @@ func (d *DryRunRecorder) GenerateJSONReport() string {
 	defer d.mutex.RUnlock()
 
 	report := struct {
-		Operations []Operation  `json:"operations"`
-		Summary    SummaryStats `json:"summary"`
-		GeneratedAt time.Time   `json:"generated_at"`
+		Operations  []Operation  `json:"operations"`
+		Summary     SummaryStats `json:"summary"`
+		GeneratedAt time.Time    `json:"generated_at"`
 	}{
 		Operations:  d.operations,
 		Summary:     d.getSummaryStatsUnsafe(),

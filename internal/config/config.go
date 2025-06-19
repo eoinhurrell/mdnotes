@@ -105,7 +105,7 @@ func LoadConfigWithFallback(paths []string) (*Config, error) {
 			return LoadConfigFromFile(path)
 		}
 	}
-	
+
 	// Return default config if no file found
 	return DefaultConfig(), nil
 }
@@ -157,7 +157,7 @@ func DefaultConfig() *Config {
 func GetDefaultConfigPaths() []string {
 	homeDir, _ := os.UserHomeDir()
 	currentDir, _ := os.Getwd()
-	
+
 	return []string{
 		filepath.Join(currentDir, ".obsidian-admin.yaml"),
 		filepath.Join(currentDir, "obsidian-admin.yaml"),
@@ -290,14 +290,14 @@ func (c *Config) Merge(other Config) *Config {
 func expandEnvVars(content string) string {
 	// Pattern to match ${VAR_NAME}
 	pattern := regexp.MustCompile(`\$\{([^}]+)\}`)
-	
+
 	return pattern.ReplaceAllStringFunc(content, func(match string) string {
 		// Extract variable name (remove ${ and })
 		varName := match[2 : len(match)-1]
-		
+
 		// Get environment variable value
 		envValue := os.Getenv(varName)
-		
+
 		// Return the environment variable value or empty string if not found
 		return envValue
 	})

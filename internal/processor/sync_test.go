@@ -26,11 +26,11 @@ func TestFrontmatterSync_SyncField(t *testing.T) {
 	now := info.ModTime()
 
 	tests := []struct {
-		name     string
-		field    string
-		source   string
-		file     *vault.VaultFile
-		want     interface{}
+		name   string
+		field  string
+		source string
+		file   *vault.VaultFile
+		want   interface{}
 	}{
 		{
 			name:   "sync from file modification time",
@@ -143,7 +143,7 @@ func TestFrontmatterSync_ParseSource(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sync := NewFrontmatterSync()
 			gotType, gotConfig := sync.parseSource(tt.source)
-			
+
 			if gotType != tt.wantType {
 				t.Errorf("parseSource() type = %v, want %v", gotType, tt.wantType)
 			}

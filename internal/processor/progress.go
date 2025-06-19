@@ -69,10 +69,10 @@ func (tp *TerminalProgress) render(message string) {
 
 	percentage := float64(tp.current) / float64(tp.total)
 	filled := int(float64(tp.width) * percentage)
-	
+
 	// Create progress bar
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", tp.width-filled)
-	
+
 	// Calculate ETA
 	eta := ""
 	if tp.current > 0 {

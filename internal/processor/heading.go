@@ -155,7 +155,7 @@ func (p *HeadingProcessor) ExtractHeadings(content string) []Heading {
 // ensureH1Title ensures the first content line is H1 matching title
 func (p *HeadingProcessor) ensureH1Title(body, title string) string {
 	lines := strings.Split(body, "\n")
-	
+
 	// Find first non-empty line
 	firstContentIndex := -1
 	for i, line := range lines {

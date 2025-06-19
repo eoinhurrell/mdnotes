@@ -122,7 +122,7 @@ func TestClient_RateLimiting(t *testing.T) {
 	client := NewClient(server.URL, "test-token", WithRateLimit(2)) // 2 req/sec
 
 	start := time.Now()
-	
+
 	// Make 4 requests
 	for i := 0; i < 4; i++ {
 		_, err := client.GetBookmarks(context.Background())
@@ -130,7 +130,7 @@ func TestClient_RateLimiting(t *testing.T) {
 			assert.NoError(t, err)
 		}
 	}
-	
+
 	elapsed := time.Since(start)
 	// Should take at least 1 second due to rate limiting
 	assert.Greater(t, elapsed, 500*time.Millisecond)
@@ -138,31 +138,31 @@ func TestClient_RateLimiting(t *testing.T) {
 
 func TestClient_ErrorHandling(t *testing.T) {
 	tests := []struct {
-		name           string
-		statusCode     int
-		responseBody   string
-		expectedError  string
+		name          string
+		statusCode    int
+		responseBody  string
+		expectedError string
 	}{
 		{
-			name:           "404 not found",
-			statusCode:     http.StatusNotFound,
-			expectedError:  "bookmark not found",
+			name:          "404 not found",
+			statusCode:    http.StatusNotFound,
+			expectedError: "bookmark not found",
 		},
 		{
-			name:           "400 bad request",
-			statusCode:     http.StatusBadRequest,
-			responseBody:   `{"url": ["This field is required."]}`,
-			expectedError:  "validation error",
+			name:          "400 bad request",
+			statusCode:    http.StatusBadRequest,
+			responseBody:  `{"url": ["This field is required."]}`,
+			expectedError: "validation error",
 		},
 		{
-			name:           "500 server error",
-			statusCode:     http.StatusInternalServerError,
-			expectedError:  "server error",
+			name:          "500 server error",
+			statusCode:    http.StatusInternalServerError,
+			expectedError: "server error",
 		},
 		{
-			name:           "429 rate limited",
-			statusCode:     http.StatusTooManyRequests,
-			expectedError:  "rate limited",
+			name:          "429 rate limited",
+			statusCode:    http.StatusTooManyRequests,
+			expectedError: "rate limited",
 		},
 	}
 

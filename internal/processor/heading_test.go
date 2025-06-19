@@ -99,7 +99,7 @@ title: My Title
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse the content
 			tt.file.Parse([]byte(tt.content))
-			
+
 			processor := NewHeadingProcessor()
 			analysis := processor.Analyze(tt.file)
 
@@ -126,10 +126,10 @@ title: My Title
 
 func TestHeadingProcessor_Fix(t *testing.T) {
 	tests := []struct {
-		name    string
-		file    *vault.VaultFile
-		rules   HeadingRules
-		want    string
+		name  string
+		file  *vault.VaultFile
+		rules HeadingRules
+		want  string
 	}{
 		{
 			name: "ensure H1 from title",
@@ -161,7 +161,7 @@ func TestHeadingProcessor_Fix(t *testing.T) {
 			name: "convert multiple H1s",
 			file: &vault.VaultFile{
 				Frontmatter: map[string]interface{}{},
-				Body: "# First Title\nContent\n# Second Title\nMore content",
+				Body:        "# First Title\nContent\n# Second Title\nMore content",
 			},
 			rules: HeadingRules{
 				SingleH1: true,
@@ -172,7 +172,7 @@ func TestHeadingProcessor_Fix(t *testing.T) {
 			name: "fix heading sequence",
 			file: &vault.VaultFile{
 				Frontmatter: map[string]interface{}{},
-				Body: "# Title\n### Skipped H2\n##### Skipped H3 and H4",
+				Body:        "# Title\n### Skipped H2\n##### Skipped H3 and H4",
 			},
 			rules: HeadingRules{
 				FixSequence: true,
@@ -252,7 +252,7 @@ Final content`,
 			},
 		},
 		{
-			name: "no headings",
+			name:    "no headings",
 			content: "Just plain text\nNo headings here",
 			want:    []Heading{},
 		},

@@ -26,13 +26,13 @@ type BatchConfig struct {
 
 // Operation represents a single operation in a batch
 type Operation struct {
-	Name        string                 `yaml:"name"`
-	Command     string                 `yaml:"command"`
-	Parameters  map[string]interface{} `yaml:"parameters"`
-	Condition   string                 `yaml:"condition,omitempty"`
-	OnError     string                 `yaml:"on_error,omitempty"` // skip, stop, retry
-	RetryCount  int                    `yaml:"retry_count,omitempty"`
-	RetryDelay  string                 `yaml:"retry_delay,omitempty"`
+	Name       string                 `yaml:"name"`
+	Command    string                 `yaml:"command"`
+	Parameters map[string]interface{} `yaml:"parameters"`
+	Condition  string                 `yaml:"condition,omitempty"`
+	OnError    string                 `yaml:"on_error,omitempty"` // skip, stop, retry
+	RetryCount int                    `yaml:"retry_count,omitempty"`
+	RetryDelay string                 `yaml:"retry_delay,omitempty"`
 }
 
 // OperationResult represents the result of an operation
@@ -51,7 +51,7 @@ func (or OperationResult) String() string {
 	if !or.Success {
 		status = "✗"
 	}
-	
+
 	msg := fmt.Sprintf("%s %s (%s)", status, or.Operation, or.Duration.String())
 	if or.Message != "" {
 		msg += ": " + or.Message
@@ -59,7 +59,7 @@ func (or OperationResult) String() string {
 	if or.Error != nil {
 		msg += " - " + or.Error.Error()
 	}
-	
+
 	return msg
 }
 
@@ -141,7 +141,7 @@ func (bp *BatchProcessor) Execute(ctx context.Context, vault *Vault, config Batc
 // executeOperation executes a single operation
 func (bp *BatchProcessor) executeOperation(ctx context.Context, vault *Vault, op Operation, dryRun bool) OperationResult {
 	start := time.Now()
-	
+
 	result := OperationResult{
 		Operation: op.Command,
 	}
@@ -180,7 +180,7 @@ func (bp *BatchProcessor) executeOperation(ctx context.Context, vault *Vault, op
 					delay = d
 				}
 			}
-			
+
 			select {
 			case <-time.After(delay):
 			case <-ctx.Done():
@@ -271,7 +271,7 @@ func (p *FrontmatterEnsureProcessor) Process(ctx context.Context, vault *Vault, 
 	dryRun, _ := params["dry_run"].(bool)
 
 	processor := NewFrontmatterProcessor()
-	
+
 	for _, file := range vault.Files {
 		if !dryRun {
 			processor.Ensure(file, field, defaultValue)

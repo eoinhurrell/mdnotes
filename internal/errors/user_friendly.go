@@ -50,19 +50,19 @@ func (e UserError) ErrorCode() string {
 
 // Common error codes
 const (
-	ErrCodeInvalidFile        = "INVALID_FILE"
-	ErrCodeMissingField       = "MISSING_FIELD"
-	ErrCodeInvalidType        = "INVALID_TYPE"
-	ErrCodeInvalidValue       = "INVALID_VALUE"
-	ErrCodeFileNotFound       = "FILE_NOT_FOUND"
-	ErrCodePermissionDenied   = "PERMISSION_DENIED"
-	ErrCodeInvalidConfig      = "INVALID_CONFIG"
-	ErrCodeNetworkError       = "NETWORK_ERROR"
-	ErrCodeQuotaExceeded      = "QUOTA_EXCEEDED"
-	ErrCodeOperationTimeout   = "OPERATION_TIMEOUT"
-	ErrCodeInvalidSyntax      = "INVALID_SYNTAX"
-	ErrCodeDuplicateResource  = "DUPLICATE_RESOURCE"
-	ErrCodeResourceNotFound   = "RESOURCE_NOT_FOUND"
+	ErrCodeInvalidFile       = "INVALID_FILE"
+	ErrCodeMissingField      = "MISSING_FIELD"
+	ErrCodeInvalidType       = "INVALID_TYPE"
+	ErrCodeInvalidValue      = "INVALID_VALUE"
+	ErrCodeFileNotFound      = "FILE_NOT_FOUND"
+	ErrCodePermissionDenied  = "PERMISSION_DENIED"
+	ErrCodeInvalidConfig     = "INVALID_CONFIG"
+	ErrCodeNetworkError      = "NETWORK_ERROR"
+	ErrCodeQuotaExceeded     = "QUOTA_EXCEEDED"
+	ErrCodeOperationTimeout  = "OPERATION_TIMEOUT"
+	ErrCodeInvalidSyntax     = "INVALID_SYNTAX"
+	ErrCodeDuplicateResource = "DUPLICATE_RESOURCE"
+	ErrCodeResourceNotFound  = "RESOURCE_NOT_FOUND"
 )
 
 // ErrorBuilder helps construct user-friendly errors with suggestions
@@ -135,7 +135,7 @@ func NewFileNotFoundError(file string, suggestion string) UserError {
 // NewInvalidTypeError creates an error for type validation failures
 func NewInvalidTypeError(field, expectedType, actualValue string, file string) UserError {
 	suggestion := fmt.Sprintf("Field '%s' should be of type '%s'. ", field, expectedType)
-	
+
 	switch expectedType {
 	case "date":
 		suggestion += "Date must be in YYYY-MM-DD format (e.g., 2023-01-15) or ISO datetime format."
@@ -148,7 +148,7 @@ func NewInvalidTypeError(field, expectedType, actualValue string, file string) U
 	default:
 		suggestion += "Check the expected format in your configuration."
 	}
-	
+
 	return NewErrorBuilder().
 		WithOperation("type validation").
 		WithFile(file).
@@ -161,7 +161,7 @@ func NewInvalidTypeError(field, expectedType, actualValue string, file string) U
 // NewMissingFieldError creates an error for missing required fields
 func NewMissingFieldError(field string, file string) UserError {
 	suggestion := fmt.Sprintf("Add the field '%s' to the frontmatter of this file. You can use the 'frontmatter ensure' command to add it automatically.", field)
-	
+
 	return NewErrorBuilder().
 		WithOperation("field validation").
 		WithFile(file).
@@ -174,12 +174,12 @@ func NewMissingFieldError(field string, file string) UserError {
 // NewInvalidSyntaxError creates an error for syntax issues
 func NewInvalidSyntaxError(file string, line int, details string) UserError {
 	suggestion := "Check the YAML syntax in your frontmatter. Common issues include incorrect indentation, missing quotes around special characters, or malformed lists."
-	
+
 	err := fmt.Errorf("syntax error in file %s", file)
 	if line > 0 {
 		err = fmt.Errorf("syntax error in file %s at line %d: %s", file, line, details)
 	}
-	
+
 	return NewErrorBuilder().
 		WithOperation("file parsing").
 		WithFile(file).
@@ -192,7 +192,7 @@ func NewInvalidSyntaxError(file string, line int, details string) UserError {
 // NewConfigError creates an error for configuration issues
 func NewConfigError(configPath string, details string) UserError {
 	suggestion := "Check your configuration file for syntax errors and ensure all required fields are present. You can use 'mdnotes batch validate' to verify the configuration."
-	
+
 	return NewErrorBuilder().
 		WithOperation("configuration loading").
 		WithFile(configPath).
@@ -205,7 +205,7 @@ func NewConfigError(configPath string, details string) UserError {
 // NewNetworkError creates an error for network-related issues
 func NewNetworkError(operation string, url string, err error) UserError {
 	suggestion := "Check your internet connection and verify that the service URL is correct. If using API tokens, ensure they are valid and have sufficient permissions."
-	
+
 	return NewErrorBuilder().
 		WithOperation(operation).
 		WithError(fmt.Errorf("network error accessing %s: %w", url, err)).
@@ -217,7 +217,7 @@ func NewNetworkError(operation string, url string, err error) UserError {
 // NewPermissionError creates an error for permission issues
 func NewPermissionError(file string, operation string) UserError {
 	suggestion := "Check that you have read/write permissions for this file and its parent directory. You may need to run the command with different permissions or change file ownership."
-	
+
 	return NewErrorBuilder().
 		WithOperation(operation).
 		WithFile(file).
@@ -265,8 +265,8 @@ func (h *ErrorHandler) formatUserError(err UserError) string {
 	var buf strings.Builder
 
 	// Use colors if terminal supports it (simplified for now)
-	errorColor := "\033[31m"   // Red
-	contextColor := "\033[33m" // Yellow
+	errorColor := "\033[31m"      // Red
+	contextColor := "\033[33m"    // Yellow
 	suggestionColor := "\033[36m" // Cyan
 	resetColor := "\033[0m"
 
@@ -304,7 +304,7 @@ func (h *ErrorHandler) formatRegularError(err error) string {
 
 	// Add basic context enhancement for common error patterns
 	errMsg := err.Error()
-	
+
 	var suggestion string
 	switch {
 	case strings.Contains(errMsg, "no such file or directory"):
@@ -321,7 +321,7 @@ func (h *ErrorHandler) formatRegularError(err error) string {
 
 	var buf strings.Builder
 	fmt.Fprintf(&buf, "Error: %s", errMsg)
-	
+
 	if suggestion != "" {
 		fmt.Fprintf(&buf, "\n\nSuggestion: %s", suggestion)
 	}

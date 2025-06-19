@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/eoinhurrell/mdnotes/internal/linkding"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // MockLinkdingClient is a mock implementation of LinkdingClient
@@ -105,7 +105,7 @@ func TestLinkdingSync_SyncFile(t *testing.T) {
 	mockClient.On("CheckBookmark", mock.Anything, "https://example.com").Return(&linkding.CheckBookmarkResponse{
 		Bookmark: nil,
 	}, nil)
-	
+
 	mockClient.On("CreateBookmark", mock.Anything, mock.MatchedBy(func(req linkding.CreateBookmarkRequest) bool {
 		return req.URL == "https://example.com" &&
 			req.Title == "Example Article" &&
@@ -115,12 +115,12 @@ func TestLinkdingSync_SyncFile(t *testing.T) {
 	})).Return(&linkding.BookmarkResponse{ID: 456}, nil)
 
 	sync := NewLinkdingSync(LinkdingSyncConfig{
-		URLField:    "url",
-		IDField:     "linkding_id",
-		TitleField:  "title",
-		TagsField:   "tags",
-		SyncTitle:   true,
-		SyncTags:    true,
+		URLField:   "url",
+		IDField:    "linkding_id",
+		TitleField: "title",
+		TagsField:  "tags",
+		SyncTitle:  true,
+		SyncTags:   true,
 	})
 	sync.client = mockClient
 
@@ -198,7 +198,7 @@ func TestLinkdingSync_UpdateExisting(t *testing.T) {
 		URL:   "https://example.com",
 		Title: "Original Title",
 	}, nil)
-	
+
 	mockClient.On("UpdateBookmark", mock.Anything, 123, mock.MatchedBy(func(req linkding.UpdateBookmarkRequest) bool {
 		return req.Title == "Updated Title" &&
 			len(req.Tags) == 1 &&
@@ -211,12 +211,12 @@ func TestLinkdingSync_UpdateExisting(t *testing.T) {
 	}, nil)
 
 	sync := NewLinkdingSync(LinkdingSyncConfig{
-		URLField:    "url",
-		IDField:     "linkding_id",
-		TitleField:  "title",
-		TagsField:   "tags",
-		SyncTitle:   true,
-		SyncTags:    true,
+		URLField:   "url",
+		IDField:    "linkding_id",
+		TitleField: "title",
+		TagsField:  "tags",
+		SyncTitle:  true,
+		SyncTags:   true,
 	})
 	sync.client = mockClient
 
@@ -285,7 +285,7 @@ func TestLinkdingSync_TypeConversion(t *testing.T) {
 
 func TestLinkdingSync_SyncBatch(t *testing.T) {
 	mockClient := &MockLinkdingClient{}
-	
+
 	// Mock CheckBookmark calls - no existing bookmarks
 	mockClient.On("CheckBookmark", mock.Anything, "https://example1.com").Return(&linkding.CheckBookmarkResponse{
 		Bookmark: nil,
@@ -293,19 +293,19 @@ func TestLinkdingSync_SyncBatch(t *testing.T) {
 	mockClient.On("CheckBookmark", mock.Anything, "https://example2.com").Return(&linkding.CheckBookmarkResponse{
 		Bookmark: nil,
 	}, nil)
-	
+
 	// Mock GetBookmark for file3 which already has linkding_id
 	mockClient.On("GetBookmark", mock.Anything, 103).Return(&linkding.BookmarkResponse{
 		ID:    103,
 		URL:   "https://example3.com",
 		Title: "Existing Bookmark",
 	}, nil)
-	
+
 	// First file needs to be created
 	mockClient.On("CreateBookmark", mock.Anything, mock.MatchedBy(func(req linkding.CreateBookmarkRequest) bool {
 		return req.URL == "https://example1.com"
 	})).Return(&linkding.BookmarkResponse{ID: 101}, nil)
-	
+
 	// Second file needs to be created
 	mockClient.On("CreateBookmark", mock.Anything, mock.MatchedBy(func(req linkding.CreateBookmarkRequest) bool {
 		return req.URL == "https://example2.com"

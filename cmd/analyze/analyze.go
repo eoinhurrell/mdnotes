@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/analyzer"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/errors"
+	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/spf13/cobra"
 )
 
 // NewAnalyzeCommand creates the analyze command
@@ -25,6 +27,9 @@ func NewAnalyzeCommand() *cobra.Command {
 	cmd.AddCommand(newStatsCommand())
 	cmd.AddCommand(newDuplicatesCommand())
 	cmd.AddCommand(newHealthCommand())
+	cmd.AddCommand(newLinksCommand())
+	cmd.AddCommand(newContentCommand())
+	cmd.AddCommand(newTrendsCommand())
 
 	return cmd
 }
@@ -60,7 +65,7 @@ func newStatsCommand() *cobra.Command {
 			files, err := scanner.Walk(vaultPath)
 			if err != nil {
 				if os.IsNotExist(err) {
-					return errors.NewFileNotFoundError(vaultPath, 
+					return errors.NewFileNotFoundError(vaultPath,
 						"Ensure the vault path exists and contains markdown files. Use 'ls' to verify the directory structure.")
 				}
 				if os.IsPermission(err) {
@@ -114,7 +119,7 @@ func newStatsCommand() *cobra.Command {
 
 func newDuplicatesCommand() *cobra.Command {
 	var (
-		outputFormat string
+		outputFormat  string
 		minSimilarity float64
 	)
 
@@ -143,7 +148,7 @@ func newDuplicatesCommand() *cobra.Command {
 			files, err := scanner.Walk(vaultPath)
 			if err != nil {
 				if os.IsNotExist(err) {
-					return errors.NewFileNotFoundError(vaultPath, 
+					return errors.NewFileNotFoundError(vaultPath,
 						"Ensure the vault path exists and contains markdown files. Use 'ls' to verify the directory structure.")
 				}
 				if os.IsPermission(err) {
@@ -216,7 +221,7 @@ func newHealthCommand() *cobra.Command {
 			files, err := scanner.Walk(vaultPath)
 			if err != nil {
 				if os.IsNotExist(err) {
-					return errors.NewFileNotFoundError(vaultPath, 
+					return errors.NewFileNotFoundError(vaultPath,
 						"Ensure the vault path exists and contains markdown files. Use 'ls' to verify the directory structure.")
 				}
 				if os.IsPermission(err) {
@@ -263,11 +268,11 @@ func newHealthCommand() *cobra.Command {
 
 func loadConfig(cmd *cobra.Command) (*config.Config, error) {
 	configPath, _ := cmd.Flags().GetString("config")
-	
+
 	if configPath != "" {
 		return config.LoadConfigFromFile(configPath)
 	}
-	
+
 	return config.LoadConfigWithFallback(config.GetDefaultConfigPaths())
 }
 
@@ -309,7 +314,7 @@ func formatDuplicatesText(duplicates []analyzer.Duplicate) string {
 	}
 
 	output := fmt.Sprintf("Found %d duplicate groups:\n\n", len(duplicates))
-	
+
 	for i, dup := range duplicates {
 		output += fmt.Sprintf("Group %d (field: %s, value: %v):\n", i+1, dup.Field, dup.Value)
 		for _, file := range dup.Files {
@@ -342,7 +347,7 @@ func formatIssues(issues []string) string {
 	if len(issues) == 0 {
 		return "  No issues found. Great job!"
 	}
-	
+
 	output := ""
 	for _, issue := range issues {
 		output += fmt.Sprintf("  - %s\n", issue)
@@ -354,10 +359,404 @@ func formatSuggestions(suggestions []string) string {
 	if len(suggestions) == 0 {
 		return "  No suggestions at this time."
 	}
-	
+
 	output := ""
 	for _, suggestion := range suggestions {
 		output += fmt.Sprintf("  - %s\n", suggestion)
 	}
+	return output
+}
+
+// newLinksCommand creates the links analysis command
+func newLinksCommand() *cobra.Command {
+	var (
+		outputFormat   string
+		showGraph      bool
+		maxDepth       int
+		minConnections int
+	)
+
+	cmd := &cobra.Command{
+		Use:     "links [vault-path]",
+		Aliases: []string{"l"},
+		Short:   "Analyze link structure and connectivity",
+		Long:    `Analyze the link structure of your vault, including connectivity graphs and orphaned files`,
+		Args:    cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vaultPath := "."
+			if len(args) > 0 {
+				vaultPath = args[0]
+			}
+
+			// Load configuration
+			cfg, err := loadConfig(cmd)
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
+
+			// Scan vault files
+			scanner := vault.NewScanner(
+				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
+				vault.WithContinueOnErrors(),
+			)
+			files, err := scanner.Walk(vaultPath)
+			if err != nil {
+				return fmt.Errorf("scanning vault: %w", err)
+			}
+
+			// Generate link analysis
+			analyzer := analyzer.NewAnalyzer()
+			linkParser := processor.NewLinkParser()
+			analyzer.SetLinkParser(linkParser)
+			linkAnalysis := analyzer.AnalyzeLinks(files)
+
+			// Output results
+			if outputFormat == "json" {
+				data, err := json.MarshalIndent(linkAnalysis, "", "  ")
+				if err != nil {
+					return fmt.Errorf("marshaling JSON: %w", err)
+				}
+				fmt.Println(string(data))
+			} else {
+				output := formatLinkAnalysisText(linkAnalysis, showGraph, maxDepth, minConnections)
+				fmt.Print(output)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
+	cmd.Flags().BoolVar(&showGraph, "graph", false, "Show text-based link graph visualization")
+	cmd.Flags().IntVar(&maxDepth, "depth", 3, "Maximum depth for graph visualization")
+	cmd.Flags().IntVar(&minConnections, "min-connections", 1, "Minimum connections to show in graph")
+
+	return cmd
+}
+
+// newContentCommand creates the content quality analysis command
+func newContentCommand() *cobra.Command {
+	var (
+		outputFormat  string
+		includeScores bool
+		minScore      float64
+	)
+
+	cmd := &cobra.Command{
+		Use:     "content [vault-path]",
+		Aliases: []string{"c"},
+		Short:   "Analyze content quality and completeness",
+		Long:    `Analyze the quality of content in your vault, including completeness scores and suggestions`,
+		Args:    cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vaultPath := "."
+			if len(args) > 0 {
+				vaultPath = args[0]
+			}
+
+			// Load configuration
+			cfg, err := loadConfig(cmd)
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
+
+			// Scan vault files
+			scanner := vault.NewScanner(
+				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
+				vault.WithContinueOnErrors(),
+			)
+			files, err := scanner.Walk(vaultPath)
+			if err != nil {
+				return fmt.Errorf("scanning vault: %w", err)
+			}
+
+			// Generate content analysis
+			analyzer := analyzer.NewAnalyzer()
+			contentAnalysis := analyzer.AnalyzeContentQuality(files)
+
+			// Output results
+			if outputFormat == "json" {
+				data, err := json.MarshalIndent(contentAnalysis, "", "  ")
+				if err != nil {
+					return fmt.Errorf("marshaling JSON: %w", err)
+				}
+				fmt.Println(string(data))
+			} else {
+				output := formatContentAnalysisText(contentAnalysis, includeScores, minScore)
+				fmt.Print(output)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
+	cmd.Flags().BoolVar(&includeScores, "scores", false, "Include individual file quality scores")
+	cmd.Flags().Float64Var(&minScore, "min-score", 0.0, "Minimum quality score to display (0.0-1.0)")
+
+	return cmd
+}
+
+// newTrendsCommand creates the vault growth trends analysis command
+func newTrendsCommand() *cobra.Command {
+	var (
+		outputFormat string
+		timespan     string
+		granularity  string
+	)
+
+	cmd := &cobra.Command{
+		Use:     "trends [vault-path]",
+		Aliases: []string{"t"},
+		Short:   "Analyze vault growth trends and patterns",
+		Long:    `Analyze growth trends, writing patterns, and temporal statistics for your vault`,
+		Args:    cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vaultPath := "."
+			if len(args) > 0 {
+				vaultPath = args[0]
+			}
+
+			// Load configuration
+			cfg, err := loadConfig(cmd)
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
+
+			// Scan vault files
+			scanner := vault.NewScanner(
+				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
+				vault.WithContinueOnErrors(),
+			)
+			files, err := scanner.Walk(vaultPath)
+			if err != nil {
+				return fmt.Errorf("scanning vault: %w", err)
+			}
+
+			// Generate trends analysis
+			analyzer := analyzer.NewAnalyzer()
+			trendsAnalysis := analyzer.AnalyzeTrends(files, timespan, granularity)
+
+			// Output results
+			if outputFormat == "json" {
+				data, err := json.MarshalIndent(trendsAnalysis, "", "  ")
+				if err != nil {
+					return fmt.Errorf("marshaling JSON: %w", err)
+				}
+				fmt.Println(string(data))
+			} else {
+				output := formatTrendsAnalysisText(trendsAnalysis)
+				fmt.Print(output)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
+	cmd.Flags().StringVar(&timespan, "timespan", "1y", "Time span to analyze (1w, 1m, 3m, 6m, 1y, all)")
+	cmd.Flags().StringVar(&granularity, "granularity", "month", "Time granularity (day, week, month, quarter)")
+
+	return cmd
+}
+
+// Formatting functions for the new analysis types
+
+func formatLinkAnalysisText(analysis analyzer.LinkAnalysis, showGraph bool, maxDepth, minConnections int) string {
+	output := fmt.Sprintf(`Link Structure Analysis
+=======================
+
+Overview:
+  Total files: %d
+  Files with outbound links: %d
+  Files with inbound links: %d
+  Orphaned files: %d
+  Total links: %d
+  Broken links: %d
+
+Connectivity:
+  Average outbound links per file: %.1f
+  Average inbound links per file: %.1f
+  Most connected file: %s (%d connections)
+  Link density: %.3f
+
+`, analysis.TotalFiles, analysis.FilesWithOutboundLinks, analysis.FilesWithInboundLinks,
+		len(analysis.OrphanedFiles), analysis.TotalLinks, analysis.BrokenLinks,
+		analysis.AvgOutboundLinks, analysis.AvgInboundLinks,
+		analysis.MostConnectedFile, analysis.MaxConnections, analysis.LinkDensity)
+
+	if len(analysis.OrphanedFiles) > 0 {
+		output += "Orphaned Files:\n"
+		for _, file := range analysis.OrphanedFiles {
+			output += fmt.Sprintf("  - %s\n", file)
+		}
+		output += "\n"
+	}
+
+	if showGraph && len(analysis.LinkGraph) > 0 {
+		output += "Link Graph (text visualization):\n"
+		output += formatLinkGraph(analysis.LinkGraph, maxDepth, minConnections)
+		output += "\n"
+	}
+
+	if len(analysis.CentralFiles) > 0 {
+		output += "Most Central Files:\n"
+		for i, file := range analysis.CentralFiles {
+			if i >= 10 { // Show top 10
+				break
+			}
+			output += fmt.Sprintf("  %d. %s (score: %.3f)\n", i+1, file.Path, file.CentralityScore)
+		}
+	}
+
+	return output
+}
+
+func formatContentAnalysisText(analysis analyzer.ContentAnalysis, includeScores bool, minScore float64) string {
+	output := fmt.Sprintf(`Content Quality Analysis
+========================
+
+Overall Quality Score: %.1f/100
+
+Distribution:
+  Excellent (90-100): %d files
+  Good (75-89): %d files  
+  Fair (60-74): %d files
+  Poor (40-59): %d files
+  Critical (0-39): %d files
+
+Content Metrics:
+  Average content length: %.0f characters
+  Average word count: %.0f words
+  Files with frontmatter: %d
+  Files with headings: %d
+  Files with links: %d
+
+`, analysis.OverallScore,
+		analysis.ScoreDistribution["excellent"], analysis.ScoreDistribution["good"],
+		analysis.ScoreDistribution["fair"], analysis.ScoreDistribution["poor"],
+		analysis.ScoreDistribution["critical"],
+		analysis.AvgContentLength, analysis.AvgWordCount,
+		analysis.FilesWithFrontmatter, analysis.FilesWithHeadings, analysis.FilesWithLinks)
+
+	if len(analysis.QualityIssues) > 0 {
+		output += "Quality Issues Found:\n"
+		for _, issue := range analysis.QualityIssues {
+			output += fmt.Sprintf("  - %s\n", issue)
+		}
+		output += "\n"
+	}
+
+	if len(analysis.Suggestions) > 0 {
+		output += "Improvement Suggestions:\n"
+		for _, suggestion := range analysis.Suggestions {
+			output += fmt.Sprintf("  - %s\n", suggestion)
+		}
+		output += "\n"
+	}
+
+	if includeScores && len(analysis.FileScores) > 0 {
+		output += "Individual File Scores:\n"
+		for _, score := range analysis.FileScores {
+			if score.Score >= minScore {
+				output += fmt.Sprintf("  %.1f - %s\n", score.Score, score.Path)
+			}
+		}
+	}
+
+	return output
+}
+
+func formatTrendsAnalysisText(analysis analyzer.TrendsAnalysis) string {
+	output := fmt.Sprintf(`Vault Growth Trends Analysis
+============================
+
+Time Period: %s to %s
+Total Duration: %s
+
+Growth Statistics:
+  Files created: %d
+  Peak creation period: %s (%d files)
+  Average files per %s: %.1f
+  Growth rate: %.1f%% per %s
+
+Activity Patterns:
+  Most active day: %s
+  Most active month: %s
+  Writing streak: %d days
+  Days with activity: %d/%d (%.1f%%)
+
+`, analysis.StartDate.Format("2006-01-02"), analysis.EndDate.Format("2006-01-02"), analysis.TotalDuration,
+		analysis.TotalFilesCreated, analysis.PeakPeriod, analysis.PeakFiles,
+		analysis.Granularity, analysis.AvgFilesPerPeriod,
+		analysis.GrowthRate, analysis.Granularity,
+		analysis.MostActiveDay, analysis.MostActiveMonth,
+		analysis.WritingStreak, analysis.ActiveDays, analysis.TotalDays, analysis.ActivityPercentage)
+
+	if len(analysis.Timeline) > 0 {
+		output += "Timeline (last 12 periods):\n"
+		for i, point := range analysis.Timeline {
+			if i >= 12 {
+				break
+			}
+			output += fmt.Sprintf("  %s: %d files\n", point.Period, point.Count)
+		}
+		output += "\n"
+	}
+
+	if len(analysis.TagTrends) > 0 {
+		output += "Trending Tags:\n"
+		for tag, trend := range analysis.TagTrends {
+			if trend.Count >= 3 { // Only show tags with at least 3 uses
+				output += fmt.Sprintf("  #%s: %d files (%.1f%% growth)\n", tag, trend.Count, trend.GrowthRate)
+			}
+		}
+	}
+
+	return output
+}
+
+func formatLinkGraph(graph map[string][]string, maxDepth, minConnections int) string {
+	output := ""
+	visited := make(map[string]bool)
+
+	// Find files with enough connections to display
+	for file, connections := range graph {
+		if len(connections) >= minConnections && !visited[file] {
+			output += formatGraphNode(file, connections, graph, visited, 0, maxDepth, minConnections)
+		}
+	}
+
+	if output == "" {
+		output = "  No files meet the minimum connection criteria\n"
+	}
+
+	return output
+}
+
+func formatGraphNode(file string, connections []string, graph map[string][]string, visited map[string]bool, depth, maxDepth, minConnections int) string {
+	if depth >= maxDepth || visited[file] {
+		return ""
+	}
+
+	visited[file] = true
+	indent := strings.Repeat("  ", depth)
+	output := fmt.Sprintf("%s├─ %s (%d connections)\n", indent, file, len(connections))
+
+	// Show connected files
+	for i, connection := range connections {
+		if i >= 5 { // Limit to 5 connections per node to avoid clutter
+			output += fmt.Sprintf("%s│  └─ ... (%d more)\n", indent, len(connections)-5)
+			break
+		}
+
+		connectionCount := len(graph[connection])
+		if connectionCount >= minConnections {
+			output += fmt.Sprintf("%s│  ├─ %s (%d)\n", indent, connection, connectionCount)
+		} else {
+			output += fmt.Sprintf("%s│  └─ %s\n", indent, connection)
+		}
+	}
+
 	return output
 }

@@ -46,7 +46,7 @@ func NewClient(baseURL, apiToken string, opts ...ClientOption) *Client {
 		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}
-	
+
 	// Create IPv4-only dial function
 	ipv4OnlyDialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		// Force TCP4 instead of TCP to prevent IPv6
@@ -93,12 +93,12 @@ func isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	// Check for network errors that are typically transient
 	if netErr, ok := err.(net.Error); ok {
 		return netErr.Timeout() || netErr.Temporary()
 	}
-	
+
 	// Check for specific connection errors
 	errStr := err.Error()
 	retryableErrors := []string{
@@ -111,13 +111,13 @@ func isRetryableError(err error) bool {
 		"i/o timeout",
 		"invalid argument", // IPv6 link-local issues
 	}
-	
+
 	for _, retryable := range retryableErrors {
 		if strings.Contains(errStr, retryable) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -125,15 +125,15 @@ func isRetryableError(err error) bool {
 func (c *Client) doRequestWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
 	const maxRetries = 3
 	const baseDelay = 1 * time.Second
-	
+
 	var lastErr error
-	
+
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		// Wait for rate limit
 		if err := c.rateLimiter.Wait(ctx); err != nil {
 			return nil, err
 		}
-		
+
 		// Clone request for retry (body needs to be reset)
 		var reqClone *http.Request
 		if req.Body != nil {
@@ -143,7 +143,7 @@ func (c *Client) doRequestWithRetry(ctx context.Context, req *http.Request) (*ht
 				return nil, fmt.Errorf("reading request body: %w", err)
 			}
 			req.Body.Close()
-			
+
 			// Create clone with fresh body
 			reqClone = req.Clone(ctx)
 			reqClone.Body = &nopCloser{bytes.NewReader(body.Bytes())}
@@ -151,22 +151,22 @@ func (c *Client) doRequestWithRetry(ctx context.Context, req *http.Request) (*ht
 		} else {
 			reqClone = req.Clone(ctx)
 		}
-		
+
 		resp, err := c.httpClient.Do(reqClone)
 		if err == nil {
 			return resp, nil
 		}
-		
+
 		lastErr = err
-		
+
 		// Don't retry if error is not retryable or if this is the last attempt
 		if !isRetryableError(err) || attempt == maxRetries {
 			break
 		}
-		
+
 		// Calculate delay with exponential backoff
 		delay := time.Duration(attempt+1) * baseDelay
-		
+
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -174,7 +174,7 @@ func (c *Client) doRequestWithRetry(ctx context.Context, req *http.Request) (*ht
 			// Continue to next attempt
 		}
 	}
-	
+
 	return nil, fmt.Errorf("request failed after %d attempts: %w", maxRetries+1, lastErr)
 }
 
@@ -211,17 +211,17 @@ type UpdateBookmarkRequest struct {
 
 // BookmarkResponse represents a bookmark from the API
 type BookmarkResponse struct {
-	ID          int      `json:"id"`
-	URL         string   `json:"url"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Notes       string   `json:"notes"`
-	Tags        []string `json:"tag_names"`
-	IsArchived  bool     `json:"is_archived"`
-	Unread      bool     `json:"unread"`
-	Shared      bool     `json:"shared"`
-	DateAdded   string   `json:"date_added"`
-	DateModified string  `json:"date_modified"`
+	ID           int      `json:"id"`
+	URL          string   `json:"url"`
+	Title        string   `json:"title"`
+	Description  string   `json:"description"`
+	Notes        string   `json:"notes"`
+	Tags         []string `json:"tag_names"`
+	IsArchived   bool     `json:"is_archived"`
+	Unread       bool     `json:"unread"`
+	Shared       bool     `json:"shared"`
+	DateAdded    string   `json:"date_added"`
+	DateModified string   `json:"date_modified"`
 }
 
 // BookmarkListResponse represents a list of bookmarks from the API
@@ -457,5 +457,5 @@ func (c *Client) CheckBookmark(ctx context.Context, url string) (*CheckBookmarkR
 		}
 	}
 
-	return nil, fmt.Errorf("unexpected response handling")  // Should never reach here
+	return nil, fmt.Errorf("unexpected response handling") // Should never reach here
 }

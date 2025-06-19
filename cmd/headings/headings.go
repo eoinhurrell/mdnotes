@@ -3,9 +3,9 @@ package headings
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/spf13/cobra"
 )
 
 // NewHeadingsCommand creates the headings command
@@ -42,10 +42,16 @@ func NewAnalyzeCommand() *cobra.Command {
 
 func runAnalyze(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	// Scan files
 	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
@@ -55,7 +61,9 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(files) == 0 {
-		fmt.Println("No markdown files found")
+		if !quiet {
+			fmt.Println("No markdown files found")
+		}
 		return nil
 	}
 
@@ -67,20 +75,27 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 		analysis := headingProcessor.Analyze(file)
 		if len(analysis.Issues) > 0 {
 			totalIssues += len(analysis.Issues)
-			fmt.Printf("✗ %s:\n", file.RelativePath)
-			for _, issue := range analysis.Issues {
-				fmt.Printf("  - Line %d: %s", issue.Line, formatIssue(issue))
-				if issue.Expected != "" {
-					fmt.Printf(" (expected: %s", issue.Expected)
-					if issue.Actual != "" {
-						fmt.Printf(", actual: %s", issue.Actual)
-					}
-					fmt.Printf(")")
-				}
-				fmt.Println()
+			if verbose {
+				fmt.Printf("Examining: %s - Found %d heading issues\n", file.RelativePath, len(analysis.Issues))
 			}
-		} else if verbose {
-			fmt.Printf("✓ %s: valid heading structure\n", file.RelativePath)
+			if !quiet {
+				fmt.Printf("✗ %s:\n", file.RelativePath)
+				for _, issue := range analysis.Issues {
+					fmt.Printf("  - Line %d: %s", issue.Line, formatIssue(issue))
+					if issue.Expected != "" {
+						fmt.Printf(" (expected: %s", issue.Expected)
+						if issue.Actual != "" {
+							fmt.Printf(", actual: %s", issue.Actual)
+						}
+						fmt.Printf(")")
+					}
+					fmt.Println()
+				}
+			}
+		} else {
+			if verbose {
+				fmt.Printf("Examining: %s - Valid heading structure\n", file.RelativePath)
+			}
 		}
 	}
 
@@ -117,7 +132,7 @@ func NewFixCommand() *cobra.Command {
 
 func runFix(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	ensureH1Title, _ := cmd.Flags().GetBool("ensure-h1-title")
 	singleH1, _ := cmd.Flags().GetBool("single-h1")
@@ -125,6 +140,12 @@ func runFix(cmd *cobra.Command, args []string) error {
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	// Create heading rules
 	rules := processor.HeadingRules{
@@ -135,33 +156,37 @@ func runFix(cmd *cobra.Command, args []string) error {
 
 	// Create processor
 	headingProcessor := processor.NewHeadingProcessor()
-	
+
 	// Setup file processor
 	fileProcessor := &processor.FileProcessor{
 		DryRun:         dryRun,
 		Verbose:        verbose,
+		Quiet:          quiet,
 		IgnorePatterns: ignorePatterns,
 		ProcessFile: func(file *vault.VaultFile) (bool, error) {
 			originalBody := file.Body
-			
+
 			if err := headingProcessor.Fix(file, rules); err != nil {
 				if verbose {
-					fmt.Printf("✗ %s: Error fixing headings: %v\n", file.RelativePath, err)
+					fmt.Printf("Examining: %s - Error fixing headings: %v\n", file.RelativePath, err)
 				}
 				return false, nil // Don't fail the entire operation
 			}
 
-			return file.Body != originalBody, nil
+			modified := file.Body != originalBody
+			if verbose {
+				if modified {
+					fmt.Printf("Examining: %s - Fixed heading structure\n", file.RelativePath)
+				} else {
+					fmt.Printf("Examining: %s - No changes needed\n", file.RelativePath)
+				}
+			}
+
+			return modified, nil
 		},
 		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
-			if modified {
-				if verbose {
-					fmt.Printf("✓ %s: Fixed heading structure\n", file.RelativePath)
-				} else {
-					fmt.Printf("✓ Processed: %s\n", file.RelativePath)
-				}
-			} else if verbose {
-				fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
+			if modified && !verbose && !quiet {
+				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
 			}
 		},
 	}

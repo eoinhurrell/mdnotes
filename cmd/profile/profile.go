@@ -7,10 +7,10 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/spf13/cobra"
 )
 
 // NewProfileCommand creates the profile command for performance analysis
@@ -159,9 +159,9 @@ func newMemoryProfileCommand() *cobra.Command {
 
 func newBenchmarkCommand() *cobra.Command {
 	var (
-		iterations   int
-		fileCount    int
-		workers      int
+		iterations     int
+		fileCount      int
+		workers        int
 		enableParallel bool
 	)
 
@@ -218,11 +218,11 @@ func newBenchmarkCommand() *cobra.Command {
 
 func loadConfig(cmd *cobra.Command) (*config.Config, error) {
 	configPath, _ := cmd.Flags().GetString("config")
-	
+
 	if configPath != "" {
 		return config.LoadConfigFromFile(configPath)
 	}
-	
+
 	return config.LoadConfigWithFallback(config.GetDefaultConfigPaths())
 }
 
@@ -265,7 +265,7 @@ func runSampleOperations(files []*vault.VaultFile) error {
 
 func generateTestVault(fileCount int) []*vault.VaultFile {
 	files := make([]*vault.VaultFile, fileCount)
-	
+
 	for i := 0; i < fileCount; i++ {
 		files[i] = &vault.VaultFile{
 			Path:         fmt.Sprintf("test/file_%d.md", i),
@@ -299,7 +299,7 @@ Some text with **bold** and *italic* formatting.
 Final content section.
 `, i, (i+1)%fileCount, (i+1)%fileCount, i),
 		}
-		
+
 		// Parse content
 		content := fmt.Sprintf(`---
 title: Test File %d
@@ -307,10 +307,10 @@ id: test-%d
 tags: [test, benchmark]
 ---
 %s`, i, i, files[i].Body)
-		
+
 		files[i].Parse([]byte(content))
 	}
-	
+
 	return files
 }
 
@@ -324,12 +324,12 @@ type BenchmarkResult struct {
 
 func runBenchmarks(files []*vault.VaultFile, iterations, workers int, enableParallel bool) []BenchmarkResult {
 	var results []BenchmarkResult
-	
+
 	vault := &processor.Vault{
 		Files: files,
 		Path:  "/test/vault",
 	}
-	
+
 	// Frontmatter Ensure Benchmark
 	results = append(results, benchmarkOperation("Frontmatter.Ensure", func() error {
 		processor := processor.NewFrontmatterProcessor()
@@ -338,7 +338,7 @@ func runBenchmarks(files []*vault.VaultFile, iterations, workers int, enablePara
 		}
 		return nil
 	}, iterations, len(files), false, 1))
-	
+
 	// Type Casting Benchmark
 	results = append(results, benchmarkOperation("Type.Cast", func() error {
 		caster := processor.NewTypeCaster()
@@ -351,7 +351,7 @@ func runBenchmarks(files []*vault.VaultFile, iterations, workers int, enablePara
 		}
 		return nil
 	}, iterations, len(files), false, 1))
-	
+
 	// Heading Analysis Benchmark
 	results = append(results, benchmarkOperation("Heading.Analyze", func() error {
 		processor := processor.NewHeadingProcessor()
@@ -360,7 +360,7 @@ func runBenchmarks(files []*vault.VaultFile, iterations, workers int, enablePara
 		}
 		return nil
 	}, iterations, len(files), false, 1))
-	
+
 	// Link Parsing Benchmark
 	results = append(results, benchmarkOperation("Link.Parse", func() error {
 		parser := processor.NewLinkParser()
@@ -369,26 +369,26 @@ func runBenchmarks(files []*vault.VaultFile, iterations, workers int, enablePara
 		}
 		return nil
 	}, iterations, len(files), false, 1))
-	
+
 	// Parallel benchmarks if enabled
 	if enableParallel && len(files) >= 50 {
 		results = append(results, benchmarkParallelOperation("Frontmatter.Ensure.Parallel", vault, iterations, workers))
 	}
-	
+
 	return results
 }
 
 func benchmarkOperation(name string, operation func() error, iterations, fileCount int, parallel bool, workers int) BenchmarkResult {
 	var totalDuration time.Duration
-	
+
 	for i := 0; i < iterations; i++ {
 		start := time.Now()
 		operation()
 		totalDuration += time.Since(start)
 	}
-	
+
 	avgDuration := totalDuration / time.Duration(iterations)
-	
+
 	return BenchmarkResult{
 		Name:     name,
 		Duration: avgDuration,
@@ -400,25 +400,25 @@ func benchmarkOperation(name string, operation func() error, iterations, fileCou
 
 func benchmarkParallelOperation(name string, vault *processor.Vault, iterations, workers int) BenchmarkResult {
 	var totalDuration time.Duration
-	
+
 	for i := 0; i < iterations; i++ {
 		start := time.Now()
-		
+
 		// Create parallel processor
 		baseProcessor := &processor.FrontmatterEnsureProcessor{}
 		parallelProcessor := processor.NewParallelProcessor(baseProcessor, workers)
-		
+
 		params := map[string]interface{}{
 			"field":   "tags",
 			"default": []string{},
 		}
-		
+
 		parallelProcessor.Process(nil, vault, params)
 		totalDuration += time.Since(start)
 	}
-	
+
 	avgDuration := totalDuration / time.Duration(iterations)
-	
+
 	return BenchmarkResult{
 		Name:     name,
 		Duration: avgDuration,
@@ -431,13 +431,13 @@ func benchmarkParallelOperation(name string, vault *processor.Vault, iterations,
 func displayBenchmarkResults(results []BenchmarkResult) {
 	fmt.Printf("\n%-30s %12s %8s %10s %8s\n", "Benchmark", "Duration", "Files", "Parallel", "Workers")
 	fmt.Printf("%-30s %12s %8s %10s %8s\n", "─────────", "────────", "─────", "────────", "───────")
-	
+
 	for _, result := range results {
 		parallel := "No"
 		if result.Parallel {
 			parallel = "Yes"
 		}
-		
+
 		fmt.Printf("%-30s %12v %8d %10s %8d\n",
 			result.Name,
 			result.Duration,
@@ -446,7 +446,7 @@ func displayBenchmarkResults(results []BenchmarkResult) {
 			result.Workers,
 		)
 	}
-	
+
 	// Calculate files per second for the largest benchmark
 	if len(results) > 0 {
 		fastest := results[0]
@@ -455,7 +455,7 @@ func displayBenchmarkResults(results []BenchmarkResult) {
 				fastest = result
 			}
 		}
-		
+
 		filesPerSecond := float64(fastest.Files) / fastest.Duration.Seconds()
 		fmt.Printf("\nFastest operation: %s\n", fastest.Name)
 		fmt.Printf("Throughput: %.0f files/second\n", filesPerSecond)

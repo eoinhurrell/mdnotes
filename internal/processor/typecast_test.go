@@ -4,18 +4,18 @@ import (
 	"strings"
 	"testing"
 	"time"
-	
+
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"gopkg.in/yaml.v3"
 )
 
 func TestTypeCaster_Cast(t *testing.T) {
 	tests := []struct {
-		name      string
-		value     interface{}
-		toType    string
-		want      interface{}
-		wantErr   bool
+		name    string
+		value   interface{}
+		toType  string
+		want    interface{}
+		wantErr bool
 	}{
 		{
 			name:   "string to date",
@@ -107,12 +107,12 @@ func TestTypeCaster_Cast(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tc := NewTypeCaster()
 			got, err := tc.Cast(tt.value, tt.toType)
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Cast() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			
+
 			if tt.wantErr {
 				return
 			}
@@ -126,7 +126,7 @@ func TestTypeCaster_Cast(t *testing.T) {
 					return
 				}
 			}
-			
+
 			// Special handling for Date comparison
 			if wantDate, ok := tt.want.(vault.Date); ok {
 				if gotDate, ok := got.(vault.Date); ok {
@@ -225,28 +225,28 @@ func TestTypeCaster_IsType(t *testing.T) {
 func TestDate_YAMLSerialization(t *testing.T) {
 	// Test that Date serializes without quotes in YAML
 	caster := NewTypeCaster()
-	
+
 	result, err := caster.Cast("2009-03-21", "date")
 	if err != nil {
 		t.Fatalf("Cast() error = %v", err)
 	}
-	
+
 	data := map[string]interface{}{
 		"start": result,
 	}
-	
+
 	yamlBytes, err := yaml.Marshal(data)
 	if err != nil {
 		t.Fatalf("yaml.Marshal() error = %v", err)
 	}
-	
+
 	yamlStr := string(yamlBytes)
-	
+
 	// Should contain the date without quotes
 	if !strings.Contains(yamlStr, "start: 2009-03-21") {
 		t.Errorf("Expected 'start: 2009-03-21' (without quotes), got: %s", yamlStr)
 	}
-	
+
 	// Should NOT contain quoted date
 	if strings.Contains(yamlStr, `"2009-03-21"`) {
 		t.Errorf("Date should not be quoted, got: %s", yamlStr)
@@ -256,39 +256,39 @@ func TestDate_YAMLSerialization(t *testing.T) {
 func TestTypeCaster_TimeToDate(t *testing.T) {
 	// Test converting time.Time to our custom Date type
 	caster := NewTypeCaster()
-	
+
 	// Create a time.Time value (as would come from YAML parsing)
 	timeValue := time.Date(2009, 3, 21, 0, 0, 0, 0, time.UTC)
-	
+
 	// Cast it to date type
 	result, err := caster.Cast(timeValue, "date")
 	if err != nil {
 		t.Fatalf("Cast() error = %v", err)
 	}
-	
+
 	// Should be our custom Date type
 	dateResult, ok := result.(vault.Date)
 	if !ok {
 		t.Fatalf("Expected Date type, got %T", result)
 	}
-	
+
 	// Should have the same time value
 	if !dateResult.Time.Equal(timeValue) {
 		t.Errorf("Date.Time = %v, want %v", dateResult.Time, timeValue)
 	}
-	
+
 	// Test YAML serialization
 	data := map[string]interface{}{
 		"start": result,
 	}
-	
+
 	yamlBytes, err := yaml.Marshal(data)
 	if err != nil {
 		t.Fatalf("yaml.Marshal() error = %v", err)
 	}
-	
+
 	yamlStr := string(yamlBytes)
-	
+
 	// Should contain the date without quotes and without time
 	if !strings.Contains(yamlStr, "start: 2009-03-21") {
 		t.Errorf("Expected 'start: 2009-03-21' (without quotes or time), got: %s", yamlStr)

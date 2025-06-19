@@ -12,12 +12,12 @@ import (
 
 // MemoryOptimizedProcessor provides memory-efficient processing for large vaults
 type MemoryOptimizedProcessor struct {
-	wrapped         Processor
-	maxMemoryMB     int64
-	chunkSize       int
-	enableGC        bool
-	gcInterval      time.Duration
-	lastGC          time.Time
+	wrapped     Processor
+	maxMemoryMB int64
+	chunkSize   int
+	enableGC    bool
+	gcInterval  time.Duration
+	lastGC      time.Time
 }
 
 // MemoryOptimizedConfig configures memory optimization settings
@@ -36,7 +36,7 @@ func NewMemoryOptimizedProcessor(wrapped Processor, config MemoryOptimizedConfig
 	if config.GCInterval <= 0 {
 		config.GCInterval = 5 * time.Second
 	}
-	
+
 	return &MemoryOptimizedProcessor{
 		wrapped:     wrapped,
 		maxMemoryMB: config.MaxMemoryMB,
@@ -51,7 +51,7 @@ func NewMemoryOptimizedProcessor(wrapped Processor, config MemoryOptimizedConfig
 func (p *MemoryOptimizedProcessor) Process(ctx context.Context, vault *Vault, params map[string]interface{}) error {
 	// Monitor memory usage before starting
 	initialMem := p.getMemoryUsage()
-	
+
 	// Process files in chunks to limit memory usage
 	for i := 0; i < len(vault.Files); i += p.chunkSize {
 		select {
@@ -59,24 +59,24 @@ func (p *MemoryOptimizedProcessor) Process(ctx context.Context, vault *Vault, pa
 			return ctx.Err()
 		default:
 		}
-		
+
 		end := i + p.chunkSize
 		if end > len(vault.Files) {
 			end = len(vault.Files)
 		}
-		
+
 		// Create chunk
 		chunk := &Vault{
 			Files: vault.Files[i:end],
 			Path:  vault.Path,
 		}
-		
+
 		// Check memory before processing chunk
 		if p.maxMemoryMB > 0 {
 			currentMem := p.getMemoryUsage()
 			if currentMem > p.maxMemoryMB {
 				p.forceGC()
-				
+
 				// Check again after GC
 				currentMem = p.getMemoryUsage()
 				if currentMem > p.maxMemoryMB {
@@ -84,17 +84,17 @@ func (p *MemoryOptimizedProcessor) Process(ctx context.Context, vault *Vault, pa
 				}
 			}
 		}
-		
+
 		// Process chunk
 		if err := p.wrapped.Process(ctx, chunk, params); err != nil {
 			return fmt.Errorf("processing chunk %d-%d: %w", i, end-1, err)
 		}
-		
+
 		// Optional garbage collection after chunk
 		if p.enableGC && time.Since(p.lastGC) >= p.gcInterval {
 			p.triggerGC()
 		}
-		
+
 		// Clear references to processed files to help GC
 		// Note: This assumes the processor doesn't need to maintain references
 		for j := i; j < end; j++ {
@@ -103,15 +103,15 @@ func (p *MemoryOptimizedProcessor) Process(ctx context.Context, vault *Vault, pa
 			}
 		}
 	}
-	
+
 	finalMem := p.getMemoryUsage()
-	
+
 	// Log memory usage if verbose
 	if verbose, ok := params["verbose"].(bool); ok && verbose {
-		fmt.Printf("Memory usage: initial=%dMB, final=%dMB, peak=%dMB\n", 
+		fmt.Printf("Memory usage: initial=%dMB, final=%dMB, peak=%dMB\n",
 			initialMem, finalMem, p.getPeakMemoryUsage())
 	}
-	
+
 	return nil
 }
 
@@ -169,7 +169,7 @@ func NewStreamingProcessor(wrapped Processor, bufferSize int) *StreamingProcesso
 	if bufferSize <= 0 {
 		bufferSize = 1 // Process one file at a time
 	}
-	
+
 	return &StreamingProcessor{
 		wrapped:    wrapped,
 		bufferSize: bufferSize,
@@ -185,23 +185,23 @@ func (p *StreamingProcessor) Process(ctx context.Context, vault *Vault, params m
 			return ctx.Err()
 		default:
 		}
-		
+
 		end := i + p.bufferSize
 		if end > len(vault.Files) {
 			end = len(vault.Files)
 		}
-		
+
 		// Create a small batch
 		batch := &Vault{
 			Files: vault.Files[i:end],
 			Path:  vault.Path,
 		}
-		
+
 		if err := p.wrapped.Process(ctx, batch, params); err != nil {
 			return fmt.Errorf("processing batch %d-%d: %w", i, end-1, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -212,10 +212,10 @@ func (p *StreamingProcessor) Name() string {
 
 // ResourceMonitor monitors system resources during processing
 type ResourceMonitor struct {
-	maxCPUPercent   float64
-	maxMemoryMB     int64
-	checkInterval   time.Duration
-	stopOnOverage   bool
+	maxCPUPercent float64
+	maxMemoryMB   int64
+	checkInterval time.Duration
+	stopOnOverage bool
 }
 
 // NewResourceMonitor creates a resource monitor
@@ -223,7 +223,7 @@ func NewResourceMonitor(maxCPUPercent float64, maxMemoryMB int64, checkInterval 
 	if checkInterval <= 0 {
 		checkInterval = 1 * time.Second
 	}
-	
+
 	return &ResourceMonitor{
 		maxCPUPercent: maxCPUPercent,
 		maxMemoryMB:   maxMemoryMB,
@@ -251,17 +251,17 @@ func (p *MonitoredProcessor) Process(ctx context.Context, vault *Vault, params m
 	// Create a context with cancellation for resource monitoring
 	monitorCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	
+
 	// Start resource monitoring
 	resourceErrors := make(chan error, 1)
 	go p.monitorResources(monitorCtx, resourceErrors)
-	
+
 	// Execute the wrapped processor
 	processingDone := make(chan error, 1)
 	go func() {
 		processingDone <- p.wrapped.Process(ctx, vault, params)
 	}()
-	
+
 	// Wait for completion or resource limit violation
 	select {
 	case err := <-processingDone:
@@ -283,7 +283,7 @@ func (p *MonitoredProcessor) Name() string {
 func (p *MonitoredProcessor) monitorResources(ctx context.Context, errors chan<- error) {
 	ticker := time.NewTicker(p.monitor.checkInterval)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -294,19 +294,19 @@ func (p *MonitoredProcessor) monitorResources(ctx context.Context, errors chan<-
 				var m runtime.MemStats
 				runtime.ReadMemStats(&m)
 				currentMemMB := int64(m.Alloc) / 1024 / 1024
-				
+
 				if currentMemMB > p.monitor.maxMemoryMB {
 					if p.monitor.stopOnOverage {
 						errors <- fmt.Errorf("memory usage (%d MB) exceeds limit (%d MB)", currentMemMB, p.monitor.maxMemoryMB)
 						return
 					}
-					
+
 					// Try to free memory
 					runtime.GC()
 					debug.FreeOSMemory()
 				}
 			}
-			
+
 			// CPU monitoring would require additional libraries or OS-specific code
 			// For now, we focus on memory monitoring
 		}
@@ -315,7 +315,7 @@ func (p *MonitoredProcessor) monitorResources(ctx context.Context, errors chan<-
 
 // ProcessorOptimizer automatically selects the best processing strategy
 type ProcessorOptimizer struct {
-	baseProcessor   Processor
+	baseProcessor       Processor
 	fileCountThresholds map[string]int
 	memoryThresholds    map[string]int64
 }
@@ -340,9 +340,9 @@ func NewProcessorOptimizer(baseProcessor Processor) *ProcessorOptimizer {
 func (o *ProcessorOptimizer) OptimizeProcessor(vault *Vault, config BatchConfig) Processor {
 	fileCount := len(vault.Files)
 	availableMemory := o.getAvailableMemoryMB()
-	
+
 	processor := o.baseProcessor
-	
+
 	// Apply memory optimization if needed
 	if availableMemory < o.memoryThresholds["memory_optimized"] {
 		processor = NewMemoryOptimizedProcessor(processor, MemoryOptimizedConfig{
@@ -352,7 +352,7 @@ func (o *ProcessorOptimizer) OptimizeProcessor(vault *Vault, config BatchConfig)
 			GCInterval:  3 * time.Second,
 		})
 	}
-	
+
 	// Apply streaming for very large vaults or low memory
 	if fileCount >= o.fileCountThresholds["streaming"] || availableMemory < o.memoryThresholds["streaming"] {
 		processor = NewStreamingProcessor(processor, 10)
@@ -361,7 +361,7 @@ func (o *ProcessorOptimizer) OptimizeProcessor(vault *Vault, config BatchConfig)
 	} else if fileCount >= o.fileCountThresholds["parallel"] && config.Parallel {
 		processor = NewParallelProcessor(processor, config.MaxWorkers)
 	}
-	
+
 	return processor
 }
 
@@ -369,17 +369,17 @@ func (o *ProcessorOptimizer) OptimizeProcessor(vault *Vault, config BatchConfig)
 func (o *ProcessorOptimizer) getAvailableMemoryMB() int64 {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	// Rough estimation: total system memory minus currently allocated
 	// This is simplified - in production you'd want more accurate system memory detection
 	usedMemMB := int64(m.Alloc) / 1024 / 1024
 	totalMemMB := int64(m.Sys) / 1024 / 1024
-	
+
 	// Conservative estimate
 	availableMB := totalMemMB - usedMemMB
 	if availableMB < 128 {
 		availableMB = 128 // Minimum assumption
 	}
-	
+
 	return availableMB
 }

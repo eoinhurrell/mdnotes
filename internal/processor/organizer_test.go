@@ -10,10 +10,10 @@ import (
 
 func TestOrganizer_GenerateFilename(t *testing.T) {
 	tests := []struct {
-		name     string
-		pattern  string
-		file     *vault.VaultFile
-		want     string
+		name    string
+		pattern string
+		file    *vault.VaultFile
+		want    string
 	}{
 		{
 			name:    "simple field replacement",
@@ -147,7 +147,7 @@ func TestOrganizer_GenerateDirectoryPath(t *testing.T) {
 func TestOrganizer_RenameFile(t *testing.T) {
 	// Create temporary directory for testing
 	tmpDir := t.TempDir()
-	
+
 	// Create source file
 	sourceFile := filepath.Join(tmpDir, "original.md")
 	content := []byte("---\ntitle: Test Note\nid: \"123\"\n---\n\n# Test Note\n\nContent")
@@ -157,7 +157,7 @@ func TestOrganizer_RenameFile(t *testing.T) {
 
 	// Create VaultFile and parse content
 	file := &vault.VaultFile{
-		Path: sourceFile,
+		Path:         sourceFile,
 		RelativePath: "original.md",
 	}
 	if err := file.Parse(content); err != nil {
@@ -188,9 +188,9 @@ func TestOrganizer_RenameFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			organizer := NewOrganizer()
-			
+
 			newPath, err := organizer.RenameFile(file, tt.pattern, tmpDir, tt.onConflict)
-			
+
 			if tt.shouldError && err == nil {
 				t.Error("Expected error but got none")
 			} else if !tt.shouldError && err != nil {
@@ -227,7 +227,7 @@ func TestOrganizer_RenameFile(t *testing.T) {
 
 func TestOrganizer_HandleConflict(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Create existing file
 	existingFile := filepath.Join(tmpDir, "existing.md")
 	if err := os.WriteFile(existingFile, []byte("existing content"), 0644); err != nil {

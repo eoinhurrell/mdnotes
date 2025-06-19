@@ -30,11 +30,11 @@ func NewLinkParser() *LinkParser {
 		patterns: map[LinkType]*regexp.Regexp{
 			// Wiki links: [[target]] or [[target|alias]]
 			// Allow nested brackets in the target/alias parts
-			WikiLink:     regexp.MustCompile(`\[\[([^|\]]+(?:\[[^\]]*\][^|\]]*)*?)(?:\|([^\]]+(?:\[[^\]]*\][^\]]*)*?))?\]\]`),
+			WikiLink: regexp.MustCompile(`\[\[([^|\]]+(?:\[[^\]]*\][^|\]]*)*?)(?:\|([^\]]+(?:\[[^\]]*\][^\]]*)*?))?\]\]`),
 			// Markdown links: [text](target)
 			MarkdownLink: regexp.MustCompile(`\[([^\]]*)\]\(([^)]+)\)`),
 			// Embed links: ![[target]]
-			EmbedLink:    regexp.MustCompile(`!\[\[([^\]]+(?:\[[^\]]*\][^\]]*)*?)\]\]`),
+			EmbedLink: regexp.MustCompile(`!\[\[([^\]]+(?:\[[^\]]*\][^\]]*)*?)\]\]`),
 		},
 	}
 }

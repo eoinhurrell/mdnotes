@@ -32,29 +32,29 @@ func (a *Analyzer) SetLinkParser(parser LinkParser) {
 
 // VaultStats represents statistics about a vault
 type VaultStats struct {
-	TotalFiles              int                    `json:"total_files"`
-	FilesWithFrontmatter    int                    `json:"files_with_frontmatter"`
-	FilesWithoutFrontmatter int                    `json:"files_without_frontmatter"`
-	TotalSize               int64                  `json:"total_size"`
-	AverageFileSize         float64                `json:"average_file_size"`
-	TotalLinks              int                    `json:"total_links"`
-	TotalHeadings           int                    `json:"total_headings"`
-	TagDistribution         map[string]int         `json:"tag_distribution"`
-	FieldPresence           map[string]int         `json:"field_presence"`
+	TotalFiles              int                       `json:"total_files"`
+	FilesWithFrontmatter    int                       `json:"files_with_frontmatter"`
+	FilesWithoutFrontmatter int                       `json:"files_without_frontmatter"`
+	TotalSize               int64                     `json:"total_size"`
+	AverageFileSize         float64                   `json:"average_file_size"`
+	TotalLinks              int                       `json:"total_links"`
+	TotalHeadings           int                       `json:"total_headings"`
+	TagDistribution         map[string]int            `json:"tag_distribution"`
+	FieldPresence           map[string]int            `json:"field_presence"`
 	TypeDistribution        map[string]map[string]int `json:"type_distribution"`
-	OrphanedFiles           []string               `json:"orphaned_files"`
-	DuplicateCount          int                    `json:"duplicate_count"`
-	BrokenLinksCount        int                    `json:"broken_links_count"`
-	LastModified            time.Time              `json:"last_modified"`
-	OldestFile              time.Time              `json:"oldest_file"`
+	OrphanedFiles           []string                  `json:"orphaned_files"`
+	DuplicateCount          int                       `json:"duplicate_count"`
+	BrokenLinksCount        int                       `json:"broken_links_count"`
+	LastModified            time.Time                 `json:"last_modified"`
+	OldestFile              time.Time                 `json:"oldest_file"`
 }
 
 // Duplicate represents a set of duplicate values
 type Duplicate struct {
-	Field string   `json:"field"`
+	Field string      `json:"field"`
 	Value interface{} `json:"value"`
-	Files []string `json:"files"`
-	Count int      `json:"count"`
+	Files []string    `json:"files"`
+	Count int         `json:"count"`
 }
 
 // ContentDuplicate represents files with duplicate content
@@ -75,14 +75,14 @@ const (
 
 // FieldAnalysis represents analysis of a specific field
 type FieldAnalysis struct {
-	FieldName         string                 `json:"field_name"`
-	TotalFiles        int                    `json:"total_files"`
-	MissingCount      int                    `json:"missing_count"`
-	UniqueValues      int                    `json:"unique_values"`
-	ValueDistribution map[interface{}]int    `json:"value_distribution"`
-	TypeDistribution  map[string]int         `json:"type_distribution"`
-	PredominantType   string                 `json:"predominant_type"`
-	Examples          []interface{}          `json:"examples"`
+	FieldName         string              `json:"field_name"`
+	TotalFiles        int                 `json:"total_files"`
+	MissingCount      int                 `json:"missing_count"`
+	UniqueValues      int                 `json:"unique_values"`
+	ValueDistribution map[interface{}]int `json:"value_distribution"`
+	TypeDistribution  map[string]int      `json:"type_distribution"`
+	PredominantType   string              `json:"predominant_type"`
+	Examples          []interface{}       `json:"examples"`
 }
 
 // HealthScore represents the overall health of a vault
@@ -339,24 +339,24 @@ func (a *Analyzer) findExactContentDuplicates(files []*vault.VaultFile) []Conten
 func (a *Analyzer) findSimilarContentDuplicates(files []*vault.VaultFile) []ContentDuplicate {
 	// This is a simplified similarity check based on common words
 	// A more sophisticated implementation would use algorithms like Jaccard similarity
-	
+
 	var duplicates []ContentDuplicate
-	
+
 	for i, file1 := range files {
 		var similarFiles []string
 		similarFiles = append(similarFiles, file1.Path)
-		
+
 		for j, file2 := range files {
 			if i >= j {
 				continue
 			}
-			
+
 			similarity := a.calculateSimilarity(file1.Body, file2.Body)
 			if similarity > 0.8 { // 80% similarity threshold
 				similarFiles = append(similarFiles, file2.Path)
 			}
 		}
-		
+
 		if len(similarFiles) > 1 {
 			duplicates = append(duplicates, ContentDuplicate{
 				Hash:  fmt.Sprintf("similar_%d", i),
@@ -366,7 +366,7 @@ func (a *Analyzer) findSimilarContentDuplicates(files []*vault.VaultFile) []Cont
 			})
 		}
 	}
-	
+
 	return duplicates
 }
 
@@ -374,33 +374,33 @@ func (a *Analyzer) findSimilarContentDuplicates(files []*vault.VaultFile) []Cont
 func (a *Analyzer) calculateSimilarity(text1, text2 string) float64 {
 	words1 := strings.Fields(strings.ToLower(text1))
 	words2 := strings.Fields(strings.ToLower(text2))
-	
+
 	if len(words1) == 0 && len(words2) == 0 {
 		return 1.0
 	}
-	
+
 	if len(words1) == 0 || len(words2) == 0 {
 		return 0.0
 	}
-	
+
 	// Simple Jaccard similarity
 	set1 := make(map[string]bool)
 	for _, word := range words1 {
 		set1[word] = true
 	}
-	
+
 	set2 := make(map[string]bool)
 	for _, word := range words2 {
 		set2[word] = true
 	}
-	
+
 	intersection := 0
 	for word := range set1 {
 		if set2[word] {
 			intersection++
 		}
 	}
-	
+
 	union := len(set1) + len(set2) - intersection
 	return float64(intersection) / float64(union)
 }
@@ -471,7 +471,7 @@ func (a *Analyzer) FindOrphanedFiles(files []*vault.VaultFile) []*vault.VaultFil
 	for _, file := range files {
 		for _, link := range file.Links {
 			target := link.Target
-			
+
 			// Normalize target for comparison
 			if link.Type == vault.WikiLink {
 				// Wiki links can point to files with or without .md extension
@@ -479,7 +479,7 @@ func (a *Analyzer) FindOrphanedFiles(files []*vault.VaultFile) []*vault.VaultFil
 					target = target + ".md"
 				}
 			}
-			
+
 			// Don't count self-references
 			if target != file.Path {
 				referenced[target] = true
@@ -496,6 +496,565 @@ func (a *Analyzer) FindOrphanedFiles(files []*vault.VaultFile) []*vault.VaultFil
 	}
 
 	return orphaned
+}
+
+// LinkAnalysis represents comprehensive link structure analysis
+type LinkAnalysis struct {
+	TotalFiles             int                 `json:"total_files"`
+	FilesWithOutboundLinks int                 `json:"files_with_outbound_links"`
+	FilesWithInboundLinks  int                 `json:"files_with_inbound_links"`
+	OrphanedFiles          []string            `json:"orphaned_files"`
+	TotalLinks             int                 `json:"total_links"`
+	BrokenLinks            int                 `json:"broken_links"`
+	AvgOutboundLinks       float64             `json:"avg_outbound_links"`
+	AvgInboundLinks        float64             `json:"avg_inbound_links"`
+	MostConnectedFile      string              `json:"most_connected_file"`
+	MaxConnections         int                 `json:"max_connections"`
+	LinkDensity            float64             `json:"link_density"`
+	LinkGraph              map[string][]string `json:"link_graph"`
+	CentralFiles           []CentralFile       `json:"central_files"`
+}
+
+// CentralFile represents a file with its centrality score
+type CentralFile struct {
+	Path            string  `json:"path"`
+	CentralityScore float64 `json:"centrality_score"`
+}
+
+// ContentAnalysis represents content quality analysis
+type ContentAnalysis struct {
+	OverallScore         float64            `json:"overall_score"`
+	ScoreDistribution    map[string]int     `json:"score_distribution"`
+	AvgContentLength     float64            `json:"avg_content_length"`
+	AvgWordCount         float64            `json:"avg_word_count"`
+	FilesWithFrontmatter int                `json:"files_with_frontmatter"`
+	FilesWithHeadings    int                `json:"files_with_headings"`
+	FilesWithLinks       int                `json:"files_with_links"`
+	QualityIssues        []string           `json:"quality_issues"`
+	Suggestions          []string           `json:"suggestions"`
+	FileScores           []FileQualityScore `json:"file_scores"`
+}
+
+// FileQualityScore represents the quality score of an individual file
+type FileQualityScore struct {
+	Path  string  `json:"path"`
+	Score float64 `json:"score"`
+}
+
+// TrendsAnalysis represents vault growth and trend analysis
+type TrendsAnalysis struct {
+	StartDate          time.Time           `json:"start_date"`
+	EndDate            time.Time           `json:"end_date"`
+	TotalDuration      string              `json:"total_duration"`
+	TotalFilesCreated  int                 `json:"total_files_created"`
+	PeakPeriod         string              `json:"peak_period"`
+	PeakFiles          int                 `json:"peak_files"`
+	Granularity        string              `json:"granularity"`
+	AvgFilesPerPeriod  float64             `json:"avg_files_per_period"`
+	GrowthRate         float64             `json:"growth_rate"`
+	MostActiveDay      string              `json:"most_active_day"`
+	MostActiveMonth    string              `json:"most_active_month"`
+	WritingStreak      int                 `json:"writing_streak"`
+	ActiveDays         int                 `json:"active_days"`
+	TotalDays          int                 `json:"total_days"`
+	ActivityPercentage float64             `json:"activity_percentage"`
+	Timeline           []TimelinePoint     `json:"timeline"`
+	TagTrends          map[string]TagTrend `json:"tag_trends"`
+}
+
+// TimelinePoint represents a point in the timeline
+type TimelinePoint struct {
+	Period string `json:"period"`
+	Count  int    `json:"count"`
+}
+
+// TagTrend represents trending information for a tag
+type TagTrend struct {
+	Count      int     `json:"count"`
+	GrowthRate float64 `json:"growth_rate"`
+}
+
+// AnalyzeLinks performs comprehensive link structure analysis
+func (a *Analyzer) AnalyzeLinks(files []*vault.VaultFile) LinkAnalysis {
+	analysis := LinkAnalysis{
+		TotalFiles:   len(files),
+		LinkGraph:    make(map[string][]string),
+		CentralFiles: []CentralFile{},
+	}
+
+	if len(files) == 0 {
+		return analysis
+	}
+
+	// Build link graph and collect statistics
+	inboundLinks := make(map[string][]string)
+	outboundCounts := make(map[string]int)
+	totalLinks := 0
+
+	for _, file := range files {
+		// Parse links if parser is available
+		if a.linkParser != nil {
+			a.linkParser.UpdateFile(file)
+		}
+
+		// Count outbound links
+		if len(file.Links) > 0 {
+			analysis.FilesWithOutboundLinks++
+			outboundCounts[file.RelativePath] = len(file.Links)
+			totalLinks += len(file.Links)
+
+			// Build link graph
+			for _, link := range file.Links {
+				target := link.Target
+				// Normalize target path
+				if link.Type == vault.WikiLink && !strings.HasSuffix(target, ".md") {
+					target = target + ".md"
+				}
+
+				analysis.LinkGraph[file.RelativePath] = append(analysis.LinkGraph[file.RelativePath], target)
+				inboundLinks[target] = append(inboundLinks[target], file.RelativePath)
+			}
+		}
+	}
+
+	analysis.TotalLinks = totalLinks
+	analysis.FilesWithInboundLinks = len(inboundLinks)
+
+	// Calculate averages
+	if len(files) > 0 {
+		analysis.AvgOutboundLinks = float64(totalLinks) / float64(len(files))
+		analysis.AvgInboundLinks = float64(analysis.FilesWithInboundLinks) / float64(len(files))
+		analysis.LinkDensity = float64(totalLinks) / float64(len(files)*len(files))
+	}
+
+	// Find most connected file
+	maxConnections := 0
+	for file, count := range outboundCounts {
+		inbound := len(inboundLinks[file])
+		totalConnections := count + inbound
+		if totalConnections > maxConnections {
+			maxConnections = totalConnections
+			analysis.MostConnectedFile = file
+		}
+	}
+	analysis.MaxConnections = maxConnections
+
+	// Find orphaned files
+	orphaned := a.FindOrphanedFiles(files)
+	for _, file := range orphaned {
+		analysis.OrphanedFiles = append(analysis.OrphanedFiles, file.RelativePath)
+	}
+
+	// Calculate centrality scores
+	analysis.CentralFiles = a.calculateCentralityScores(files, inboundLinks, outboundCounts)
+
+	return analysis
+}
+
+// calculateCentralityScores calculates centrality scores for files
+func (a *Analyzer) calculateCentralityScores(files []*vault.VaultFile, inboundLinks map[string][]string, outboundCounts map[string]int) []CentralFile {
+	var centralFiles []CentralFile
+
+	for _, file := range files {
+		inbound := len(inboundLinks[file.RelativePath])
+		outbound := outboundCounts[file.RelativePath]
+
+		// Simple centrality score: weighted combination of inbound and outbound links
+		score := float64(inbound)*0.7 + float64(outbound)*0.3
+
+		if score > 0 {
+			centralFiles = append(centralFiles, CentralFile{
+				Path:            file.RelativePath,
+				CentralityScore: score,
+			})
+		}
+	}
+
+	// Sort by centrality score descending
+	sort.Slice(centralFiles, func(i, j int) bool {
+		return centralFiles[i].CentralityScore > centralFiles[j].CentralityScore
+	})
+
+	return centralFiles
+}
+
+// AnalyzeContentQuality performs comprehensive content quality analysis
+func (a *Analyzer) AnalyzeContentQuality(files []*vault.VaultFile) ContentAnalysis {
+	analysis := ContentAnalysis{
+		ScoreDistribution: make(map[string]int),
+		QualityIssues:     []string{},
+		Suggestions:       []string{},
+		FileScores:        []FileQualityScore{},
+	}
+
+	if len(files) == 0 {
+		return analysis
+	}
+
+	var totalContentLength, totalWordCount float64
+	var totalScore float64
+
+	// Initialize score distribution
+	analysis.ScoreDistribution["excellent"] = 0
+	analysis.ScoreDistribution["good"] = 0
+	analysis.ScoreDistribution["fair"] = 0
+	analysis.ScoreDistribution["poor"] = 0
+	analysis.ScoreDistribution["critical"] = 0
+
+	for _, file := range files {
+		// Calculate file quality score
+		score := a.calculateFileQualityScore(file)
+		analysis.FileScores = append(analysis.FileScores, FileQualityScore{
+			Path:  file.RelativePath,
+			Score: score * 100, // Convert to 0-100 scale
+		})
+
+		totalScore += score
+
+		// Categorize score
+		switch {
+		case score >= 0.9:
+			analysis.ScoreDistribution["excellent"]++
+		case score >= 0.75:
+			analysis.ScoreDistribution["good"]++
+		case score >= 0.6:
+			analysis.ScoreDistribution["fair"]++
+		case score >= 0.4:
+			analysis.ScoreDistribution["poor"]++
+		default:
+			analysis.ScoreDistribution["critical"]++
+		}
+
+		// Content metrics
+		contentLength := float64(len(file.Body))
+		wordCount := float64(len(strings.Fields(file.Body)))
+		totalContentLength += contentLength
+		totalWordCount += wordCount
+
+		// Count files with various features
+		if len(file.Frontmatter) > 0 {
+			analysis.FilesWithFrontmatter++
+		}
+		if len(file.Headings) > 0 {
+			analysis.FilesWithHeadings++
+		}
+		if len(file.Links) > 0 {
+			analysis.FilesWithLinks++
+		}
+	}
+
+	// Calculate overall metrics
+	analysis.OverallScore = (totalScore / float64(len(files))) * 100
+	analysis.AvgContentLength = totalContentLength / float64(len(files))
+	analysis.AvgWordCount = totalWordCount / float64(len(files))
+
+	// Generate quality issues and suggestions
+	analysis.QualityIssues, analysis.Suggestions = a.generateQualityInsights(analysis, len(files))
+
+	// Sort file scores by score descending
+	sort.Slice(analysis.FileScores, func(i, j int) bool {
+		return analysis.FileScores[i].Score > analysis.FileScores[j].Score
+	})
+
+	return analysis
+}
+
+// calculateFileQualityScore calculates a quality score for an individual file
+func (a *Analyzer) calculateFileQualityScore(file *vault.VaultFile) float64 {
+	score := 0.0
+	maxScore := 0.0
+
+	// Frontmatter presence (20% weight)
+	maxScore += 0.2
+	if len(file.Frontmatter) > 0 {
+		score += 0.2
+
+		// Bonus for essential fields
+		if _, hasTitle := file.Frontmatter["title"]; hasTitle {
+			score += 0.05
+		}
+		if _, hasTags := file.Frontmatter["tags"]; hasTags {
+			score += 0.05
+		}
+	}
+
+	// Content length (25% weight)
+	maxScore += 0.25
+	wordCount := len(strings.Fields(file.Body))
+	switch {
+	case wordCount >= 500:
+		score += 0.25
+	case wordCount >= 200:
+		score += 0.20
+	case wordCount >= 100:
+		score += 0.15
+	case wordCount >= 50:
+		score += 0.10
+	case wordCount > 0:
+		score += 0.05
+	}
+
+	// Structure - headings (20% weight)
+	maxScore += 0.2
+	if len(file.Headings) > 0 {
+		score += 0.15
+		// Bonus for proper heading hierarchy
+		if len(file.Headings) >= 2 {
+			score += 0.05
+		}
+	}
+
+	// Links and connectivity (20% weight)
+	maxScore += 0.2
+	if len(file.Links) > 0 {
+		score += 0.15
+		// Bonus for multiple links
+		if len(file.Links) >= 3 {
+			score += 0.05
+		}
+	}
+
+	// Content quality indicators (15% weight)
+	maxScore += 0.15
+	if len(file.Body) > 0 {
+		// Check for code blocks, lists, etc.
+		if strings.Contains(file.Body, "```") {
+			score += 0.05
+		}
+		if strings.Contains(file.Body, "- ") || strings.Contains(file.Body, "* ") {
+			score += 0.05
+		}
+		if strings.Count(file.Body, "\n") >= 10 { // Multi-paragraph content
+			score += 0.05
+		}
+	}
+
+	// Normalize score to 0-1 range
+	if maxScore > 0 {
+		return score / maxScore
+	}
+	return 0
+}
+
+// generateQualityInsights generates quality issues and suggestions
+func (a *Analyzer) generateQualityInsights(analysis ContentAnalysis, totalFiles int) ([]string, []string) {
+	var issues, suggestions []string
+
+	// Check for common quality issues
+	if analysis.FilesWithFrontmatter < totalFiles/2 {
+		issues = append(issues, fmt.Sprintf("%.0f%% of files lack frontmatter", float64(totalFiles-analysis.FilesWithFrontmatter)/float64(totalFiles)*100))
+		suggestions = append(suggestions, "Add frontmatter to files using 'mdnotes frontmatter ensure'")
+	}
+
+	if analysis.FilesWithHeadings < totalFiles/3 {
+		issues = append(issues, fmt.Sprintf("%.0f%% of files lack heading structure", float64(totalFiles-analysis.FilesWithHeadings)/float64(totalFiles)*100))
+		suggestions = append(suggestions, "Add headings to improve content structure")
+	}
+
+	if analysis.FilesWithLinks < totalFiles/4 {
+		issues = append(issues, "Low interconnectivity between files")
+		suggestions = append(suggestions, "Add more links between related content")
+	}
+
+	if analysis.AvgWordCount < 100 {
+		issues = append(issues, "Many files have very short content")
+		suggestions = append(suggestions, "Consider expanding content or combining related short files")
+	}
+
+	// Score-based insights
+	criticalFiles := analysis.ScoreDistribution["critical"] + analysis.ScoreDistribution["poor"]
+	if criticalFiles > totalFiles/4 {
+		issues = append(issues, fmt.Sprintf("%d files have poor quality scores", criticalFiles))
+		suggestions = append(suggestions, "Focus on improving content structure and completeness")
+	}
+
+	return issues, suggestions
+}
+
+// AnalyzeTrends performs vault growth and trend analysis
+func (a *Analyzer) AnalyzeTrends(files []*vault.VaultFile, timespan, granularity string) TrendsAnalysis {
+	analysis := TrendsAnalysis{
+		Granularity: granularity,
+		Timeline:    []TimelinePoint{},
+		TagTrends:   make(map[string]TagTrend),
+	}
+
+	if len(files) == 0 {
+		return analysis
+	}
+
+	// Parse timespan and find date range
+	endDate := time.Now()
+	startDate := a.parseTimespan(timespan, endDate)
+
+	analysis.StartDate = startDate
+	analysis.EndDate = endDate
+	analysis.TotalDuration = endDate.Sub(startDate).String()
+
+	// Filter files within timespan and collect data
+	var filesInRange []*vault.VaultFile
+	dayActivity := make(map[string]int)
+	monthActivity := make(map[string]int)
+	periodActivity := make(map[string]int)
+	tagFrequency := make(map[string]int)
+
+	for _, file := range files {
+		if file.Modified.After(startDate) && file.Modified.Before(endDate) {
+			filesInRange = append(filesInRange, file)
+
+			// Track daily activity
+			dayKey := file.Modified.Format("2006-01-02")
+			dayActivity[dayKey]++
+
+			// Track monthly activity
+			monthKey := file.Modified.Format("2006-01")
+			monthActivity[monthKey]++
+
+			// Track period activity based on granularity
+			periodKey := a.formatPeriod(file.Modified, granularity)
+			periodActivity[periodKey]++
+
+			// Track tag trends
+			if tags, exists := file.Frontmatter["tags"]; exists {
+				extractedTags := a.extractTags(tags)
+				for _, tag := range extractedTags {
+					tagFrequency[tag]++
+				}
+			}
+		}
+	}
+
+	analysis.TotalFilesCreated = len(filesInRange)
+
+	// Calculate growth metrics
+	totalDays := int(endDate.Sub(startDate).Hours() / 24)
+	analysis.TotalDays = totalDays
+	analysis.ActiveDays = len(dayActivity)
+	if totalDays > 0 {
+		analysis.ActivityPercentage = float64(analysis.ActiveDays) / float64(totalDays) * 100
+	}
+
+	// Find peak period and most active periods
+	maxFiles := 0
+	for period, count := range periodActivity {
+		if count > maxFiles {
+			maxFiles = count
+			analysis.PeakPeriod = period
+		}
+	}
+	analysis.PeakFiles = maxFiles
+
+	// Calculate averages
+	periods := len(periodActivity)
+	if periods > 0 {
+		analysis.AvgFilesPerPeriod = float64(analysis.TotalFilesCreated) / float64(periods)
+		analysis.GrowthRate = (float64(analysis.TotalFilesCreated) / float64(periods)) * 100 // Simplified growth rate
+	}
+
+	// Find most active day and month
+	analysis.MostActiveDay = a.findMostActive(dayActivity)
+	analysis.MostActiveMonth = a.findMostActive(monthActivity)
+
+	// Calculate writing streak
+	analysis.WritingStreak = a.calculateWritingStreak(dayActivity, endDate)
+
+	// Build timeline
+	analysis.Timeline = a.buildTimeline(periodActivity, granularity)
+
+	// Build tag trends
+	for tag, count := range tagFrequency {
+		analysis.TagTrends[tag] = TagTrend{
+			Count:      count,
+			GrowthRate: float64(count) / float64(analysis.TotalFilesCreated) * 100,
+		}
+	}
+
+	return analysis
+}
+
+// Helper methods for trend analysis
+
+func (a *Analyzer) parseTimespan(timespan string, endDate time.Time) time.Time {
+	switch timespan {
+	case "1w":
+		return endDate.AddDate(0, 0, -7)
+	case "1m":
+		return endDate.AddDate(0, -1, 0)
+	case "3m":
+		return endDate.AddDate(0, -3, 0)
+	case "6m":
+		return endDate.AddDate(0, -6, 0)
+	case "1y":
+		return endDate.AddDate(-1, 0, 0)
+	case "all":
+		return time.Time{} // Beginning of time
+	default:
+		return endDate.AddDate(-1, 0, 0) // Default to 1 year
+	}
+}
+
+func (a *Analyzer) formatPeriod(date time.Time, granularity string) string {
+	switch granularity {
+	case "day":
+		return date.Format("2006-01-02")
+	case "week":
+		year, week := date.ISOWeek()
+		return fmt.Sprintf("%d-W%02d", year, week)
+	case "month":
+		return date.Format("2006-01")
+	case "quarter":
+		quarter := (date.Month()-1)/3 + 1
+		return fmt.Sprintf("%d-Q%d", date.Year(), quarter)
+	default:
+		return date.Format("2006-01") // Default to month
+	}
+}
+
+func (a *Analyzer) findMostActive(activity map[string]int) string {
+	maxCount := 0
+	mostActive := ""
+	for period, count := range activity {
+		if count > maxCount {
+			maxCount = count
+			mostActive = period
+		}
+	}
+	return mostActive
+}
+
+func (a *Analyzer) calculateWritingStreak(dayActivity map[string]int, endDate time.Time) int {
+	streak := 0
+	currentDate := endDate
+
+	for i := 0; i < 365; i++ { // Check up to 365 days back
+		dayKey := currentDate.Format("2006-01-02")
+		if dayActivity[dayKey] > 0 {
+			streak++
+		} else {
+			break
+		}
+		currentDate = currentDate.AddDate(0, 0, -1)
+	}
+
+	return streak
+}
+
+func (a *Analyzer) buildTimeline(periodActivity map[string]int, granularity string) []TimelinePoint {
+	var timeline []TimelinePoint
+
+	for period, count := range periodActivity {
+		timeline = append(timeline, TimelinePoint{
+			Period: period,
+			Count:  count,
+		})
+	}
+
+	// Sort timeline by period
+	sort.Slice(timeline, func(i, j int) bool {
+		return timeline[i].Period > timeline[j].Period // Most recent first
+	})
+
+	return timeline
 }
 
 // GetHealthScore calculates an overall health score for the vault

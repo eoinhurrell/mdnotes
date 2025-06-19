@@ -300,10 +300,10 @@ func TestConfig_MergeConfig(t *testing.T) {
 
 func TestConfig_GetConfigPaths(t *testing.T) {
 	paths := GetDefaultConfigPaths()
-	
+
 	// Should include standard config locations
 	assert.Greater(t, len(paths), 0)
-	
+
 	// Should include current directory
 	found := false
 	for _, path := range paths {

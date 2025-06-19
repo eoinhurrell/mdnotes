@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/downloader"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
+	"github.com/eoinhurrell/mdnotes/internal/query"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/spf13/cobra"
 )
 
 // NewFrontmatterCommand creates the frontmatter command
@@ -65,7 +66,7 @@ Special default values:
 
 func runEnsure(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	fields, _ := cmd.Flags().GetStringSlice("field")
 	defaults, _ := cmd.Flags().GetStringSlice("default")
@@ -73,6 +74,12 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	if len(fields) != len(defaults) {
 		return fmt.Errorf("number of fields (%d) must match number of defaults (%d)", len(fields), len(defaults))
@@ -105,25 +112,26 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 	validator := processor.NewValidator(processor.ValidationRules{
 		Types: types,
 	})
-	
+
 	// Setup file processor
 	fileProcessor := &processor.FileProcessor{
 		DryRun:         dryRun,
 		Verbose:        verbose,
+		Quiet:          quiet,
 		IgnorePatterns: ignorePatterns,
 		ProcessFile: func(file *vault.VaultFile) (bool, error) {
 			fileModified := false
-			
+
 			// Phase 1: Ensure fields exist with default values
 			for field, defaultValue := range fieldDefaults {
 				if frontmatterProcessor.Ensure(file, field, defaultValue) {
 					fileModified = true
 					if verbose {
-						fmt.Printf("✓ %s: Added field '%s' = %v\n", file.RelativePath, field, defaultValue)
+						fmt.Printf("Examining: %s - Added field '%s' = %v\n", file.RelativePath, field, defaultValue)
 					}
 				}
 			}
-			
+
 			// Phase 2: Check and fix types
 			for field, expectedType := range types {
 				if value, exists := file.GetField(field); exists {
@@ -136,11 +144,11 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 								file.SetField(field, newValue)
 								fileModified = true
 								if verbose {
-									fmt.Printf("✓ %s: Fixed type for '%s' (%T -> %T)\n", file.RelativePath, field, value, newValue)
+									fmt.Printf("Examining: %s - Fixed type for '%s' (%T -> %T)\n", file.RelativePath, field, value, newValue)
 								}
 							} else {
 								// Non-halting error: report but continue
-								fmt.Printf("✗ %s: Field '%s' has wrong type (expected %s, got %T) and cannot be cast: %v\n", 
+								fmt.Printf("✗ %s: Field '%s' has wrong type (expected %s, got %T) and cannot be cast: %v\n",
 									file.RelativePath, field, expectedType, value, castErr)
 							}
 							break
@@ -148,14 +156,14 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 					}
 				}
 			}
-			
+
 			return fileModified, nil
 		},
 		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
-			if modified && !verbose {
+			if modified && !verbose && !quiet {
 				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
 			} else if !modified && verbose {
-				fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
+				fmt.Printf("Examining: %s - No changes needed\n", file.RelativePath)
 			}
 		},
 	}
@@ -202,7 +210,7 @@ Special values:
 
 func runSet(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	fields, _ := cmd.Flags().GetStringSlice("field")
 	values, _ := cmd.Flags().GetStringSlice("value")
@@ -210,6 +218,12 @@ func runSet(cmd *cobra.Command, args []string) error {
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	if len(fields) != len(values) {
 		return fmt.Errorf("number of fields (%d) must match number of values (%d)", len(fields), len(values))
@@ -238,56 +252,57 @@ func runSet(cmd *cobra.Command, args []string) error {
 
 	// Create processors
 	typeCaster := processor.NewTypeCaster()
-	
+
 	// Setup file processor
 	fileProcessor := &processor.FileProcessor{
 		DryRun:         dryRun,
 		Verbose:        verbose,
+		Quiet:          quiet,
 		IgnorePatterns: ignorePatterns,
 		ProcessFile: func(file *vault.VaultFile) (bool, error) {
 			fileModified := false
-			
+
 			for field, value := range fieldValues {
 				// Get current value for comparison
 				currentValue, exists := file.GetField(field)
-				
+
 				// Set the new value
 				processedValue := value
-				
+
 				// Apply type casting if specified
 				if expectedType, hasType := types[field]; hasType && value != nil {
 					if castValue, err := typeCaster.Cast(value, expectedType); err == nil {
 						processedValue = castValue
 						if verbose {
-							fmt.Printf("✓ %s: Cast value for '%s' to %s\n", file.RelativePath, field, expectedType)
+							fmt.Printf("Examining: %s - Cast value for '%s' to %s\n", file.RelativePath, field, expectedType)
 						}
 					} else {
 						// Non-halting error: report but continue with original value
-						fmt.Printf("✗ %s: Cannot cast value for '%s' to %s: %v (using original value)\n", 
+						fmt.Printf("✗ %s: Cannot cast value for '%s' to %s: %v (using original value)\n",
 							file.RelativePath, field, expectedType, err)
 					}
 				}
-				
+
 				// Set the field value
 				file.SetField(field, processedValue)
 				fileModified = true
-				
+
 				if verbose {
 					if exists {
-						fmt.Printf("✓ %s: Updated field '%s': %v -> %v\n", file.RelativePath, field, currentValue, processedValue)
+						fmt.Printf("Examining: %s - Updated field '%s': %v -> %v\n", file.RelativePath, field, currentValue, processedValue)
 					} else {
-						fmt.Printf("✓ %s: Set field '%s' = %v\n", file.RelativePath, field, processedValue)
+						fmt.Printf("Examining: %s - Set field '%s' = %v\n", file.RelativePath, field, processedValue)
 					}
 				}
 			}
-			
+
 			return fileModified, nil
 		},
 		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
-			if modified && !verbose {
+			if modified && !verbose && !quiet {
 				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
 			} else if !modified && verbose {
-				fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
+				fmt.Printf("Examining: %s - No changes needed\n", file.RelativePath)
 			}
 		},
 	}
@@ -326,7 +341,7 @@ Supports auto-detection or explicit type specification.`,
 
 func runCast(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	fields, _ := cmd.Flags().GetStringSlice("field")
 	typeSpecs, _ := cmd.Flags().GetStringSlice("type")
@@ -334,6 +349,12 @@ func runCast(cmd *cobra.Command, args []string) error {
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	// Parse type specifications
 	fieldTypes := make(map[string]string)
@@ -342,7 +363,7 @@ func runCast(cmd *cobra.Command, args []string) error {
 		if len(parts) == 2 {
 			fieldTypes[parts[0]] = parts[1]
 		} else if len(parts) == 1 && len(fields) == 1 {
-			// If only one field is specified and type doesn't contain ":", 
+			// If only one field is specified and type doesn't contain ":",
 			// assume user wants to cast that field to this type
 			fieldTypes[fields[0]] = parts[0]
 		}
@@ -350,11 +371,12 @@ func runCast(cmd *cobra.Command, args []string) error {
 
 	// Create processor
 	typeCaster := processor.NewTypeCaster()
-	
+
 	// Setup file processor
 	fileProcessor := &processor.FileProcessor{
 		DryRun:         dryRun,
 		Verbose:        verbose,
+		Quiet:          quiet,
 		IgnorePatterns: ignorePatterns,
 		ProcessFile: func(file *vault.VaultFile) (bool, error) {
 			fileModified := false
@@ -366,13 +388,13 @@ func runCast(cmd *cobra.Command, args []string) error {
 					if targetType == "" && autoDetect {
 						targetType = typeCaster.AutoDetect(value)
 					}
-					
+
 					if targetType != "" {
 						if newValue, err := typeCaster.Cast(value, targetType); err == nil {
 							file.SetField(field, newValue)
 							fileModified = true
 							if verbose {
-								fmt.Printf("✓ %s: Cast '%s' from %T to %T\n", file.RelativePath, field, value, newValue)
+								fmt.Printf("Examining: %s - Cast '%s' from %T to %T\n", file.RelativePath, field, value, newValue)
 							}
 						} else if verbose {
 							fmt.Printf("✗ %s: Failed to cast '%s': %v\n", file.RelativePath, field, err)
@@ -392,7 +414,7 @@ func runCast(cmd *cobra.Command, args []string) error {
 								file.SetField(field, newValue)
 								fileModified = true
 								if verbose {
-									fmt.Printf("✓ %s: Auto-cast '%s' to %s\n", file.RelativePath, field, detectedType)
+									fmt.Printf("Examining: %s - Auto-cast '%s' to %s\n", file.RelativePath, field, detectedType)
 								}
 							}
 						}
@@ -403,7 +425,7 @@ func runCast(cmd *cobra.Command, args []string) error {
 			return fileModified, nil
 		},
 		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
-			if modified && !verbose {
+			if modified && !verbose && !quiet {
 				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
 			}
 		},
@@ -445,13 +467,19 @@ Update fields based on filename patterns, modification times, or path structure.
 
 func runSync(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	fields, _ := cmd.Flags().GetStringSlice("field")
 	sources, _ := cmd.Flags().GetStringSlice("source")
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	if len(fields) != len(sources) {
 		return fmt.Errorf("number of fields (%d) must match number of sources (%d)", len(fields), len(sources))
@@ -465,11 +493,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 	// Create processor
 	sync := processor.NewFrontmatterSync()
-	
+
 	// Setup file processor
 	fileProcessor := &processor.FileProcessor{
 		DryRun:         dryRun,
 		Verbose:        verbose,
+		Quiet:          quiet,
 		IgnorePatterns: ignorePatterns,
 		ProcessFile: func(file *vault.VaultFile) (bool, error) {
 			fileModified := false
@@ -478,17 +507,17 @@ func runSync(cmd *cobra.Command, args []string) error {
 					fileModified = true
 					if verbose {
 						value, _ := file.GetField(field)
-						fmt.Printf("✓ %s: Synced '%s' = %v\n", file.RelativePath, field, value)
+						fmt.Printf("Examining: %s - Synced '%s' = %v\n", file.RelativePath, field, value)
 					}
 				}
 			}
 			return fileModified, nil
 		},
 		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
-			if modified && !verbose {
+			if modified && !verbose && !quiet {
 				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
 			} else if !modified && verbose {
-				fmt.Printf("- Skipped: %s (no changes needed)\n", file.RelativePath)
+				fmt.Printf("Examining: %s - No changes needed\n", file.RelativePath)
 			}
 		},
 	}
@@ -528,13 +557,19 @@ that frontmatter meets specified requirements like required fields and type cons
 
 func runCheck(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	required, _ := cmd.Flags().GetStringSlice("required")
 	typeRules, _ := cmd.Flags().GetStringSlice("type")
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	parsingOnly, _ := cmd.Flags().GetBool("parsing-only")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	// Parse type rules
 	types := make(map[string]string)
@@ -560,7 +595,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	// Phase 1: Check for parsing issues
 	var parsingIssues []string
 	var validFiles []*vault.VaultFile
-	
+
 	for _, file := range files {
 		// Files from scanner are already parsed, but check if there were errors
 		if file.Frontmatter == nil {
@@ -570,7 +605,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 				parsingIssues = append(parsingIssues, fmt.Sprintf("✗ %s: Failed to read file - %v", file.RelativePath, readErr))
 				continue
 			}
-			
+
 			parseErr := file.Parse(content)
 			if parseErr != nil {
 				parsingIssues = append(parsingIssues, fmt.Sprintf("✗ %s: %v", file.RelativePath, parseErr))
@@ -580,10 +615,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 				continue
 			}
 		}
-		
+
 		validFiles = append(validFiles, file)
 		if verbose {
-			fmt.Printf("✓ %s: Parsing OK\n", file.RelativePath)
+			fmt.Printf("Examining: %s - Parsing OK\n", file.RelativePath)
 		}
 	}
 
@@ -595,7 +630,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			}
 		}
 		fmt.Printf("\nFound %d files with parsing issues out of %d total files\n", len(parsingIssues), len(files))
-		
+
 		// If only checking parsing, return here
 		if parsingOnly {
 			return fmt.Errorf("frontmatter parsing issues found")
@@ -619,7 +654,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 					fmt.Printf("  - %s\n", err.Error())
 				}
 			} else if verbose {
-				fmt.Printf("✓ %s: Validation OK\n", file.RelativePath)
+				fmt.Printf("Examining: %s - Validation OK\n", file.RelativePath)
 			}
 		}
 
@@ -642,7 +677,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	} else {
 		return fmt.Errorf("frontmatter issues found")
 	}
-	
+
 	return nil
 }
 
@@ -682,13 +717,19 @@ Example:
 
 func runDownload(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	targetFields, _ := cmd.Flags().GetStringSlice("field")
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	configPath, _ := cmd.Flags().GetString("config")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
 
 	// Load configuration
 	cfg, err := loadConfigWithPath(configPath)
@@ -727,7 +768,7 @@ func runDownload(cmd *cobra.Command, args []string) error {
 		if len(downloads) > 0 {
 			totalFiles++
 			totalDownloads += len(downloads)
-			
+
 			// Save file if not dry run and has modifications
 			if !dryRun && len(downloads) > 0 {
 				content, err := file.Serialize()
@@ -735,14 +776,14 @@ func runDownload(cmd *cobra.Command, args []string) error {
 					errors = append(errors, fmt.Errorf("serializing %s: %w", file.RelativePath, err))
 					continue
 				}
-				
+
 				if err := os.WriteFile(file.Path, content, 0644); err != nil {
 					errors = append(errors, fmt.Errorf("saving %s: %w", file.RelativePath, err))
 					continue
 				}
 			}
 		}
-		
+
 		errors = append(errors, fileErrors...)
 	}
 
@@ -772,7 +813,7 @@ func loadConfigWithPath(configPath string) (*config.Config, error) {
 	if configPath != "" {
 		return config.LoadConfigFromFile(configPath)
 	}
-	
+
 	// Use default config search paths
 	paths := config.GetDefaultConfigPaths()
 	return config.LoadConfigWithFallback(paths)
@@ -785,10 +826,10 @@ func newDownloaderFromConfig(cfg *config.Config) (*downloader.Downloader, error)
 func processFileDownloads(file *vault.VaultFile, dl *downloader.Downloader, targetFields []string, dryRun, verbose bool) ([]string, []error) {
 	var downloads []string
 	var errors []error
-	
+
 	// Get base filename for generating download names
 	baseFilename := strings.TrimSuffix(filepath.Base(file.RelativePath), filepath.Ext(file.RelativePath))
-	
+
 	for field, value := range file.Frontmatter {
 		// Skip if targeting specific fields and this isn't one of them
 		if len(targetFields) > 0 {
@@ -803,28 +844,28 @@ func processFileDownloads(file *vault.VaultFile, dl *downloader.Downloader, targ
 				continue
 			}
 		}
-		
+
 		// Check if value is a string URL
 		urlStr, ok := value.(string)
 		if !ok {
 			continue
 		}
-		
+
 		if !downloader.IsValidURL(urlStr) {
 			continue
 		}
-		
+
 		// Found a downloadable URL
 		if dryRun {
 			fmt.Printf("Would download: %s.%s = %s\n", file.RelativePath, field, urlStr)
 			downloads = append(downloads, field)
 			continue
 		}
-		
+
 		if verbose {
 			fmt.Printf("Downloading: %s.%s = %s\n", file.RelativePath, field, urlStr)
 		}
-		
+
 		// Download the resource
 		ctx := context.Background()
 		result, err := dl.DownloadResource(ctx, urlStr, baseFilename, field)
@@ -832,7 +873,7 @@ func processFileDownloads(file *vault.VaultFile, dl *downloader.Downloader, targ
 			errors = append(errors, fmt.Errorf("%s.%s: %w", file.RelativePath, field, err))
 			continue
 		}
-		
+
 		if verbose {
 			if result.Skipped {
 				fmt.Printf("⚠ Skipped: %s (file already exists) -> %s\n", urlStr, result.LocalPath)
@@ -840,15 +881,15 @@ func processFileDownloads(file *vault.VaultFile, dl *downloader.Downloader, targ
 				fmt.Printf("✓ Downloaded: %s (%d bytes) -> %s\n", urlStr, result.Size, result.LocalPath)
 			}
 		}
-		
+
 		// Update frontmatter
 		originalField := field + "-original"
 		file.Frontmatter[originalField] = urlStr
 		file.Frontmatter[field] = downloader.GenerateWikiLink(result.LocalPath)
-		
+
 		downloads = append(downloads, field)
 	}
-	
+
 	return downloads, errors
 }
 
@@ -879,7 +920,7 @@ func loadFilesForProcessing(path string, ignorePatterns []string) ([]*vault.Vaul
 			RelativePath: filepath.Base(path),
 			Modified:     info.ModTime(),
 		}
-		
+
 		if err := vf.Parse(content); err != nil {
 			return nil, fmt.Errorf("parsing file: %w", err)
 		}
@@ -897,12 +938,29 @@ func NewQueryCommand() *cobra.Command {
 		Long: `Query and filter markdown files based on frontmatter criteria.
 Find files that match specific conditions, are missing fields, or have duplicate values.
 
-Examples:
-  # Find files with specific field values
-  mdnotes fm query . --where "status = 'draft'"
-  mdnotes fm query . --where "priority > 3"
-  mdnotes fm query . --where "tags contains 'urgent'"
-  
+Enhanced Query Language:
+  Simple comparisons:
+    --where "status = 'draft'"           # Exact match
+    --where "priority > 3"               # Numeric comparison  
+    --where "priority >= 5"              # Greater than or equal
+    --where "status != 'done'"           # Not equal
+    
+  Contains operator:
+    --where "tags contains 'urgent'"     # Array/string contains
+    --where "title contains 'project'"   # Case-insensitive search
+    
+  Date comparisons:
+    --where "created after '2024-01-01'"     # Date after
+    --where "modified before '2024-12-01'"   # Date before  
+    --where "updated within '7 days'"        # Within duration
+    --where "edited within '2 weeks'"        # Supports days/weeks/months/years
+    
+  Logical operators:
+    --where "priority > 3 AND status != 'done'"           # Both conditions
+    --where "tags contains 'work' OR tags contains 'project'"  # Either condition
+    --where "(priority > 5 OR status = 'urgent') AND tags contains 'active'"
+
+Other query types:
   # Find files missing specific fields
   mdnotes fm query . --missing "created"
   
@@ -913,7 +971,10 @@ Examples:
   mdnotes fm query . --field "title,tags,status" --format table
   
   # Just count matching files
-  mdnotes fm query . --where "status = 'draft'" --count`,
+  mdnotes fm query . --where "status = 'draft'" --count
+  
+  # Auto-fix missing fields
+  mdnotes fm query . --missing "created" --fix-with "{{current_date}}"`,
 		Args: cobra.ExactArgs(1),
 		RunE: runQuery,
 	}
@@ -922,13 +983,13 @@ Examples:
 	cmd.Flags().String("where", "", "Filter expression (e.g., \"status = 'draft'\", \"priority > 3\")")
 	cmd.Flags().String("missing", "", "Find files missing this field")
 	cmd.Flags().String("duplicates", "", "Find files with duplicate values for this field")
-	
+
 	// Output control flags (consistent with other commands)
 	cmd.Flags().StringSlice("field", nil, "Select specific fields to display (comma-separated)")
 	cmd.Flags().String("format", "table", "Output format: table, json, csv, yaml")
 	cmd.Flags().Bool("count", false, "Show only the count of matching files")
 	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
-	
+
 	// Auto-fix functionality (matches ensure command pattern)
 	cmd.Flags().String("fix-with", "", "Auto-fix missing fields with this value (only with --missing)")
 
@@ -937,7 +998,7 @@ Examples:
 
 func runQuery(cmd *cobra.Command, args []string) error {
 	path := args[0]
-	
+
 	// Get flags
 	whereExpr, _ := cmd.Flags().GetString("where")
 	missingField, _ := cmd.Flags().GetString("missing")
@@ -962,14 +1023,14 @@ func runQuery(cmd *cobra.Command, args []string) error {
 	if duplicatesField != "" {
 		criteriaCount++
 	}
-	
+
 	if criteriaCount == 0 {
 		return fmt.Errorf("must specify one of: --where, --missing, or --duplicates")
 	}
 	if criteriaCount > 1 {
 		return fmt.Errorf("can only specify one of: --where, --missing, or --duplicates")
 	}
-	
+
 	if fixWith != "" && missingField == "" {
 		return fmt.Errorf("--fix-with can only be used with --missing")
 	}
@@ -1038,53 +1099,52 @@ func runQuery(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Simple where expression parser (basic implementation)
+// Enhanced where expression parser using the new query language
 func processWhereQuery(files []*vault.VaultFile, whereExpr string, verbose, quiet bool) []*vault.VaultFile {
 	var matches []*vault.VaultFile
-	
-	// TODO: Implement proper expression parsing in Phase 2
-	// For now, support basic equality checks
-	parts := strings.SplitN(whereExpr, "=", 2)
-	if len(parts) != 2 {
+
+	// Parse the expression using the enhanced query parser
+	parser := query.NewParser(whereExpr)
+	expr, err := parser.Parse()
+	if err != nil {
 		if !quiet {
-			fmt.Printf("Warning: Complex where expressions not yet implemented. Use format: field = 'value'\n")
+			fmt.Printf("Error parsing query expression: %v\n", err)
+			fmt.Printf("Supported syntax:\n")
+			fmt.Printf("  Simple comparisons: field = 'value', priority > 3, status != 'done'\n")
+			fmt.Printf("  Contains operator: tags contains 'urgent', title contains 'project'\n")
+			fmt.Printf("  Date comparisons: created after '2024-01-01', modified before '2024-12-01', updated within '7 days'\n")
+			fmt.Printf("  Logical operators: priority > 3 AND status != 'done', tags contains 'work' OR tags contains 'project'\n")
 		}
 		return matches
 	}
-	
-	field := strings.TrimSpace(parts[0])
-	expectedValue := strings.Trim(strings.TrimSpace(parts[1]), "'\"")
-	
+
+	// Evaluate the expression against each file
 	for _, file := range files {
-		if value, exists := file.GetField(field); exists {
-			if fmt.Sprintf("%v", value) == expectedValue {
-				matches = append(matches, file)
-				if verbose {
-					fmt.Printf("Examining: %s - Matches query (%s = %s)\n", file.RelativePath, field, expectedValue)
-				}
-			} else if verbose {
-				fmt.Printf("Examining: %s - No match (%s = %v, expected %s)\n", file.RelativePath, field, value, expectedValue)
+		if expr.Evaluate(file) {
+			matches = append(matches, file)
+			if verbose {
+				fmt.Printf("Examining: %s - Matches query\n", file.RelativePath)
 			}
 		} else if verbose {
-			fmt.Printf("Examining: %s - No match (field '%s' not found)\n", file.RelativePath, field)
+			fmt.Printf("Examining: %s - No match\n", file.RelativePath)
 		}
 	}
-	
+
 	return matches
 }
 
 func processMissingQuery(files []*vault.VaultFile, field, fixWith string, dryRun, verbose, quiet bool) ([]*vault.VaultFile, int) {
 	var matches []*vault.VaultFile
 	modifications := 0
-	
+
 	for _, file := range files {
 		if _, exists := file.GetField(field); !exists {
 			matches = append(matches, file)
-			
+
 			if verbose {
 				fmt.Printf("Examining: %s - Missing field '%s'\n", file.RelativePath, field)
 			}
-			
+
 			// Auto-fix if requested
 			if fixWith != "" {
 				if dryRun {
@@ -1097,9 +1157,9 @@ func processMissingQuery(files []*vault.VaultFile, field, fixWith string, dryRun
 					if strings.Contains(fixWith, "{{current_date}}") {
 						processedValue = strings.ReplaceAll(processedValue, "{{current_date}}", "2024-12-18") // TODO: use actual date
 					}
-					
+
 					file.SetField(field, processedValue)
-					
+
 					// Save file
 					content, err := file.Serialize()
 					if err == nil {
@@ -1117,13 +1177,13 @@ func processMissingQuery(files []*vault.VaultFile, field, fixWith string, dryRun
 			fmt.Printf("Examining: %s - Has field '%s'\n", file.RelativePath, field)
 		}
 	}
-	
+
 	return matches, modifications
 }
 
 func processDuplicatesQuery(files []*vault.VaultFile, field string, verbose, quiet bool) []*vault.VaultFile {
 	valueMap := make(map[string][]*vault.VaultFile)
-	
+
 	// Group files by field value
 	for _, file := range files {
 		if value, exists := file.GetField(field); exists {
@@ -1131,7 +1191,7 @@ func processDuplicatesQuery(files []*vault.VaultFile, field string, verbose, qui
 			valueMap[valueStr] = append(valueMap[valueStr], file)
 		}
 	}
-	
+
 	// Find duplicates
 	var duplicates []*vault.VaultFile
 	for value, fileList := range valueMap {
@@ -1142,7 +1202,7 @@ func processDuplicatesQuery(files []*vault.VaultFile, field string, verbose, qui
 			duplicates = append(duplicates, fileList...)
 		}
 	}
-	
+
 	return duplicates
 }
 
@@ -1165,12 +1225,12 @@ func outputTable(files []*vault.VaultFile, fields []string, quiet bool) error {
 	if len(files) == 0 {
 		return nil
 	}
-	
+
 	// Default fields if none specified
 	if len(fields) == 0 {
 		fields = []string{"file", "title"}
 	}
-	
+
 	// Simple table output (can be enhanced later)
 	if !quiet {
 		// Header
@@ -1181,7 +1241,7 @@ func outputTable(files []*vault.VaultFile, fields []string, quiet bool) error {
 			fmt.Print(strings.Title(field))
 		}
 		fmt.Println()
-		
+
 		// Separator
 		for i, field := range fields {
 			if i > 0 {
@@ -1191,14 +1251,14 @@ func outputTable(files []*vault.VaultFile, fields []string, quiet bool) error {
 		}
 		fmt.Println()
 	}
-	
+
 	// Data rows
 	for _, file := range files {
 		for i, field := range fields {
 			if i > 0 {
 				fmt.Print("\t")
 			}
-			
+
 			if field == "file" {
 				fmt.Print(file.RelativePath)
 			} else {
@@ -1211,18 +1271,18 @@ func outputTable(files []*vault.VaultFile, fields []string, quiet bool) error {
 		}
 		fmt.Println()
 	}
-	
+
 	return nil
 }
 
 func outputJSON(files []*vault.VaultFile, fields []string) error {
 	var results []map[string]interface{}
-	
+
 	for _, file := range files {
 		result := map[string]interface{}{
 			"file": file.RelativePath,
 		}
-		
+
 		if len(fields) == 0 {
 			// Include all frontmatter
 			for k, v := range file.Frontmatter {
@@ -1239,10 +1299,10 @@ func outputJSON(files []*vault.VaultFile, fields []string) error {
 				}
 			}
 		}
-		
+
 		results = append(results, result)
 	}
-	
+
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(results)
@@ -1253,7 +1313,7 @@ func outputCSV(files []*vault.VaultFile, fields []string) error {
 	if len(fields) == 0 {
 		fields = []string{"file", "title"}
 	}
-	
+
 	// Header
 	for i, field := range fields {
 		if i > 0 {
@@ -1262,14 +1322,14 @@ func outputCSV(files []*vault.VaultFile, fields []string) error {
 		fmt.Printf("\"%s\"", field)
 	}
 	fmt.Println()
-	
+
 	// Data
 	for _, file := range files {
 		for i, field := range fields {
 			if i > 0 {
 				fmt.Print(",")
 			}
-			
+
 			var value string
 			if field == "file" {
 				value = file.RelativePath
@@ -1282,7 +1342,7 @@ func outputCSV(files []*vault.VaultFile, fields []string) error {
 		}
 		fmt.Println()
 	}
-	
+
 	return nil
 }
 
@@ -1291,9 +1351,9 @@ func outputYAML(files []*vault.VaultFile, fields []string) error {
 		if i > 0 {
 			fmt.Println("---")
 		}
-		
+
 		fmt.Printf("file: %s\n", file.RelativePath)
-		
+
 		if len(fields) == 0 {
 			// Include all frontmatter
 			for k, v := range file.Frontmatter {
@@ -1311,6 +1371,6 @@ func outputYAML(files []*vault.VaultFile, fields []string) error {
 			}
 		}
 	}
-	
+
 	return nil
 }

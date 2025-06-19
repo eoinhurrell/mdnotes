@@ -13,12 +13,13 @@ import (
 type FileProcessor struct {
 	DryRun         bool
 	Verbose        bool
+	Quiet          bool
 	IgnorePatterns []string
-	
+
 	// Callbacks
-	ProcessFile   func(file *vault.VaultFile) (modified bool, err error)
+	ProcessFile     func(file *vault.VaultFile) (modified bool, err error)
 	OnFileProcessed func(file *vault.VaultFile, modified bool)
-	OnProgress    func(current, total int, filename string)
+	OnProgress      func(current, total int, filename string)
 }
 
 // ProcessResult contains the results of a file processing operation
@@ -105,7 +106,7 @@ func (fp *FileProcessor) loadFiles(path string) ([]*vault.VaultFile, error) {
 		if !strings.HasSuffix(path, ".md") {
 			return nil, fmt.Errorf("file must have .md extension")
 		}
-		
+
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading file: %w", err)
@@ -147,15 +148,19 @@ func (fp *FileProcessor) writeFile(file *vault.VaultFile) error {
 
 // PrintSummary prints a standardized summary of the processing results
 func (fp *FileProcessor) PrintSummary(result *ProcessResult) {
+	// Always show errors, even in quiet mode
 	if len(result.Errors) > 0 {
 		for _, err := range result.Errors {
 			fmt.Printf("✗ %v\n", err)
 		}
 	}
 
-	if fp.DryRun {
-		fmt.Printf("\nDry run completed. Would modify %d files.\n", result.ProcessedFiles)
-	} else {
-		fmt.Printf("\nCompleted. Modified %d files.\n", result.ProcessedFiles)
+	// Show summary unless quiet mode is enabled
+	if !fp.Quiet {
+		if fp.DryRun {
+			fmt.Printf("\nDry run completed. Would modify %d files.\n", result.ProcessedFiles)
+		} else {
+			fmt.Printf("\nCompleted. Modified %d files.\n", result.ProcessedFiles)
+		}
 	}
 }

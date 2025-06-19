@@ -122,11 +122,11 @@ func TestLinkUpdater_UpdateFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			updater := NewLinkUpdater()
 			modified := updater.UpdateFile(tt.file, tt.moves)
-			
+
 			if modified != tt.modified {
 				t.Errorf("UpdateFile() modified = %v, want %v", modified, tt.modified)
 			}
-			
+
 			if tt.file.Body != tt.wantBody {
 				t.Errorf("UpdateFile() body = %q, want %q", tt.file.Body, tt.wantBody)
 			}
@@ -200,7 +200,7 @@ func TestLinkUpdater_UpdateBatch(t *testing.T) {
 			Body: "See [[note]] and [link](other.md)",
 		},
 		{
-			Path: "file2.md", 
+			Path: "file2.md",
 			Body: "Another [[note]] reference",
 		},
 		{

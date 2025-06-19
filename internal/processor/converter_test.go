@@ -6,11 +6,11 @@ import (
 
 func TestLinkConverter_Convert(t *testing.T) {
 	tests := []struct {
-		name     string
-		content  string
-		from     LinkFormat
-		to       LinkFormat
-		want     string
+		name    string
+		content string
+		from    LinkFormat
+		to      LinkFormat
+		want    string
 	}{
 		{
 			name:    "wiki to markdown",

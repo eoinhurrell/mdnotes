@@ -10,7 +10,7 @@ import (
 
 // ParallelProcessor wraps existing processors to provide parallel execution
 type ParallelProcessor struct {
-	wrapped   Processor
+	wrapped    Processor
 	maxWorkers int
 }
 
@@ -19,7 +19,7 @@ func NewParallelProcessor(wrapped Processor, maxWorkers int) *ParallelProcessor 
 	if maxWorkers <= 0 {
 		maxWorkers = runtime.NumCPU()
 	}
-	
+
 	return &ParallelProcessor{
 		wrapped:    wrapped,
 		maxWorkers: maxWorkers,
@@ -36,9 +36,9 @@ func (p *ParallelProcessor) Process(ctx context.Context, vault *Vault, params ma
 	// Create worker pool
 	jobs := make(chan *Vault, len(vault.Files))
 	errors := make(chan error, len(vault.Files))
-	
+
 	var wg sync.WaitGroup
-	
+
 	// Start workers
 	for i := 0; i < p.maxWorkers; i++ {
 		wg.Add(1)
@@ -51,7 +51,7 @@ func (p *ParallelProcessor) Process(ctx context.Context, vault *Vault, params ma
 					return
 				default:
 				}
-				
+
 				if err := p.wrapped.Process(ctx, singleFileVault, params); err != nil {
 					errors <- fmt.Errorf("processing files: %w", err)
 					return
@@ -59,12 +59,12 @@ func (p *ParallelProcessor) Process(ctx context.Context, vault *Vault, params ma
 			}
 		}()
 	}
-	
+
 	// Send jobs (each job is a single-file vault)
 	go func() {
 		defer close(jobs)
 		for i := range vault.Files {
-			singleFileVault := &Vault{Files: vault.Files[i:i+1], Path: vault.Path}
+			singleFileVault := &Vault{Files: vault.Files[i : i+1], Path: vault.Path}
 			select {
 			case jobs <- singleFileVault:
 			case <-ctx.Done():
@@ -72,20 +72,20 @@ func (p *ParallelProcessor) Process(ctx context.Context, vault *Vault, params ma
 			}
 		}
 	}()
-	
+
 	// Wait for completion
 	go func() {
 		wg.Wait()
 		close(errors)
 	}()
-	
+
 	// Collect errors
 	for err := range errors {
 		if err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -100,7 +100,7 @@ func (p *ParallelProcessor) isParallelizable(params map[string]interface{}) bool
 	if dryRun, ok := params["dry_run"].(bool); ok && dryRun {
 		return true
 	}
-	
+
 	// Most frontmatter operations are safe since they modify individual files
 	// Operations that modify file relationships (like link updates) may not be safe
 	return true
@@ -118,7 +118,7 @@ func NewBatchProcessorV2(maxWorkers int, enableParallel bool) *BatchProcessorV2 
 	if maxWorkers <= 0 {
 		maxWorkers = runtime.NumCPU()
 	}
-	
+
 	return &BatchProcessorV2{
 		BatchProcessor: NewBatchProcessor(),
 		enableParallel: enableParallel,
@@ -132,7 +132,7 @@ func (bp *BatchProcessorV2) Execute(ctx context.Context, vault *Vault, config Ba
 	if bp.enableParallel && config.Parallel && config.MaxWorkers > 1 {
 		return bp.executeParallel(ctx, vault, config)
 	}
-	
+
 	// Fall back to sequential processing
 	return bp.BatchProcessor.Execute(ctx, vault, config)
 }
@@ -140,7 +140,7 @@ func (bp *BatchProcessorV2) Execute(ctx context.Context, vault *Vault, config Ba
 // executeParallel executes operations with parallel file processing
 func (bp *BatchProcessorV2) executeParallel(ctx context.Context, vault *Vault, config BatchConfig) ([]OperationResult, error) {
 	var results []OperationResult
-	
+
 	// Create backup if requested
 	if config.CreateBackup && !config.DryRun {
 		backup, err := bp.createBackup(vault)
@@ -149,7 +149,7 @@ func (bp *BatchProcessorV2) executeParallel(ctx context.Context, vault *Vault, c
 		}
 		bp.lastBackup = backup
 	}
-	
+
 	// Execute operations with parallel processing where possible
 	for i, operation := range config.Operations {
 		select {
@@ -160,10 +160,10 @@ func (bp *BatchProcessorV2) executeParallel(ctx context.Context, vault *Vault, c
 			return results, ctx.Err()
 		default:
 		}
-		
+
 		result := bp.executeOperationParallel(ctx, vault, operation, config)
 		results = append(results, result)
-		
+
 		if !result.Success && config.StopOnError {
 			if bp.lastBackup != nil && !config.DryRun {
 				bp.rollback(vault, bp.lastBackup)
@@ -171,18 +171,18 @@ func (bp *BatchProcessorV2) executeParallel(ctx context.Context, vault *Vault, c
 			return results, fmt.Errorf("operation %d (%s) failed: %w", i, operation.Name, result.Error)
 		}
 	}
-	
+
 	return results, nil
 }
 
 // executeOperationParallel executes a single operation with parallel processing
 func (bp *BatchProcessorV2) executeOperationParallel(ctx context.Context, vault *Vault, op Operation, config BatchConfig) OperationResult {
 	start := time.Now()
-	
+
 	result := OperationResult{
 		Operation: op.Command,
 	}
-	
+
 	// Find processor
 	processor, exists := bp.processors[op.Command]
 	if !exists {
@@ -191,17 +191,17 @@ func (bp *BatchProcessorV2) executeOperationParallel(ctx context.Context, vault 
 		result.Duration = time.Since(start)
 		return result
 	}
-	
+
 	// Wrap processor for parallel execution if beneficial
 	workers := config.MaxWorkers
 	if workers > len(vault.Files) {
 		workers = len(vault.Files)
 	}
-	
+
 	if workers > 1 && bp.shouldParallelize(op, len(vault.Files)) {
 		processor = NewParallelProcessor(processor, workers)
 	}
-	
+
 	// Prepare parameters
 	params := make(map[string]interface{})
 	for k, v := range op.Parameters {
@@ -210,13 +210,13 @@ func (bp *BatchProcessorV2) executeOperationParallel(ctx context.Context, vault 
 	if config.DryRun {
 		params["dry_run"] = true
 	}
-	
+
 	// Execute with retry logic
 	retryCount := op.RetryCount
 	if retryCount == 0 {
 		retryCount = 1
 	}
-	
+
 	var lastErr error
 	for attempt := 0; attempt < retryCount; attempt++ {
 		if attempt > 0 {
@@ -226,7 +226,7 @@ func (bp *BatchProcessorV2) executeOperationParallel(ctx context.Context, vault 
 					delay = d
 				}
 			}
-			
+
 			select {
 			case <-time.After(delay):
 			case <-ctx.Done():
@@ -236,7 +236,7 @@ func (bp *BatchProcessorV2) executeOperationParallel(ctx context.Context, vault 
 				return result
 			}
 		}
-		
+
 		err := processor.Process(ctx, vault, params)
 		if err == nil {
 			result.Success = true
@@ -248,14 +248,14 @@ func (bp *BatchProcessorV2) executeOperationParallel(ctx context.Context, vault 
 			}
 			break
 		}
-		
+
 		lastErr = err
 		if attempt == retryCount-1 {
 			result.Success = false
 			result.Error = lastErr
 		}
 	}
-	
+
 	result.Duration = time.Since(start)
 	return result
 }
@@ -266,7 +266,7 @@ func (bp *BatchProcessorV2) shouldParallelize(op Operation, fileCount int) bool 
 	if fileCount < 10 {
 		return false
 	}
-	
+
 	// Operations that are CPU-intensive benefit from parallelization
 	cpuIntensiveOps := map[string]bool{
 		"frontmatter.ensure":   true,
@@ -276,16 +276,16 @@ func (bp *BatchProcessorV2) shouldParallelize(op Operation, fileCount int) bool 
 		"headings.analyze":     true,
 		"links.check":          true,
 	}
-	
+
 	// Operations that modify relationships might not be safe to parallelize
 	relationshipOps := map[string]bool{
 		"links.convert": false, // Link conversion might affect cross-references
 	}
-	
+
 	if safe, exists := relationshipOps[op.Command]; exists {
 		return safe
 	}
-	
+
 	return cpuIntensiveOps[op.Command]
 }
 
@@ -300,7 +300,7 @@ func NewChunkedProcessor(wrapped Processor, chunkSize int) *ChunkedProcessor {
 	if chunkSize <= 0 {
 		chunkSize = 100 // Default chunk size
 	}
-	
+
 	return &ChunkedProcessor{
 		wrapped:   wrapped,
 		chunkSize: chunkSize,
@@ -315,22 +315,22 @@ func (p *ChunkedProcessor) Process(ctx context.Context, vault *Vault, params map
 			return ctx.Err()
 		default:
 		}
-		
+
 		end := i + p.chunkSize
 		if end > len(vault.Files) {
 			end = len(vault.Files)
 		}
-		
+
 		chunk := &Vault{
 			Files: vault.Files[i:end],
 			Path:  vault.Path,
 		}
-		
+
 		if err := p.wrapped.Process(ctx, chunk, params); err != nil {
 			return fmt.Errorf("processing chunk %d-%d: %w", i, end-1, err)
 		}
 	}
-	
+
 	return nil
 }
 

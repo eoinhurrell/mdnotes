@@ -12,7 +12,7 @@ import (
 // generateLargeVault creates a test vault with the specified number of files
 func generateLargeVault(b *testing.B, fileCount int) *Vault {
 	files := make([]*vault.VaultFile, fileCount)
-	
+
 	for i := 0; i < fileCount; i++ {
 		files[i] = &vault.VaultFile{
 			Path:         fmt.Sprintf("file_%d.md", i),
@@ -24,12 +24,12 @@ func generateLargeVault(b *testing.B, fileCount int) *Vault {
 			},
 			Body: fmt.Sprintf("# File %d\n\nThis is the content of file %d.\n\n[[link_%d]]", i, i, (i+1)%fileCount),
 		}
-		
+
 		// Parse content to populate links and headings
 		content := fmt.Sprintf("---\ntitle: File %d\nid: file-%d\n---\n%s", i, i, files[i].Body)
 		files[i].Parse([]byte(content))
 	}
-	
+
 	return &Vault{
 		Files: files,
 		Path:  "/test/vault",
@@ -38,12 +38,12 @@ func generateLargeVault(b *testing.B, fileCount int) *Vault {
 
 func BenchmarkFrontmatterEnsure(b *testing.B) {
 	sizes := []int{100, 1000, 10000}
-	
+
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("files-%d", size), func(b *testing.B) {
 			vault := generateLargeVault(b, size)
 			processor := NewFrontmatterProcessor()
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				for _, file := range vault.Files {
@@ -56,7 +56,7 @@ func BenchmarkFrontmatterEnsure(b *testing.B) {
 
 func BenchmarkFrontmatterValidate(b *testing.B) {
 	sizes := []int{100, 1000, 10000}
-	
+
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("files-%d", size), func(b *testing.B) {
 			vault := generateLargeVault(b, size)
@@ -67,7 +67,7 @@ func BenchmarkFrontmatterValidate(b *testing.B) {
 					"id":    "string",
 				},
 			})
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				for _, file := range vault.Files {
@@ -87,7 +87,7 @@ func BenchmarkTypeCasting(b *testing.B) {
 		"tag1, tag2, tag3",
 		"2023-01-01T10:30:00Z",
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, value := range testValues {
@@ -98,12 +98,12 @@ func BenchmarkTypeCasting(b *testing.B) {
 
 func BenchmarkHeadingProcessing(b *testing.B) {
 	sizes := []int{100, 1000, 10000}
-	
+
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("files-%d", size), func(b *testing.B) {
 			vault := generateLargeVault(b, size)
 			processor := NewHeadingProcessor()
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				for _, file := range vault.Files {
@@ -131,7 +131,7 @@ More content with [[many]] [[different]] [[wiki]] [[links]] and
 
 ![[embed1.png]] ![[embed2.jpg]] ![[embed3.pdf]]
 `
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		parser.Extract(testContent)
@@ -140,12 +140,12 @@ More content with [[many]] [[different]] [[wiki]] [[links]] and
 
 func BenchmarkBatchProcessing(b *testing.B) {
 	sizes := []int{100, 1000}
-	
+
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("files-%d", size), func(b *testing.B) {
 			vault := generateLargeVault(b, size)
 			processor := NewBatchProcessor()
-			
+
 			config := BatchConfig{
 				Operations: []Operation{
 					{
@@ -169,7 +169,7 @@ func BenchmarkBatchProcessing(b *testing.B) {
 				DryRun:       true,
 				MaxWorkers:   1, // Sequential for consistent benchmarking
 			}
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				processor.Execute(context.Background(), vault, config)
@@ -180,13 +180,13 @@ func BenchmarkBatchProcessing(b *testing.B) {
 
 func BenchmarkParallelProcessing(b *testing.B) {
 	vault := generateLargeVault(b, 1000)
-	
+
 	workerCounts := []int{1, 2, 4, 8}
-	
+
 	for _, workers := range workerCounts {
 		b.Run(fmt.Sprintf("workers-%d", workers), func(b *testing.B) {
 			processor := NewBatchProcessor()
-			
+
 			config := BatchConfig{
 				Operations: []Operation{
 					{
@@ -203,7 +203,7 @@ func BenchmarkParallelProcessing(b *testing.B) {
 				CreateBackup: false,
 				DryRun:       true,
 			}
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				processor.Execute(context.Background(), vault, config)
@@ -224,7 +224,7 @@ func BenchmarkVaultScanning(b *testing.B) {
 		"node_modules/*",
 		".git/*",
 	}
-	
+
 	testPaths := []string{
 		"normal-file.md",
 		".obsidian/config.json",
@@ -236,7 +236,7 @@ func BenchmarkVaultScanning(b *testing.B) {
 		"folder/subfolder/note.md",
 		"another/path/document.md",
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, path := range testPaths {
@@ -275,7 +275,7 @@ Content here with [[wiki links]] and [markdown links](other.md).
 
 More content with ![[embedded.png]] files.
 `)
-		
+
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
@@ -283,12 +283,12 @@ More content with ![[embedded.png]] files.
 			vf.Parse(content)
 		}
 	})
-	
+
 	b.Run("LinkParser-Extract", func(b *testing.B) {
 		parser := NewLinkParser()
 		content := "This has [[wiki]] and [markdown](link.md) and ![[embed.png]] links repeated multiple times. " +
 			"[[another]] [more](links.md) ![[image.jpg]] patterns for testing memory allocation."
-		
+
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
@@ -300,7 +300,7 @@ More content with ![[embedded.png]] files.
 // CPU profiling helper (not a benchmark, but useful for profiling)
 func BenchmarkCPUIntensive(b *testing.B) {
 	vault := generateLargeVault(b, 5000)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Simulate CPU-intensive operations
@@ -309,7 +309,7 @@ func BenchmarkCPUIntensive(b *testing.B) {
 			Required: []string{"title", "id"},
 		})
 		linkParser := NewLinkParser()
-		
+
 		for _, file := range vault.Files {
 			processor.Ensure(file, "tags", []string{})
 			validator.Validate(file)

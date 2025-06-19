@@ -8,8 +8,8 @@ import (
 
 // ValidationRules defines rules for validating frontmatter
 type ValidationRules struct {
-	Required []string            // Required field names
-	Types    map[string]string   // Field name -> expected type
+	Required []string          // Required field names
+	Types    map[string]string // Field name -> expected type
 }
 
 // ValidationError represents a validation error

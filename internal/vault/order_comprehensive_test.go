@@ -24,21 +24,21 @@ note_type:
   - readthrough`
 
 	order := extractFieldOrder(yamlContent)
-	
+
 	expected := []string{
-		"id", 
-		"title", 
-		"date created", 
-		"date modified", 
-		"quoted key", 
-		"single quoted", 
-		"end", 
-		"rating", 
-		"start", 
-		"tags", 
+		"id",
+		"title",
+		"date created",
+		"date modified",
+		"quoted key",
+		"single quoted",
+		"end",
+		"rating",
+		"start",
+		"tags",
 		"note_type",
 	}
-	
+
 	assert.Equal(t, expected, order, "Field order should be preserved exactly")
 }
 
@@ -74,7 +74,7 @@ note_type:
 	require.NoError(t, err)
 
 	serializedStr := string(serialized)
-	
+
 	// Check that fields appear in the correct order
 	idIndex := strings.Index(serializedStr, "id:")
 	titleIndex := strings.Index(serializedStr, "title:")

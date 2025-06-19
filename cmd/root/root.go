@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/cmd/analyze"
 	"github.com/eoinhurrell/mdnotes/cmd/frontmatter"
 	"github.com/eoinhurrell/mdnotes/cmd/headings"
-	"github.com/eoinhurrell/mdnotes/cmd/links"
 	"github.com/eoinhurrell/mdnotes/cmd/linkding"
+	"github.com/eoinhurrell/mdnotes/cmd/links"
 	"github.com/eoinhurrell/mdnotes/cmd/profile"
 	"github.com/eoinhurrell/mdnotes/cmd/rename"
+	"github.com/spf13/cobra"
 )
 
 // NewRootCommand creates the root command for mdnotes
@@ -39,11 +39,11 @@ for managing frontmatter, headings, links, and file organization.`,
 	}
 
 	// Add global flags
-	cmd.PersistentFlags().Bool("dry-run", false, "Preview changes without applying them")
-	cmd.PersistentFlags().Bool("verbose", false, "Verbose output")
-	cmd.PersistentFlags().Bool("quiet", false, "Suppress non-error output")
+	cmd.PersistentFlags().Bool("dry-run", false, "Preview changes without applying them; shows exactly what would be changed")
+	cmd.PersistentFlags().Bool("verbose", false, "Detailed output; prints filepath of every file examined and actions taken")
+	cmd.PersistentFlags().Bool("quiet", false, "Suppress all output except errors and final summary; overrides --verbose")
 	cmd.PersistentFlags().String("config", "", "Config file (default: .obsidian-admin.yaml)")
-	
+
 	// Add completion flag
 	cmd.Flags().BoolVar(&zshCompletion, "zsh-completion", false, "Generate zsh completion script")
 
@@ -140,36 +140,36 @@ PowerShell:
 func setupCustomCompletions(cmd *cobra.Command) {
 	// Set completion for config files globally
 	cmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
-	
+
 	// Add completion for commands that need path arguments
 	for _, subCmd := range cmd.Commands() {
 		switch subCmd.Name() {
 		case "frontmatter", "headings", "links", "analyze":
 			// These commands take vault/directory paths
 			subCmd.ValidArgsFunction = CompleteDirs
-			
+
 		case "rename":
 			// Rename takes a source file as first argument
 			subCmd.ValidArgsFunction = CompleteMarkdownFiles
-			
+
 		case "linkding":
 			// Linkding takes vault paths
 			subCmd.ValidArgsFunction = CompleteDirs
-			
+
 		case "e", "s", "f", "c":
 			// Global shortcuts for path-based commands
 			subCmd.ValidArgsFunction = CompleteDirs
 		}
-		
+
 		// Add completion for common flags across commands
 		subCmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
 		subCmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
-		
+
 		// Add specific completions for frontmatter commands
 		if subCmd.Name() == "frontmatter" {
 			setupFrontmatterCompletions(subCmd)
 		}
-		
+
 		// Add specific completions for rename command
 		if subCmd.Name() == "rename" {
 			setupRenameCompletions(subCmd)
@@ -215,7 +215,7 @@ func setupFrontmatterCompletions(cmd *cobra.Command) {
 			// All frontmatter subcommands take paths
 			subCmd.ValidArgsFunction = CompleteDirs
 		}
-		
+
 		// Special completions for specific commands
 		if subCmd.Name() == "download" {
 			subCmd.RegisterFlagCompletionFunc("field", CompleteCommonFields)
@@ -235,7 +235,7 @@ func setupRenameCompletions(cmd *cobra.Command) {
 		// Second argument: new name/path (no specific completion)
 		return nil, cobra.ShellCompDirectiveDefault
 	}
-	
+
 	cmd.RegisterFlagCompletionFunc("vault", CompleteDirs)
 }
 
@@ -243,7 +243,7 @@ func setupRenameCompletions(cmd *cobra.Command) {
 func CompleteCommonFields(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	fields := []string{
 		"cover",
-		"image", 
+		"image",
 		"avatar",
 		"thumbnail",
 		"icon",
@@ -269,12 +269,12 @@ func newEnsureShortcut() *cobra.Command {
 		if subCmd.Name() == "ensure" {
 			// Create a new command that mimics the ensure subcommand
 			cmd := &cobra.Command{
-				Use:     "e [path]",
-				Short:   "Shortcut for: frontmatter ensure",
-				Long:    "Global shortcut for 'mdnotes frontmatter ensure'. " + subCmd.Long,
-				Args:    subCmd.Args,
-				RunE:    subCmd.RunE,
-				Hidden:  false,
+				Use:    "e [path]",
+				Short:  "Shortcut for: frontmatter ensure",
+				Long:   "Global shortcut for 'mdnotes frontmatter ensure'. " + subCmd.Long,
+				Args:   subCmd.Args,
+				RunE:   subCmd.RunE,
+				Hidden: false,
 			}
 			// Copy flags from the original ensure command
 			cmd.Flags().AddFlagSet(subCmd.Flags())
@@ -290,12 +290,12 @@ func newSetShortcut() *cobra.Command {
 	for _, subCmd := range frontmatterCmd.Commands() {
 		if subCmd.Name() == "set" {
 			cmd := &cobra.Command{
-				Use:     "s [path]",
-				Short:   "Shortcut for: frontmatter set",
-				Long:    "Global shortcut for 'mdnotes frontmatter set'. " + subCmd.Long,
-				Args:    subCmd.Args,
-				RunE:    subCmd.RunE,
-				Hidden:  false,
+				Use:    "s [path]",
+				Short:  "Shortcut for: frontmatter set",
+				Long:   "Global shortcut for 'mdnotes frontmatter set'. " + subCmd.Long,
+				Args:   subCmd.Args,
+				RunE:   subCmd.RunE,
+				Hidden: false,
 			}
 			cmd.Flags().AddFlagSet(subCmd.Flags())
 			return cmd
@@ -310,12 +310,12 @@ func newFixShortcut() *cobra.Command {
 	for _, subCmd := range headingsCmd.Commands() {
 		if subCmd.Name() == "fix" {
 			cmd := &cobra.Command{
-				Use:     "f [path]",
-				Short:   "Shortcut for: headings fix",
-				Long:    "Global shortcut for 'mdnotes headings fix'. " + subCmd.Long,
-				Args:    subCmd.Args,
-				RunE:    subCmd.RunE,
-				Hidden:  false,
+				Use:    "f [path]",
+				Short:  "Shortcut for: headings fix",
+				Long:   "Global shortcut for 'mdnotes headings fix'. " + subCmd.Long,
+				Args:   subCmd.Args,
+				RunE:   subCmd.RunE,
+				Hidden: false,
 			}
 			cmd.Flags().AddFlagSet(subCmd.Flags())
 			return cmd
@@ -330,12 +330,12 @@ func newCheckShortcut() *cobra.Command {
 	for _, subCmd := range linksCmd.Commands() {
 		if subCmd.Name() == "check" {
 			cmd := &cobra.Command{
-				Use:     "c [path]",
-				Short:   "Shortcut for: links check",
-				Long:    "Global shortcut for 'mdnotes links check'. " + subCmd.Long,
-				Args:    subCmd.Args,
-				RunE:    subCmd.RunE,
-				Hidden:  false,
+				Use:    "c [path]",
+				Short:  "Shortcut for: links check",
+				Long:   "Global shortcut for 'mdnotes links check'. " + subCmd.Long,
+				Args:   subCmd.Args,
+				RunE:   subCmd.RunE,
+				Hidden: false,
 			}
 			cmd.Flags().AddFlagSet(subCmd.Flags())
 			return cmd
@@ -343,18 +343,19 @@ func newCheckShortcut() *cobra.Command {
 	}
 	return nil
 }
+
 // newQueryShortcut creates a global shortcut for frontmatter query
 func newQueryShortcut() *cobra.Command {
 	frontmatterCmd := frontmatter.NewFrontmatterCommand()
 	for _, subCmd := range frontmatterCmd.Commands() {
 		if subCmd.Name() == "query" {
 			cmd := &cobra.Command{
-				Use:     "q [path]",
-				Short:   "Shortcut for: frontmatter query",
-				Long:    "Global shortcut for 'mdnotes frontmatter query'. " + subCmd.Long,
-				Args:    subCmd.Args,
-				RunE:    subCmd.RunE,
-				Hidden:  false,
+				Use:    "q [path]",
+				Short:  "Shortcut for: frontmatter query",
+				Long:   "Global shortcut for 'mdnotes frontmatter query'. " + subCmd.Long,
+				Args:   subCmd.Args,
+				RunE:   subCmd.RunE,
+				Hidden: false,
 			}
 			cmd.Flags().AddFlagSet(subCmd.Flags())
 			return cmd

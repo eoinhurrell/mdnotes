@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/linkding"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/spf13/cobra"
 )
 
 // NewLinkdingCommand creates the linkding command
@@ -30,13 +30,11 @@ func NewLinkdingCommand() *cobra.Command {
 
 func newSyncCommand() *cobra.Command {
 	var (
-		urlField    string
-		titleField  string
-		tagsField   string
-		syncTitle   bool
-		syncTags    bool
-		dryRun      bool
-		verbose     bool
+		urlField   string
+		titleField string
+		tagsField  string
+		syncTitle  bool
+		syncTags   bool
 	)
 
 	cmd := &cobra.Command{
@@ -60,6 +58,16 @@ Configuration:
 			vaultPath := "."
 			if len(args) > 0 {
 				vaultPath = args[0]
+			}
+
+			// Get flags from persistent flags
+			dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
+			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+			quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+			// Override verbose if quiet is specified
+			if quiet {
+				verbose = false
 			}
 
 			// Load configuration
@@ -88,14 +96,15 @@ Configuration:
 
 			// Create sync configuration
 			syncConfig := processor.LinkdingSyncConfig{
-				URLField:    urlField,
-				TitleField:  titleField,
-				TagsField:   tagsField,
-				SyncTitle:   syncTitle || cfg.Linkding.SyncTitle,
-				SyncTags:    syncTags || cfg.Linkding.SyncTags,
-				DryRun:      dryRun,
+				URLField:   urlField,
+				IDField:    "linkding_id", // Default ID field
+				TitleField: titleField,
+				TagsField:  tagsField,
+				SyncTitle:  syncTitle || cfg.Linkding.SyncTitle,
+				SyncTags:   syncTags || cfg.Linkding.SyncTags,
+				DryRun:     dryRun,
 			}
-			
+
 			// Add progress callback for verbose mode
 			if verbose {
 				syncConfig.ProgressCallback = func(result processor.SyncResult) {
@@ -121,7 +130,9 @@ Configuration:
 			// Find files to sync (all files with URLs)
 			syncableFiles := syncProcessor.FindAllSyncableFiles(files)
 			if len(syncableFiles) == 0 {
-				fmt.Println("No files with URLs found.")
+				if !quiet {
+					fmt.Println("No files with URLs found.")
+				}
 				return nil
 			}
 
@@ -143,7 +154,27 @@ Configuration:
 			}
 
 			if dryRun {
-				fmt.Printf("Would process %d files with URLs (dry run)\n", len(syncableFiles))
+				fmt.Printf("Dry run: analyzing what would be synced...\n\n")
+
+				// Show what would be done for each file
+				for _, file := range syncableFiles {
+					url := file.Frontmatter[syncConfig.URLField]
+
+					// Check if file already has linkding_id
+					if linkdingID, exists := file.Frontmatter[syncConfig.IDField]; exists {
+						if id, ok := linkdingID.(int); ok && id > 0 {
+							fmt.Printf("Would verify: %s - Bookmark ID %d\n", file.RelativePath, id)
+						} else if f, ok := linkdingID.(float64); ok && f > 0 {
+							fmt.Printf("Would verify: %s - Bookmark ID %.0f\n", file.RelativePath, f)
+						} else {
+							fmt.Printf("Would create: %s - New bookmark for %v\n", file.RelativePath, url)
+						}
+					} else {
+						fmt.Printf("Would create: %s - New bookmark for %v\n", file.RelativePath, url)
+					}
+				}
+
+				fmt.Printf("\nDry run completed. Would process %d files with URLs.\n", len(syncableFiles))
 				return nil
 			}
 
@@ -179,7 +210,9 @@ Configuration:
 				}
 			}
 
-			fmt.Printf("\nSync completed: %d created, %d verified, %d updated, %d skipped, %d errors\n", created, verified, updated, skipped, errors)
+			if !quiet {
+				fmt.Printf("\nSync completed: %d created, %d verified, %d updated, %d skipped, %d errors\n", created, verified, updated, skipped, errors)
+			}
 
 			// Save files with updated Linkding IDs
 			if created > 0 || updated > 0 {
@@ -206,8 +239,6 @@ Configuration:
 	cmd.Flags().StringVar(&tagsField, "tags-field", "tags", "Frontmatter field containing tags")
 	cmd.Flags().BoolVar(&syncTitle, "sync-title", false, "Sync title to Linkding")
 	cmd.Flags().BoolVar(&syncTags, "sync-tags", false, "Sync tags to Linkding")
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview sync without making changes")
-	cmd.Flags().BoolVar(&verbose, "verbose", false, "Verbose output")
 
 	return cmd
 }
@@ -217,13 +248,16 @@ func newListCommand() *cobra.Command {
 		Use:     "list [vault-path]",
 		Aliases: []string{"l"},
 		Short:   "List vault files with URLs",
-		Long:  `List vault files that contain URLs and their sync status with Linkding`,
-		Args:  cobra.MaximumNArgs(1),
+		Long:    `List vault files that contain URLs and their sync status with Linkding`,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vaultPath := "."
 			if len(args) > 0 {
 				vaultPath = args[0]
 			}
+
+			// Get flags from persistent flags
+			quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
 
 			// Load configuration
 			cfg, err := loadConfig(cmd)
@@ -253,18 +287,22 @@ func newListCommand() *cobra.Command {
 			}
 
 			if len(urlFiles) == 0 {
-				fmt.Println("No files with URLs found.")
+				if !quiet {
+					fmt.Println("No files with URLs found.")
+				}
 				return nil
 			}
 
-			fmt.Printf("Found %d files with URLs:\n\n", len(urlFiles))
-			fmt.Printf("%-50s %-10s %s\n", "File", "Status", "URL")
-			fmt.Printf("%-50s %-10s %s\n", "----", "------", "---")
+			if !quiet {
+				fmt.Printf("Found %d files with URLs:\n\n", len(urlFiles))
+				fmt.Printf("%-50s %-10s %s\n", "File", "Status", "URL")
+				fmt.Printf("%-50s %-10s %s\n", "----", "------", "---")
+			}
 
 			for _, file := range urlFiles {
 				url := file.Frontmatter["url"].(string)
 				status := "unsynced"
-				
+
 				if linkdingID, exists := file.Frontmatter["linkding_id"]; exists {
 					if id, ok := linkdingID.(int); ok && id > 0 {
 						status = fmt.Sprintf("synced #%d", id)
@@ -283,13 +321,17 @@ func newListCommand() *cobra.Command {
 					urlDisplay = urlDisplay[:57] + "..."
 				}
 
-				fmt.Printf("%-50s %-10s %s\n", fileName, status, urlDisplay)
+				if !quiet {
+					fmt.Printf("%-50s %-10s %s\n", fileName, status, urlDisplay)
+				}
 			}
 
 			// Summary
 			unsyncedCount := len(syncProcessor.FindUnsyncedFiles(urlFiles))
 			syncedCount := len(urlFiles) - unsyncedCount
-			fmt.Printf("\nSummary: %d synced, %d unsynced\n", syncedCount, unsyncedCount)
+			if !quiet {
+				fmt.Printf("\nSummary: %d synced, %d unsynced\n", syncedCount, unsyncedCount)
+			}
 
 			return nil
 		},
@@ -300,10 +342,10 @@ func newListCommand() *cobra.Command {
 
 func loadConfig(cmd *cobra.Command) (*config.Config, error) {
 	configPath, _ := cmd.Flags().GetString("config")
-	
+
 	if configPath != "" {
 		return config.LoadConfigFromFile(configPath)
 	}
-	
+
 	return config.LoadConfigWithFallback(config.GetDefaultConfigPaths())
 }

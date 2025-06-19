@@ -50,10 +50,9 @@ This is the content of my note.
 	serialized, err := vf.Serialize()
 	require.NoError(t, err)
 
-
 	// Check that fields appear in the expected order by looking at the full serialized content
 	serializedStr := string(serialized)
-	
+
 	// Check that the fields appear in order in the serialized content
 	titleIndex := strings.Index(serializedStr, "title:")
 	createdIndex := strings.Index(serializedStr, "created:")
@@ -61,14 +60,14 @@ This is the content of my note.
 	priorityIndex := strings.Index(serializedStr, "priority:")
 	publishedIndex := strings.Index(serializedStr, "published:")
 	modifiedIndex := strings.Index(serializedStr, "modified:")
-	
+
 	// Verify order is preserved (original fields first, then new field)
 	assert.True(t, titleIndex < createdIndex, "title should come before created")
 	assert.True(t, createdIndex < tagsIndex, "created should come before tags")
 	assert.True(t, tagsIndex < priorityIndex, "tags should come before priority")
 	assert.True(t, priorityIndex < publishedIndex, "priority should come before published")
 	assert.True(t, publishedIndex < modifiedIndex, "published should come before modified (new field)")
-	
+
 	// Check that modified value was updated
 	assert.Contains(t, serializedStr, "priority: 10")
 	assert.Contains(t, serializedStr, "modified:")
@@ -98,18 +97,18 @@ Content here.
 	require.NoError(t, err)
 
 	serializedStr := string(serialized)
-	
+
 	// Check order: original fields first, then new fields in alphabetical order
 	titleIndex := strings.Index(serializedStr, "title:")
 	idIndex := strings.Index(serializedStr, "id:")
 	alphaIndex := strings.Index(serializedStr, "alpha:")
 	betaIndex := strings.Index(serializedStr, "beta:")
 	zebraIndex := strings.Index(serializedStr, "zebra:")
-	
+
 	// Verify original fields come first
 	assert.True(t, titleIndex < idIndex, "title should come before id")
 	assert.True(t, idIndex < alphaIndex, "id should come before alpha (first new field)")
-	
+
 	// Verify new fields are in alphabetical order
 	assert.True(t, alphaIndex < betaIndex, "alpha should come before beta")
 	assert.True(t, betaIndex < zebraIndex, "beta should come before zebra")
@@ -137,7 +136,7 @@ Content.
 
 	// Modify complex field
 	vf.Frontmatter["authors"] = []string{"Alice", "Bob", "Charlie"}
-	
+
 	// Add new complex field
 	vf.SetField("config", map[string]interface{}{
 		"enabled": true,

@@ -10,12 +10,12 @@ import (
 func createTestVault(t *testing.T, dir string) {
 	// Create test files
 	files := map[string]string{
-		"note1.md":           "# Note 1\n\nContent",
-		"note2.md":           "---\ntitle: Note 2\n---\n\n# Note 2",
-		"subdir/note3.md":    "# Note 3\n\nIn subdirectory",
-		"file.txt":           "Not a markdown file",
-		".obsidian/app.json": `{"theme": "dark"}`,
-		"temp.tmp":           "Temporary file",
+		"note1.md":              "# Note 1\n\nContent",
+		"note2.md":              "---\ntitle: Note 2\n---\n\n# Note 2",
+		"subdir/note3.md":       "# Note 3\n\nIn subdirectory",
+		"file.txt":              "Not a markdown file",
+		".obsidian/app.json":    `{"theme": "dark"}`,
+		"temp.tmp":              "Temporary file",
 		"templates/template.md": "# Template\n\nTemplate content",
 	}
 

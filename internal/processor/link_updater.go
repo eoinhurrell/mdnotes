@@ -38,10 +38,10 @@ func (u *LinkUpdater) UpdateReferences(content string, moves []FileMove) string 
 	result := content
 	for i := len(links) - 1; i >= 0; i-- {
 		link := links[i]
-		
+
 		// Normalize the link target to match move map keys
 		normalizedTarget := u.normalizeLinkTarget(link.Target, link.Type)
-		
+
 		// Check if this link target was moved
 		if newPath, moved := moveMap[normalizedTarget]; moved {
 			// Update the link
@@ -57,37 +57,37 @@ func (u *LinkUpdater) UpdateReferences(content string, moves []FileMove) string 
 func (u *LinkUpdater) UpdateFile(file *vault.VaultFile, moves []FileMove) bool {
 	originalBody := file.Body
 	file.Body = u.UpdateReferences(file.Body, moves)
-	
+
 	// Update parsed links if content changed
 	if file.Body != originalBody {
 		u.parser.UpdateFile(file)
 		return true
 	}
-	
+
 	return false
 }
 
 // UpdateBatch updates links in multiple files and returns list of modified files
 func (u *LinkUpdater) UpdateBatch(files []*vault.VaultFile, moves []FileMove) []*vault.VaultFile {
 	var modifiedFiles []*vault.VaultFile
-	
+
 	for _, file := range files {
 		if u.UpdateFile(file, moves) {
 			modifiedFiles = append(modifiedFiles, file)
 		}
 	}
-	
+
 	return modifiedFiles
 }
 
 // createMoveMap creates a map from old paths to new paths
 func (u *LinkUpdater) createMoveMap(moves []FileMove) map[string]string {
 	moveMap := make(map[string]string)
-	
+
 	for _, move := range moves {
 		// Add both with and without .md extension for wiki links
 		moveMap[move.From] = move.To
-		
+
 		// For .md files, also add without extension for wiki link matching
 		if strings.HasSuffix(move.From, ".md") {
 			fromWithoutExt := strings.TrimSuffix(move.From, ".md")
@@ -95,7 +95,7 @@ func (u *LinkUpdater) createMoveMap(moves []FileMove) map[string]string {
 			moveMap[fromWithoutExt] = toWithoutExt
 		}
 	}
-	
+
 	return moveMap
 }
 
@@ -122,7 +122,7 @@ func (u *LinkUpdater) createUpdatedLink(link Link, newPath string) string {
 	case WikiLink:
 		// Remove .md extension for wiki links
 		newTarget := strings.TrimSuffix(newPath, ".md")
-		
+
 		if link.Text == link.Target {
 			// Simple wiki link [[target]]
 			return "[[" + newTarget + "]]"
@@ -130,15 +130,15 @@ func (u *LinkUpdater) createUpdatedLink(link Link, newPath string) string {
 			// Wiki link with alias [[target|alias]]
 			return "[[" + newTarget + "|" + link.Text + "]]"
 		}
-		
+
 	case MarkdownLink:
 		// Markdown link [text](target)
 		return "[" + link.Text + "](" + newPath + ")"
-		
+
 	case EmbedLink:
 		// Embed link ![[target]]
 		return "![[" + newPath + "]]"
-		
+
 	default:
 		return ""
 	}

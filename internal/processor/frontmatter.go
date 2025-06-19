@@ -7,8 +7,8 @@ import (
 
 // FrontmatterProcessor handles frontmatter operations
 type FrontmatterProcessor struct {
-	preserveOrder    bool
-	templateEngine   *template.Engine
+	preserveOrder  bool
+	templateEngine *template.Engine
 }
 
 // NewFrontmatterProcessor creates a new frontmatter processor

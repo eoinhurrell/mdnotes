@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBatchProcessor_Execute(t *testing.T) {
@@ -61,8 +61,8 @@ func TestBatchProcessor_ExecuteWithError(t *testing.T) {
 				},
 			},
 			{
-				Name:    "Invalid operation",
-				Command: "invalid.command",
+				Name:       "Invalid operation",
+				Command:    "invalid.command",
 				Parameters: map[string]interface{}{},
 			},
 		},
@@ -85,8 +85,8 @@ func TestBatchProcessor_ContinueOnError(t *testing.T) {
 		StopOnError: false,
 		Operations: []Operation{
 			{
-				Name:    "Invalid operation",
-				Command: "invalid.command",
+				Name:       "Invalid operation",
+				Command:    "invalid.command",
 				Parameters: map[string]interface{}{},
 			},
 			{
@@ -133,7 +133,7 @@ func TestBatchProcessor_ContextCancellation(t *testing.T) {
 	}
 
 	processor := NewBatchProcessor()
-	
+
 	// Register a slow test processor
 	processor.RegisterProcessor("test.slow", &SlowTestProcessor{})
 
@@ -168,7 +168,7 @@ func TestBatchProcessor_Backup(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.True(t, results[0].Success)
-	
+
 	// Check that backup was created
 	assert.NotNil(t, processor.lastBackup)
 	assert.NotEmpty(t, processor.lastBackup.ID)
@@ -260,7 +260,7 @@ func (stp *SlowTestProcessor) Process(ctx context.Context, vault *Vault, params 
 	if !ok {
 		durationStr = "100ms"
 	}
-	
+
 	duration, err := time.ParseDuration(durationStr)
 	if err != nil {
 		return err

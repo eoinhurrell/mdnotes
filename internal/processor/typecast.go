@@ -7,10 +7,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	
+
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
-
 
 // TypeValidator interface for type-specific validation and casting
 type TypeValidator interface {
@@ -55,7 +54,7 @@ func (tc *TypeCaster) Cast(value interface{}, toType string) (interface{}, error
 			return nil, fmt.Errorf("cannot cast %T to date", value)
 		}
 	}
-	
+
 	// Handle already correct type for non-date types
 	if tc.isType(value, toType) {
 		return value, nil
@@ -239,7 +238,7 @@ type ArrayValidator struct{}
 
 func (a *ArrayValidator) Cast(value string) (interface{}, error) {
 	trimmed := strings.TrimSpace(value)
-	
+
 	// Handle bracket notation [item1, item2]
 	if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
 		inner := strings.Trim(trimmed, "[]")

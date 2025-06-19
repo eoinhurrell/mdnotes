@@ -112,7 +112,7 @@ func (s *Scanner) shouldIgnore(path string) bool {
 		if matched, _ := filepath.Match(pattern, path); matched {
 			return true
 		}
-		
+
 		// Check if any parent directory matches the pattern
 		// This handles patterns like ".obsidian/*"
 		if strings.Contains(pattern, "/*") {

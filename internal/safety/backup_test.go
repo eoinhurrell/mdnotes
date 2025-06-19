@@ -176,7 +176,7 @@ func TestBackupManager_BackupDirectory(t *testing.T) {
 
 	file1 := filepath.Join(tmpDir, "file1.md")
 	file2 := filepath.Join(subDir, "file2.md")
-	
+
 	err = os.WriteFile(file1, []byte("content1"), 0644)
 	require.NoError(t, err)
 	err = os.WriteFile(file2, []byte("content2"), 0644)

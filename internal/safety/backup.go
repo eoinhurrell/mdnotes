@@ -164,7 +164,7 @@ func (bm *BackupManager) restoreFile(backup *Backup, targetPath string) error {
 func (bm *BackupManager) restoreDirectory(backup *Backup, targetPath string) error {
 	// Read backup from disk
 	backupPath := filepath.Join(bm.backupDir, backup.ID)
-	
+
 	// Copy all files from backup to target
 	return filepath.Walk(backupPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -267,7 +267,7 @@ func (bm *BackupManager) writeToDisk(backup *Backup) error {
 // writeDirectoryToDisk writes a directory backup to disk
 func (bm *BackupManager) writeDirectoryToDisk(backup *Backup, sourceDir string) error {
 	backupPath := filepath.Join(bm.backupDir, backup.ID)
-	
+
 	return filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

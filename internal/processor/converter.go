@@ -35,7 +35,7 @@ func (c *LinkConverter) Convert(content string, from, to LinkFormat) string {
 	}
 
 	links := c.parser.Extract(content)
-	
+
 	// Filter links that match the source format
 	var targetLinks []Link
 	for _, link := range links {
@@ -164,9 +164,9 @@ func (c *LinkConverter) escapePath(path string) string {
 func (c *LinkConverter) ConvertFile(file *vault.VaultFile, from, to LinkFormat) bool {
 	originalBody := file.Body
 	file.Body = c.Convert(file.Body, from, to)
-	
+
 	// Update the parsed links
 	c.parser.UpdateFile(file)
-	
+
 	return file.Body != originalBody
 }
