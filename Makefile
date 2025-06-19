@@ -1,4 +1,4 @@
-.PHONY: build test clean install lint fmt vet deps release snapshot docker completions install-completions
+.PHONY: build test clean install lint fmt vet deps release snapshot docker install-completions completion-help
 
 # Build the binary
 build:
@@ -79,46 +79,60 @@ install-goreleaser:
 pre-release: clean test bench lint
 	@echo "All checks passed. Ready for release!"
 
-# Generate shell completion scripts
-completions: build
-	@mkdir -p completions
-	./mdnotes completion bash > completions/mdnotes.bash
-	./mdnotes completion zsh > completions/_mdnotes
-	./mdnotes completion fish > completions/mdnotes.fish
-	./mdnotes completion powershell > completions/mdnotes.ps1
-	@echo "Shell completion scripts generated in completions/ directory"
-
 # Install shell completions (requires sudo for system-wide install)
-install-completions: completions
+install-completions: build
 	@echo "Installing shell completions..."
 	@if command -v bash >/dev/null 2>&1; then \
 		if [ -d /etc/bash_completion.d ]; then \
-			sudo cp completions/mdnotes.bash /etc/bash_completion.d/mdnotes; \
+			./mdnotes completion bash | sudo tee /etc/bash_completion.d/mdnotes > /dev/null; \
 			echo "Bash completion installed to /etc/bash_completion.d/"; \
 		elif [ -d /usr/local/etc/bash_completion.d ]; then \
-			sudo cp completions/mdnotes.bash /usr/local/etc/bash_completion.d/mdnotes; \
+			./mdnotes completion bash | sudo tee /usr/local/etc/bash_completion.d/mdnotes > /dev/null; \
 			echo "Bash completion installed to /usr/local/etc/bash_completion.d/"; \
 		else \
-			echo "Bash completion directory not found. Copy completions/mdnotes.bash manually."; \
+			echo "Bash completion directory not found. Run: mdnotes completion bash > /etc/bash_completion.d/mdnotes"; \
 		fi; \
 	fi
 	@if command -v zsh >/dev/null 2>&1; then \
 		if [ -d /usr/local/share/zsh/site-functions ]; then \
-			sudo cp completions/_mdnotes /usr/local/share/zsh/site-functions/; \
+			./mdnotes completion zsh | sudo tee /usr/local/share/zsh/site-functions/_mdnotes > /dev/null; \
 			echo "Zsh completion installed to /usr/local/share/zsh/site-functions/"; \
 		else \
-			echo "Zsh completion directory not found. Copy completions/_mdnotes to your fpath."; \
+			echo "Zsh completion directory not found. Run: mdnotes completion zsh > \"\$${fpath[1]}/_mdnotes\""; \
 		fi; \
 	fi
 	@if command -v fish >/dev/null 2>&1; then \
 		if [ -d ~/.config/fish/completions ]; then \
-			cp completions/mdnotes.fish ~/.config/fish/completions/; \
+			./mdnotes completion fish > ~/.config/fish/completions/mdnotes.fish; \
 			echo "Fish completion installed to ~/.config/fish/completions/"; \
 		else \
 			echo "Fish completion directory not found. Create ~/.config/fish/completions/ first."; \
 		fi; \
 	fi
 	@echo "Installation complete! Restart your shell or source the completion files."
+
+# Show completion setup instructions
+completion-help: build
+	@echo "Shell Completion Setup Instructions:"
+	@echo ""
+	@echo "Bash:"
+	@echo "  sudo ./mdnotes completion bash > /etc/bash_completion.d/mdnotes"
+	@echo "  # or on macOS: sudo ./mdnotes completion bash > /usr/local/etc/bash_completion.d/mdnotes"
+	@echo ""
+	@echo "Zsh:"
+	@echo "  ./mdnotes completion zsh > \"\$${fpath[1]}/_mdnotes\""
+	@echo ""
+	@echo "Fish:"
+	@echo "  ./mdnotes completion fish > ~/.config/fish/completions/mdnotes.fish"
+	@echo ""
+	@echo "PowerShell:"
+	@echo "  ./mdnotes completion powershell > mdnotes.ps1"
+	@echo "  # then source this file from your PowerShell profile"
+	@echo ""
+	@echo "Quick setup for current session:"
+	@echo "  source <(./mdnotes completion bash)   # bash"
+	@echo "  ./mdnotes completion zsh | source     # zsh"
+	@echo "  ./mdnotes completion fish | source    # fish"
 
 # Development setup
 setup: deps install-goreleaser

@@ -745,30 +745,34 @@ mdnotes provides convenient aliases for frequently used commands:
 - `q` → `frontmatter query`
 
 #### Shell Completion
+
+mdnotes provides comprehensive shell completion that's dynamically generated for all commands, subcommands, and flags.
+
 ```bash
-# Generate completion scripts for your shell (recommended method)
-make completions
+# Generate completion scripts for your shell
+mdnotes completion bash > /etc/bash_completion.d/mdnotes        # Linux
+mdnotes completion bash > /usr/local/etc/bash_completion.d/mdnotes  # macOS
 
-# Install completion scripts system-wide (requires sudo)
-make install-completions
+mdnotes completion zsh > "${fpath[1]}/_mdnotes"                # zsh
+mdnotes completion fish > ~/.config/fish/completions/mdnotes.fish  # fish
+mdnotes completion powershell > mdnotes.ps1                    # PowerShell
 
-# Manual generation for specific shells
-mdnotes completion bash > /etc/bash_completion.d/mdnotes
-mdnotes completion zsh > "${fpath[1]}/_mdnotes"
-mdnotes completion fish > ~/.config/fish/completions/mdnotes.fish
-mdnotes completion powershell > mdnotes.ps1
-
-# Quick zsh completion generation
-mdnotes --zsh-completion
+# Quick setup for current session
+source <(mdnotes completion bash)  # bash
+mdnotes completion zsh | source    # zsh  
+mdnotes completion fish | source   # fish
 ```
 
 **Enhanced Completion Features:**
-- **Intelligent path completion**: Automatically completes directory paths for vault arguments
-- **Field name suggestions**: Completes common frontmatter field names (title, tags, created, etc.)
-- **Format completion**: Suggests valid output formats (text, json, csv, yaml, table)
-- **Type completion**: Completes valid field types (string, number, boolean, array, date, null)
-- **Flag value completion**: Context-aware completion for flag values (link formats, time spans, etc.)
-- **File filtering**: Smart filtering for markdown files (.md, .markdown) and config files (.yaml, .yml)
+- **Smart path completion**: Automatically completes vault directories and markdown files
+- **Frontmatter field suggestions**: Common field names (title, tags, created, modified, priority, etc.)
+- **Type completion**: Field types with both `field:type` and standalone formats (string, number, boolean, array, date, null)
+- **Default value templates**: Template variables (`{{current_date}}`, `{{filename}}`, `{{uuid}}`) and common values
+- **Output format completion**: Valid formats (text, json, csv, yaml, table) for all analyze commands
+- **Link format completion**: Wiki and markdown formats for link conversion commands
+- **Sync source completion**: File metadata sources (file-mtime, filename patterns, path components)
+- **Query filter completion**: Pre-built filter expressions for complex queries
+- **Global shortcut support**: Full completion for ultra-short commands (e, s, f, c, q)
 
 **Persistent Flags (available for all commands):**
 - `--dry-run`: Preview changes without applying them

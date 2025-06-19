@@ -1,8 +1,8 @@
 package root
 
 import (
-	"fmt"
 	"os"
+	"strings"
 
 	"github.com/eoinhurrell/mdnotes/cmd/analyze"
 	"github.com/eoinhurrell/mdnotes/cmd/frontmatter"
@@ -16,8 +16,6 @@ import (
 
 // NewRootCommand creates the root command for mdnotes
 func NewRootCommand() *cobra.Command {
-	var zshCompletion bool
-
 	cmd := &cobra.Command{
 		Use:   "mdnotes",
 		Short: "A CLI tool for managing Obsidian markdown notes",
@@ -26,14 +24,6 @@ administrative tasks for Obsidian vaults. It provides powerful operations
 for managing frontmatter, headings, links, and file organization.`,
 		Version: "1.0.0",
 		Run: func(cmd *cobra.Command, args []string) {
-			if zshCompletion {
-				err := cmd.Root().GenZshCompletion(os.Stdout)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error generating zsh completion: %v\n", err)
-					os.Exit(1)
-				}
-				return
-			}
 			cmd.Help()
 		},
 	}
@@ -43,9 +33,6 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.PersistentFlags().Bool("verbose", false, "Detailed output; prints filepath of every file examined and actions taken")
 	cmd.PersistentFlags().Bool("quiet", false, "Suppress all output except errors and final summary; overrides --verbose")
 	cmd.PersistentFlags().String("config", "", "Config file (default: .obsidian-admin.yaml)")
-
-	// Add completion flag
-	cmd.Flags().BoolVar(&zshCompletion, "zsh-completion", false, "Generate zsh completion script")
 
 	// Add subcommands
 	cmd.AddCommand(analyze.NewAnalyzeCommand())
@@ -63,10 +50,10 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.AddCommand(newFixShortcut())
 	cmd.AddCommand(newCheckShortcut())
 
-	// Add completion command as well for more standard approach
+	// Add completion command for generating shell completions
 	cmd.AddCommand(newCompletionCommand())
 
-	// Set up custom completions
+	// Set up custom completions for all commands and flags
 	setupCustomCompletions(cmd)
 
 	return cmd
@@ -165,6 +152,19 @@ func setupCustomCompletions(cmd *cobra.Command) {
 		subCmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
 		subCmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
 		subCmd.RegisterFlagCompletionFunc("format", CompleteOutputFormats)
+		
+		// Add completion for global shortcuts
+		if subCmd.Name() == "e" {
+			// Global ensure shortcut
+			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
+			subCmd.RegisterFlagCompletionFunc("default", CompleteDefaultValues)
+		} else if subCmd.Name() == "s" {
+			// Global set shortcut
+			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
+			subCmd.RegisterFlagCompletionFunc("value", CompleteDefaultValues)
+		}
 
 		// Add specific completions for different command types
 		switch subCmd.Name() {
@@ -223,15 +223,24 @@ func setupFrontmatterCompletions(cmd *cobra.Command) {
 
 		// Field completions for commands that work with fields
 		switch subCmd.Name() {
-		case "ensure", "set", "cast", "sync":
+		case "ensure", "set":
 			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
+			subCmd.RegisterFlagCompletionFunc("default", CompleteDefaultValues)
+		case "cast":
+			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
+		case "sync":
+			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("source", CompleteSyncSources)
 		case "check":
 			subCmd.RegisterFlagCompletionFunc("required", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypes)
+			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
 		case "query":
 			subCmd.RegisterFlagCompletionFunc("missing", CompleteFrontmatterFields)
 			subCmd.RegisterFlagCompletionFunc("duplicates", CompleteFrontmatterFields)
 			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("filter", CompleteQueryFilters)
 		case "download":
 			subCmd.RegisterFlagCompletionFunc("field", CompleteCommonFields)
 		}
@@ -314,6 +323,93 @@ func CompleteFieldTypes(cmd *cobra.Command, args []string, toComplete string) ([
 	return types, cobra.ShellCompDirectiveNoFileComp
 }
 
+// CompleteFieldTypesWithFormat provides completion for field types in field:type format
+func CompleteFieldTypesWithFormat(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// Support both formats: "field:type" and just "type" for single field commands
+	if strings.Contains(toComplete, ":") {
+		// User is typing field:type format, complete the type part
+		parts := strings.Split(toComplete, ":")
+		if len(parts) == 2 {
+			prefix := parts[0] + ":"
+			types := []string{
+				prefix + "string",
+				prefix + "number", 
+				prefix + "boolean",
+				prefix + "array",
+				prefix + "date",
+				prefix + "null",
+			}
+			return types, cobra.ShellCompDirectiveNoFileComp
+		}
+	}
+	
+	// Provide both standalone types and common field:type combinations
+	completions := []string{}
+	
+	// Standalone types (for single field commands)
+	types := []string{"string", "number", "boolean", "array", "date", "null"}
+	completions = append(completions, types...)
+	
+	// Common field:type combinations
+	fields := []string{"title", "tags", "created", "modified", "priority", "status"}
+	for _, field := range fields {
+		for _, fieldType := range types {
+			completions = append(completions, field+":"+fieldType)
+		}
+	}
+	
+	return completions, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteDefaultValues provides completion for default values
+func CompleteDefaultValues(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	defaults := []string{
+		"\"\"",          // empty string
+		"null",          // null value
+		"[]",            // empty array
+		"[\"tag1\"]",    // single item array
+		"0",             // number
+		"false",         // boolean
+		"{{current_date}}", // template variable
+		"{{filename}}",     // template variable
+		"{{uuid}}",         // template variable
+	}
+	return defaults, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteSyncSources provides completion for sync sources
+func CompleteSyncSources(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	sources := []string{
+		"file-mtime",
+		"file-ctime", 
+		"file-atime",
+		"filename:pattern:regex",
+		"path:dir",
+		"path:parent",
+		"content:first-line",
+	}
+	return sources, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteQueryFilters provides completion for query filters
+func CompleteQueryFilters(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	filters := []string{
+		"title:exists",
+		"title:missing", 
+		"tags:exists",
+		"tags:missing",
+		"created:exists",
+		"created:missing",
+		"modified:exists",
+		"modified:missing",
+		"status:active",
+		"status:draft",
+		"type:note",
+		"type:daily",
+	}
+	return filters, cobra.ShellCompDirectiveNoFileComp
+}
+
 // CompleteLinkFormats provides completion for link format flags
 func CompleteLinkFormats(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	formats := []string{"wiki", "markdown"}
@@ -338,10 +434,38 @@ func CompleteGranularities(cmd *cobra.Command, args []string, toComplete string)
 	return granularities, cobra.ShellCompDirectiveNoFileComp
 }
 
+// CompleteOutputFiles provides completion for output file names
+func CompleteOutputFiles(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	extensions := []string{"txt", "json", "csv", "yaml", "md"}
+	return extensions, cobra.ShellCompDirectiveFilterFileExt
+}
+
+// CompleteDepthValues provides completion for depth values
+func CompleteDepthValues(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	depths := []string{"1", "2", "3", "4", "5", "10", "unlimited"}
+	return depths, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteMinConnectionValues provides completion for minimum connection values
+func CompleteMinConnectionValues(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	values := []string{"1", "2", "3", "5", "10", "20"}
+	return values, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteQualityScores provides completion for quality score values
+func CompleteQualityScores(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	scores := []string{"0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"}
+	return scores, cobra.ShellCompDirectiveNoFileComp
+}
+
 // setupAnalyzeCompletions sets up completion for analyze subcommands
 func setupAnalyzeCompletions(cmd *cobra.Command) {
 	for _, subCmd := range cmd.Commands() {
 		subCmd.ValidArgsFunction = CompleteDirs
+		
+		// All analyze commands have format flag
+		subCmd.RegisterFlagCompletionFunc("format", CompleteOutputFormats)
+		subCmd.RegisterFlagCompletionFunc("output", CompleteOutputFiles)
 		
 		switch subCmd.Name() {
 		case "duplicates":
@@ -349,6 +473,13 @@ func setupAnalyzeCompletions(cmd *cobra.Command) {
 		case "trends":
 			subCmd.RegisterFlagCompletionFunc("timespan", CompleteTimeSpans)
 			subCmd.RegisterFlagCompletionFunc("granularity", CompleteGranularities)
+		case "links":
+			// Add depth and min-connections completions for links command
+			subCmd.RegisterFlagCompletionFunc("depth", CompleteDepthValues)
+			subCmd.RegisterFlagCompletionFunc("min-connections", CompleteMinConnectionValues)
+		case "quality":
+			// Add min-score completion for quality command
+			subCmd.RegisterFlagCompletionFunc("min-score", CompleteQualityScores)
 		}
 	}
 }
