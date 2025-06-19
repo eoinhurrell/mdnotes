@@ -96,8 +96,9 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 // NewFixCommand creates the headings fix command
 func NewFixCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "fix [path]",
-		Short: "Fix heading structure issues",
+		Use:     "fix [path]",
+		Aliases: []string{"f"},
+		Short:   "Fix heading structure issues",
 		Long: `Fix heading structure issues in markdown files according to rules:
 - Ensure H1 matches title field
 - Convert multiple H1s to H2s

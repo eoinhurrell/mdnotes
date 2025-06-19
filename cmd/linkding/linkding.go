@@ -15,9 +15,10 @@ import (
 // NewLinkdingCommand creates the linkding command
 func NewLinkdingCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "linkding",
-		Short: "Sync URLs with Linkding bookmarks",
-		Long:  `Synchronize URLs from vault files with your Linkding bookmark manager`,
+		Use:     "linkding",
+		Aliases: []string{"ld"},
+		Short:   "Sync URLs with Linkding bookmarks",
+		Long:    `Synchronize URLs from vault files with your Linkding bookmark manager`,
 	}
 
 	// Add subcommands
@@ -39,8 +40,9 @@ func newSyncCommand() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "sync [vault-path]",
-		Short: "Sync vault URLs to Linkding bookmarks",
+		Use:     "sync [vault-path]",
+		Aliases: []string{"s"},
+		Short:   "Sync vault URLs to Linkding bookmarks",
 		Long: `Sync URLs from vault files to Linkding bookmarks.
 Files with 'url' frontmatter field will be synced to Linkding.
 The Linkding ID will be stored in the 'linkding_id' field.
@@ -212,8 +214,9 @@ Configuration:
 
 func newListCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list [vault-path]",
-		Short: "List vault files with URLs",
+		Use:     "list [vault-path]",
+		Aliases: []string{"l"},
+		Short:   "List vault files with URLs",
 		Long:  `List vault files that contain URLs and their sync status with Linkding`,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

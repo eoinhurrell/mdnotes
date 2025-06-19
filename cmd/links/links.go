@@ -26,8 +26,9 @@ func NewLinksCommand() *cobra.Command {
 // NewCheckCommand creates the links check command
 func NewCheckCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "check [path]",
-		Short: "Check for broken internal links",
+		Use:     "check [path]",
+		Aliases: []string{"c"},
+		Short:   "Check for broken internal links",
 		Long: `Check for broken internal links in markdown files.
 Reports links that point to non-existent files.`,
 		Args: cobra.ExactArgs(1),
@@ -118,8 +119,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 // NewConvertCommand creates the links convert command
 func NewConvertCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "convert [path]",
-		Short: "Convert between link formats",
+		Use:     "convert [path]",
+		Aliases: []string{"co"},
+		Short:   "Convert between link formats",
 		Long: `Convert links between wiki and markdown formats.
 Wiki format: [[note]] or [[note|alias]]
 Markdown format: [text](note.md)`,

@@ -15,9 +15,10 @@ import (
 // NewAnalyzeCommand creates the analyze command
 func NewAnalyzeCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "analyze",
-		Short: "Analyze vault statistics and health",
-		Long:  `Generate comprehensive statistics and health reports for your vault`,
+		Use:     "analyze",
+		Aliases: []string{"a"},
+		Short:   "Analyze vault statistics and health",
+		Long:    `Generate comprehensive statistics and health reports for your vault`,
 	}
 
 	// Add subcommands

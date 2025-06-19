@@ -56,6 +56,13 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.AddCommand(profile.NewProfileCommand())
 	cmd.AddCommand(rename.NewRenameCommand())
 
+	// Add ultra-short global shortcuts for most common commands
+	cmd.AddCommand(newEnsureShortcut())
+	cmd.AddCommand(newSetShortcut())
+	cmd.AddCommand(newQueryShortcut())
+	cmd.AddCommand(newFixShortcut())
+	cmd.AddCommand(newCheckShortcut())
+
 	// Add completion command as well for more standard approach
 	cmd.AddCommand(newCompletionCommand())
 
@@ -147,6 +154,10 @@ func setupCustomCompletions(cmd *cobra.Command) {
 			
 		case "linkding":
 			// Linkding takes vault paths
+			subCmd.ValidArgsFunction = CompleteDirs
+			
+		case "e", "s", "f", "c":
+			// Global shortcuts for path-based commands
 			subCmd.ValidArgsFunction = CompleteDirs
 		}
 		
@@ -247,4 +258,107 @@ func CompleteCommonFields(cmd *cobra.Command, args []string, toComplete string) 
 		"resource",
 	}
 	return fields, cobra.ShellCompDirectiveNoFileComp
+}
+
+// Ultra-short global shortcuts for most common commands
+
+// newEnsureShortcut creates a global shortcut for frontmatter ensure
+func newEnsureShortcut() *cobra.Command {
+	ensureCmd := frontmatter.NewFrontmatterCommand()
+	for _, subCmd := range ensureCmd.Commands() {
+		if subCmd.Name() == "ensure" {
+			// Create a new command that mimics the ensure subcommand
+			cmd := &cobra.Command{
+				Use:     "e [path]",
+				Short:   "Shortcut for: frontmatter ensure",
+				Long:    "Global shortcut for 'mdnotes frontmatter ensure'. " + subCmd.Long,
+				Args:    subCmd.Args,
+				RunE:    subCmd.RunE,
+				Hidden:  false,
+			}
+			// Copy flags from the original ensure command
+			cmd.Flags().AddFlagSet(subCmd.Flags())
+			return cmd
+		}
+	}
+	return nil
+}
+
+// newSetShortcut creates a global shortcut for frontmatter set
+func newSetShortcut() *cobra.Command {
+	frontmatterCmd := frontmatter.NewFrontmatterCommand()
+	for _, subCmd := range frontmatterCmd.Commands() {
+		if subCmd.Name() == "set" {
+			cmd := &cobra.Command{
+				Use:     "s [path]",
+				Short:   "Shortcut for: frontmatter set",
+				Long:    "Global shortcut for 'mdnotes frontmatter set'. " + subCmd.Long,
+				Args:    subCmd.Args,
+				RunE:    subCmd.RunE,
+				Hidden:  false,
+			}
+			cmd.Flags().AddFlagSet(subCmd.Flags())
+			return cmd
+		}
+	}
+	return nil
+}
+
+// newFixShortcut creates a global shortcut for headings fix
+func newFixShortcut() *cobra.Command {
+	headingsCmd := headings.NewHeadingsCommand()
+	for _, subCmd := range headingsCmd.Commands() {
+		if subCmd.Name() == "fix" {
+			cmd := &cobra.Command{
+				Use:     "f [path]",
+				Short:   "Shortcut for: headings fix",
+				Long:    "Global shortcut for 'mdnotes headings fix'. " + subCmd.Long,
+				Args:    subCmd.Args,
+				RunE:    subCmd.RunE,
+				Hidden:  false,
+			}
+			cmd.Flags().AddFlagSet(subCmd.Flags())
+			return cmd
+		}
+	}
+	return nil
+}
+
+// newCheckShortcut creates a global shortcut for links check
+func newCheckShortcut() *cobra.Command {
+	linksCmd := links.NewLinksCommand()
+	for _, subCmd := range linksCmd.Commands() {
+		if subCmd.Name() == "check" {
+			cmd := &cobra.Command{
+				Use:     "c [path]",
+				Short:   "Shortcut for: links check",
+				Long:    "Global shortcut for 'mdnotes links check'. " + subCmd.Long,
+				Args:    subCmd.Args,
+				RunE:    subCmd.RunE,
+				Hidden:  false,
+			}
+			cmd.Flags().AddFlagSet(subCmd.Flags())
+			return cmd
+		}
+	}
+	return nil
+}
+// newQueryShortcut creates a global shortcut for frontmatter query
+func newQueryShortcut() *cobra.Command {
+	frontmatterCmd := frontmatter.NewFrontmatterCommand()
+	for _, subCmd := range frontmatterCmd.Commands() {
+		if subCmd.Name() == "query" {
+			cmd := &cobra.Command{
+				Use:     "q [path]",
+				Short:   "Shortcut for: frontmatter query",
+				Long:    "Global shortcut for 'mdnotes frontmatter query'. " + subCmd.Long,
+				Args:    subCmd.Args,
+				RunE:    subCmd.RunE,
+				Hidden:  false,
+			}
+			cmd.Flags().AddFlagSet(subCmd.Flags())
+			return cmd
+		}
+	}
+	return nil
 }

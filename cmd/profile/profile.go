@@ -16,10 +16,11 @@ import (
 // NewProfileCommand creates the profile command for performance analysis
 func NewProfileCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "profile",
-		Short:  "Performance profiling and benchmarking tools",
-		Long:   `Tools for analyzing performance and memory usage of mdnotes operations`,
-		Hidden: true, // Hidden utility command
+		Use:     "profile",
+		Aliases: []string{"p"},
+		Short:   "Performance profiling and benchmarking tools",
+		Long:    `Tools for analyzing performance and memory usage of mdnotes operations`,
+		Hidden:  true, // Hidden utility command
 	}
 
 	cmd.AddCommand(newCPUProfileCommand())

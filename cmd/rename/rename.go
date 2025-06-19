@@ -14,8 +14,9 @@ import (
 // NewRenameCommand creates the rename command
 func NewRenameCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "rename [source_file] [new_name]",
-		Short: "Rename a file and update all references",
+		Use:     "rename [source_file] [new_name]",
+		Aliases: []string{"r"},
+		Short:   "Rename a file and update all references",
 		Long: `Rename a markdown file and automatically update all references to it throughout the vault.
 This command ensures vault integrity by updating both wiki links ([[file]]) and markdown links ([text](file.md)) 
 that point to the renamed file.
