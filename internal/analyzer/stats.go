@@ -3,7 +3,9 @@ package analyzer
 import (
 	"crypto/md5"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,6 +65,21 @@ type ContentDuplicate struct {
 	Files []string `json:"files"`
 	Count int      `json:"count"`
 	Size  int      `json:"size"`
+}
+
+// SyncConflictFile represents a file that appears to be a sync conflict
+type SyncConflictFile struct {
+	OriginalFile string `json:"original_file"`
+	ConflictFile string `json:"conflict_file"`
+	ConflictType string `json:"conflict_type"`
+	Pattern      string `json:"pattern"`
+}
+
+// ObsidianCopy represents an Obsidian duplicate file
+type ObsidianCopy struct {
+	OriginalFile string `json:"original_file"`
+	CopyFile     string `json:"copy_file"`
+	CopyNumber   int    `json:"copy_number"`
 }
 
 // DuplicateMatchType defines how to match duplicates
@@ -1055,6 +1072,100 @@ func (a *Analyzer) buildTimeline(periodActivity map[string]int, granularity stri
 	})
 
 	return timeline
+}
+
+// FindObsidianCopies finds Obsidian duplicate files (with ' 1', ' 2', etc. suffixes)
+func (a *Analyzer) FindObsidianCopies(files []*vault.VaultFile) []ObsidianCopy {
+	var copies []ObsidianCopy
+	baseFiles := make(map[string]*vault.VaultFile)
+
+	// First pass: identify base files and potential copies
+	for _, file := range files {
+		filename := strings.TrimSuffix(file.RelativePath, ".md")
+		
+		// Check if this is a copy (ends with ' 1', ' 2', etc.)
+		re := regexp.MustCompile(`^(.+) (\d+)$`)
+		matches := re.FindStringSubmatch(filename)
+		
+		if len(matches) == 3 {
+			// This is a copy
+			baseFilename := matches[1]
+			copyNumber, _ := strconv.Atoi(matches[2])
+			originalPath := baseFilename + ".md"
+			
+			// Find the original file
+			for _, originalFile := range files {
+				if originalFile.RelativePath == originalPath {
+					copies = append(copies, ObsidianCopy{
+						OriginalFile: originalFile.RelativePath,
+						CopyFile:     file.RelativePath,
+						CopyNumber:   copyNumber,
+					})
+					break
+				}
+			}
+		} else {
+			// This is a potential base file
+			baseFiles[filename] = file
+		}
+	}
+
+	// Sort by copy number
+	sort.Slice(copies, func(i, j int) bool {
+		if copies[i].OriginalFile == copies[j].OriginalFile {
+			return copies[i].CopyNumber < copies[j].CopyNumber
+		}
+		return copies[i].OriginalFile < copies[j].OriginalFile
+	})
+
+	return copies
+}
+
+// FindSyncConflictFiles finds files that appear to be sync conflicts
+func (a *Analyzer) FindSyncConflictFiles(files []*vault.VaultFile) []SyncConflictFile {
+	var conflicts []SyncConflictFile
+	
+	// Patterns for different sync conflict types
+	patterns := []struct {
+		name    string
+		pattern *regexp.Regexp
+	}{
+		{"syncthing", regexp.MustCompile(`^(.+)\.sync-conflict-\d{8}-\d{6}-[A-Z0-9]{8}\.md$`)},
+		{"dropbox", regexp.MustCompile(`^(.+) \(.*'s conflicted copy \d{4}-\d{2}-\d{2}\)\.md$`)},
+		{"onedrive", regexp.MustCompile(`^(.+)-[^-]+-OneDrive\.md$`)},
+		{"google-drive", regexp.MustCompile(`^(.+) \(\d+\)\.md$`)},
+		{"icloud", regexp.MustCompile(`^(.+) \d+\.md$`)},
+	}
+
+	for _, file := range files {
+		for _, pattern := range patterns {
+			matches := pattern.pattern.FindStringSubmatch(file.RelativePath)
+			if len(matches) >= 2 {
+				originalPath := matches[1] + ".md"
+				
+				// Check if original file exists
+				for _, originalFile := range files {
+					if originalFile.RelativePath == originalPath {
+						conflicts = append(conflicts, SyncConflictFile{
+							OriginalFile: originalFile.RelativePath,
+							ConflictFile: file.RelativePath,
+							ConflictType: pattern.name,
+							Pattern:      pattern.pattern.String(),
+						})
+						break
+					}
+				}
+				break // Found a match, no need to check other patterns
+			}
+		}
+	}
+
+	// Sort by original file name
+	sort.Slice(conflicts, func(i, j int) bool {
+		return conflicts[i].OriginalFile < conflicts[j].OriginalFile
+	})
+
+	return conflicts
 }
 
 // GetHealthScore calculates an overall health score for the vault

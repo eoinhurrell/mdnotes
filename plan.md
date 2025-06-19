@@ -353,10 +353,146 @@ mdnotes frontmatter query [path] [flags]
 --where "tags contains 'project' OR tags contains 'work'"
 ```
 
-##### Task 2.2: Smart Organization Features
+##### Task 2.1b: Improved Enhanced Query Language
 
-- Simple automatic tagging suggestions
-- Duplicate detection and resolution (find Obsidian copies (with ' 1' at end of filename), or syncthing sync-conflict files)
+**Command‑Line Interface**
+
+```bash
+mdnotes frontmatter query [path] [flags]
+mdnotes q [path] [flags]
+```
+
+Invokes the query engine on Markdown files with YAML frontmatter under `path` (default: current directory).
+
+---
+
+###### 1. Flags
+
+| Flag                   | Description                                              | Example                                      |
+| ---------------------- | -------------------------------------------------------- | -------------------------------------------- |
+| `--where <expression>` | Filter files matching the boolean expression             | `--where "priority > 3 AND status = 'open'"` |
+| `--missing <field>`    | List files where `<field>` is not present in frontmatter | `--missing due_date`                         |
+| `--duplicates <field>` | Group files by `<field>` and list values occurring >1    | `--duplicates slug`                          |
+| `--field <list>`       | Comma-separated list of frontmatter keys to display      | `--field title,created,tags`                 |
+| `--format <type>`      | Output format: `table`, `json`, `yaml`, `csv`            | `--format json`                              |
+| `--count`              | Only output the total number of matching files           | `--count`                                    |
+| `--fix-with <value>`   | For `--missing`, auto-insert `<value>` for missing field | `--missing tags --fix-with 'misc'`           |
+
+---
+
+###### 2. Query Expressions
+
+####### 2.1 Lexical Elements
+
+- **Identifiers**: letters, digits, underscore; must start with letter or underscore.
+- **String literals**: single-quoted (`'...'`) or double-quoted (`"..."`).
+- **Numeric literals**: integer or floating point (e.g. `42`, `3.14`).
+- **Date literals**: ISO-8601 date (`YYYY-MM-DD`).
+- **Operators**: `=`, `!=`, `<`, `<=`, `>`, `>=`, `contains`, `not contains`, `in`, `not in`.
+- **Logical**: `AND`, `OR`, `NOT` (case-insensitive).
+- **Grouping**: parentheses `(` `)`.
+
+####### 2.2 Grammar (EBNF)
+
+```
+<expr>      ::= <or_expr>
+<or_expr>   ::= <and_expr> { ("OR" | "or") <and_expr> }
+<and_expr>  ::= <not_expr> { ("AND" | "and") <not_expr> }
+<not_expr>  ::= [ ("NOT"|"not") ] <cmp_expr>
+<cmp_expr>  ::= <term> [ <cmp_op> <term> ]
+<cmp_op>    ::= "=" | "!=" | ">" | ">=" | "<" | "<="
+               | "contains" | "not contains" | "in" | "not in"
+<term>      ::= <identifier> | <literal> | <function_call> | "(" <expr> ")"
+<function_call> ::= <identifier> "(" [ <arg_list> ] ")"
+<arg_list>  ::= <expr> {"," <expr> }
+<identifier>::= letter { letter | digit | "_" }
+<literal>   ::= <string> | <number> | <date> | <boolean>
+```
+
+####### 2.3 Supported Types & Coercion
+
+- **String**: YAML string values.
+- **Number**: integers or floats.
+- **Boolean**: `true`, `false` (case-insensitive).
+- **Date**: literal or field parsed as date (fields ending in `_date` or configured schema).
+- **List**: sequences in frontmatter (e.g. `tags`). `contains` & `in` apply to lists.
+
+Type coercion is applied when reasonable (e.g. numeric string to number).
+
+####### 2.4 Built‑in Functions
+
+- `now()`: current timestamp.
+- `date("YYYY-MM-DD")`: parse literal as date.
+- `len(x)`: length of string or list.
+- `lower(x)`, `upper(x)`: case manipulation.
+
+---
+
+###### 3. Flag Semantics & Output
+
+1. **`--where`**: Evaluates expression for each file’s frontmatter. Files where expression is true are included.
+2. **`--missing`**: Files where `<field>` is absent or null.
+3. **`--duplicates`**: Collect values for `<field>` across files; print groups with count >1.
+4. **Combining**: Multiple flags may be combined; evaluation order:
+
+   1. `--missing`, `--duplicates` pre-filter
+   2. `--where` on remaining
+   3. Projection with `--field`
+   4. Aggregation with `--count`
+   5. Formatting with `--format`
+   6. Auto‑fix when `--fix-with` used
+
+5. **`--fix-with`**: For each file missing `<field>`, insert default value, update file on disk. Idempotent.
+6. **`--count`**: Suppress record output; show count only.
+7. **Output Formats**:
+
+   - `table` (default): aligned columns to stdout
+   - `json`: JSON array of objects
+   - `yaml`: YAML sequence
+   - `csv`: comma‑separated
+
+---
+
+###### 4. Error Handling
+
+- **Parse errors** in expression: report location, expected tokens.
+- **Type errors** (e.g. comparing date to string): clear message.
+- **File I/O errors**: skip with warning
+- **Invalid flags**: exit with usage.
+
+---
+
+###### 5. Examples
+
+```bash
+#### 1. All drafts with priority >3
+mdnotes frontmatter query . \
+  --where "status = 'draft' AND priority > 3"
+
+#### 2. Notes missing due_date, auto‑fix with tomorrow’s date
+mdnotes frontmatter query notes/ \
+  --missing due_date --fix-with "$(date +%F --date='tomorrow')"
+
+#### 3. Duplicate slugs in all notes
+mdnotes frontmatter query . --duplicates slug --format table
+
+#### 4. Count notes tagged 'urgent' or 'important'
+mdnotes frontmatter query . \
+  --where "tags contains 'urgent' OR tags contains 'important'" --count
+
+#### 5. Output title and created date in CSV
+mdnotes frontmatter query . \
+  --where "created >= '2024-01-01'" \
+  --field title,created --format csv
+```
+
+---
+
+##### Task 2.2: Performance and Smart Organization Features
+
+- Output format 'table' should align columns to be more legible
+- The rename command should have a configurable default target that it renames to if a second parameter isn't passed, i.e. 'Case Closed.md' should be renamed by default to '{{file created time | YYYYMMDDHHmmss}}-{{filename all lowercase, with spaces replaced by underscores and non-alphanumeric characters removed}}.md' (i.e. 20250619121117-case_closed.md). This will let it work with batch mode.
+- Duplicate detection improvements (find Obsidian copies (with ' 1' at end of filename), or syncthing sync-conflict files)
 
 ##### Task 2.3: Enhanced Analysis
 
@@ -369,6 +505,8 @@ mdnotes frontmatter query [path] [flags]
 #### Phase 3: Polish and Future-Proofing (Week 3)
 
 **Goal**: Ensure excellent user experience and extensibility
+
+- Simple automatic tagging suggestions
 
 ##### Task 3.1: Comprehensive Testing
 
@@ -414,4 +552,3 @@ mdnotes frontmatter query [path] [flags]
 - **Safety**: Dry-run mode works everywhere
 
 This redesigned CLI maintains logical command organization while dramatically improving usability through multiple access patterns, consistent flag behavior, and powerful new query capabilities.
-

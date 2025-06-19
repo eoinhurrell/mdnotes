@@ -85,8 +85,8 @@ func newStatsCommand() *cobra.Command {
 			}
 
 			// Generate statistics
-			analyzer := analyzer.NewAnalyzer()
-			stats := analyzer.GenerateStats(files)
+			ana := analyzer.NewAnalyzer()
+			stats := ana.GenerateStats(files)
 
 			// Output results
 			if outputFormat == "json" {
@@ -121,12 +121,21 @@ func newDuplicatesCommand() *cobra.Command {
 	var (
 		outputFormat  string
 		minSimilarity float64
+		duplicateType string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "duplicates [vault-path]",
 		Short: "Find duplicate files",
-		Long:  `Find duplicate files in your vault based on content similarity`,
+		Long: `Find duplicate files in your vault including:
+  - Content duplicates (identical file content)
+  - Obsidian copies (files with ' 1', ' 2' suffixes)
+  - Sync conflicts (syncthing, dropbox, etc.)
+  
+Example:
+  mdnotes analyze duplicates --type obsidian
+  mdnotes analyze duplicates --type sync-conflicts
+  mdnotes analyze duplicates --type content`,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vaultPath := "."
@@ -167,20 +176,67 @@ func newDuplicatesCommand() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "\n")
 			}
 
-			// Find duplicates
-			analyzer := analyzer.NewAnalyzer()
-			duplicates := analyzer.FindDuplicates(files, "content")
+			ana := analyzer.NewAnalyzer()
 
-			// Output results
-			if outputFormat == "json" {
-				data, err := json.MarshalIndent(duplicates, "", "  ")
-				if err != nil {
-					return fmt.Errorf("marshaling JSON: %w", err)
+			// Find different types of duplicates based on flag
+			switch duplicateType {
+			case "obsidian":
+				obsidianCopies := ana.FindObsidianCopies(files)
+				if outputFormat == "json" {
+					data, err := json.MarshalIndent(obsidianCopies, "", "  ")
+					if err != nil {
+						return fmt.Errorf("marshaling JSON: %w", err)
+					}
+					fmt.Println(string(data))
+				} else {
+					output := formatObsidianCopiesText(obsidianCopies)
+					fmt.Print(output)
 				}
-				fmt.Println(string(data))
-			} else {
-				output := formatDuplicatesText(duplicates)
-				fmt.Print(output)
+			case "sync-conflicts":
+				syncConflicts := ana.FindSyncConflictFiles(files)
+				if outputFormat == "json" {
+					data, err := json.MarshalIndent(syncConflicts, "", "  ")
+					if err != nil {
+						return fmt.Errorf("marshaling JSON: %w", err)
+					}
+					fmt.Println(string(data))
+				} else {
+					output := formatSyncConflictsText(syncConflicts)
+					fmt.Print(output)
+				}
+			case "content":
+				contentDuplicates := ana.FindContentDuplicates(files, analyzer.ExactMatch)
+				if outputFormat == "json" {
+					data, err := json.MarshalIndent(contentDuplicates, "", "  ")
+					if err != nil {
+						return fmt.Errorf("marshaling JSON: %w", err)
+					}
+					fmt.Println(string(data))
+				} else {
+					output := formatContentDuplicatesText(contentDuplicates)
+					fmt.Print(output)
+				}
+			default:
+				// Show all types by default
+				obsidianCopies := ana.FindObsidianCopies(files)
+				syncConflicts := ana.FindSyncConflictFiles(files)
+				contentDuplicates := ana.FindContentDuplicates(files, analyzer.ExactMatch)
+				
+				if outputFormat == "json" {
+					result := map[string]interface{}{
+						"obsidian_copies":  obsidianCopies,
+						"sync_conflicts":   syncConflicts,
+						"content_duplicates": contentDuplicates,
+					}
+					data, err := json.MarshalIndent(result, "", "  ")
+					if err != nil {
+						return fmt.Errorf("marshaling JSON: %w", err)
+					}
+					fmt.Println(string(data))
+				} else {
+					output := formatAllDuplicatesText(obsidianCopies, syncConflicts, contentDuplicates)
+					fmt.Print(output)
+				}
 			}
 
 			return nil
@@ -189,6 +245,7 @@ func newDuplicatesCommand() *cobra.Command {
 
 	cmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
 	cmd.Flags().Float64Var(&minSimilarity, "similarity", 0.8, "Minimum similarity threshold (0.0-1.0)")
+	cmd.Flags().StringVarP(&duplicateType, "type", "t", "all", "Type of duplicates to find (all, obsidian, sync-conflicts, content)")
 
 	return cmd
 }
@@ -241,9 +298,9 @@ func newHealthCommand() *cobra.Command {
 			}
 
 			// Generate health report
-			analyzer := analyzer.NewAnalyzer()
-			stats := analyzer.GenerateStats(files)
-			health := analyzer.GetHealthScore(stats)
+			ana := analyzer.NewAnalyzer()
+			stats := ana.GenerateStats(files)
+			health := ana.GetHealthScore(stats)
 
 			// Output results
 			if outputFormat == "json" {
@@ -405,10 +462,10 @@ func newLinksCommand() *cobra.Command {
 			}
 
 			// Generate link analysis
-			analyzer := analyzer.NewAnalyzer()
+			ana := analyzer.NewAnalyzer()
 			linkParser := processor.NewLinkParser()
-			analyzer.SetLinkParser(linkParser)
-			linkAnalysis := analyzer.AnalyzeLinks(files)
+			ana.SetLinkParser(linkParser)
+			linkAnalysis := ana.AnalyzeLinks(files)
 
 			// Output results
 			if outputFormat == "json" {
@@ -471,8 +528,8 @@ func newContentCommand() *cobra.Command {
 			}
 
 			// Generate content analysis
-			analyzer := analyzer.NewAnalyzer()
-			contentAnalysis := analyzer.AnalyzeContentQuality(files)
+			ana := analyzer.NewAnalyzer()
+			contentAnalysis := ana.AnalyzeContentQuality(files)
 
 			// Output results
 			if outputFormat == "json" {
@@ -534,8 +591,8 @@ func newTrendsCommand() *cobra.Command {
 			}
 
 			// Generate trends analysis
-			analyzer := analyzer.NewAnalyzer()
-			trendsAnalysis := analyzer.AnalyzeTrends(files, timespan, granularity)
+			ana := analyzer.NewAnalyzer()
+			trendsAnalysis := ana.AnalyzeTrends(files, timespan, granularity)
 
 			// Output results
 			if outputFormat == "json" {
@@ -756,6 +813,120 @@ func formatGraphNode(file string, connections []string, graph map[string][]strin
 		} else {
 			output += fmt.Sprintf("%s│  └─ %s\n", indent, connection)
 		}
+	}
+
+	return output
+}
+
+// formatObsidianCopiesText formats Obsidian copy analysis results
+func formatObsidianCopiesText(copies []analyzer.ObsidianCopy) string {
+	if len(copies) == 0 {
+		return "No Obsidian copy files found.\n"
+	}
+
+	output := fmt.Sprintf("Found %d Obsidian copy files:\n\n", len(copies))
+
+	currentOriginal := ""
+	for _, copy := range copies {
+		if copy.OriginalFile != currentOriginal {
+			currentOriginal = copy.OriginalFile
+			output += fmt.Sprintf("Original: %s\n", copy.OriginalFile)
+		}
+		output += fmt.Sprintf("  └─ Copy %d: %s\n", copy.CopyNumber, copy.CopyFile)
+	}
+
+	output += fmt.Sprintf("\n💡 Suggestion: Review these copies and consider merging or removing duplicates.\n")
+	output += "   Use 'mdnotes rename' to organize files or manually review content.\n"
+
+	return output
+}
+
+// formatSyncConflictsText formats sync conflict analysis results
+func formatSyncConflictsText(conflicts []analyzer.SyncConflictFile) string {
+	if len(conflicts) == 0 {
+		return "No sync conflict files found.\n"
+	}
+
+	output := fmt.Sprintf("Found %d sync conflict files:\n\n", len(conflicts))
+
+	// Group by conflict type
+	conflictTypes := make(map[string][]analyzer.SyncConflictFile)
+	for _, conflict := range conflicts {
+		conflictTypes[conflict.ConflictType] = append(conflictTypes[conflict.ConflictType], conflict)
+	}
+
+	for conflictType, typeConflicts := range conflictTypes {
+		output += fmt.Sprintf("\n%s conflicts (%d):\n", strings.Title(conflictType), len(typeConflicts))
+		currentOriginal := ""
+		for _, conflict := range typeConflicts {
+			if conflict.OriginalFile != currentOriginal {
+				currentOriginal = conflict.OriginalFile
+				output += fmt.Sprintf("  Original: %s\n", conflict.OriginalFile)
+			}
+			output += fmt.Sprintf("    └─ Conflict: %s\n", conflict.ConflictFile)
+		}
+	}
+
+	output += fmt.Sprintf("\n💡 Suggestion: Review and resolve sync conflicts by comparing content.\n")
+	output += "   Keep the most recent version and delete conflict files after verification.\n"
+
+	return output
+}
+
+// formatContentDuplicatesText formats content duplicate analysis results
+func formatContentDuplicatesText(duplicates []analyzer.ContentDuplicate) string {
+	if len(duplicates) == 0 {
+		return "No content duplicates found.\n"
+	}
+
+	output := fmt.Sprintf("Found %d content duplicate groups:\n\n", len(duplicates))
+
+	for i, dup := range duplicates {
+		output += fmt.Sprintf("Group %d (%d bytes, %d files):\n", i+1, dup.Size, dup.Count)
+		for _, file := range dup.Files {
+			output += fmt.Sprintf("  - %s\n", file)
+		}
+		output += "\n"
+	}
+
+	output += "💡 Suggestion: Review duplicate content and consider merging or removing redundant files.\n"
+
+	return output
+}
+
+// formatAllDuplicatesText formats all duplicate types in a single report
+func formatAllDuplicatesText(obsidianCopies []analyzer.ObsidianCopy, syncConflicts []analyzer.SyncConflictFile, contentDuplicates []analyzer.ContentDuplicate) string {
+	output := "# Duplicate Analysis Report\n\n"
+
+	// Summary
+	totalIssues := len(obsidianCopies) + len(syncConflicts) + len(contentDuplicates)
+	if totalIssues == 0 {
+		return "✅ No duplicate files found. Your vault is clean!\n"
+	}
+
+	output += fmt.Sprintf("Found %d duplicate issues:\n", totalIssues)
+	output += fmt.Sprintf("  - %d Obsidian copies\n", len(obsidianCopies))
+	output += fmt.Sprintf("  - %d sync conflicts\n", len(syncConflicts))
+	output += fmt.Sprintf("  - %d content duplicates\n\n", len(contentDuplicates))
+
+	// Obsidian copies
+	if len(obsidianCopies) > 0 {
+		output += "## Obsidian Copies\n\n"
+		output += formatObsidianCopiesText(obsidianCopies)
+		output += "\n"
+	}
+
+	// Sync conflicts
+	if len(syncConflicts) > 0 {
+		output += "## Sync Conflicts\n\n"
+		output += formatSyncConflictsText(syncConflicts)
+		output += "\n"
+	}
+
+	// Content duplicates
+	if len(contentDuplicates) > 0 {
+		output += "## Content Duplicates\n\n"
+		output += formatContentDuplicatesText(contentDuplicates)
 	}
 
 	return output

@@ -90,7 +90,13 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 	for _, rule := range typeRules {
 		parts := strings.Split(rule, ":")
 		if len(parts) == 2 {
+			// Standard format: field:type
 			types[parts[0]] = parts[1]
+		} else if len(parts) == 1 && len(fields) == 1 {
+			// Implicit format: just type when there's only one field
+			types[fields[0]] = parts[0]
+		} else if len(parts) == 1 {
+			return fmt.Errorf("type %s specified but multiple fields provided - use field:type format", rule)
 		}
 	}
 
@@ -103,6 +109,17 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 			fieldDefaults[field] = nil
 		} else {
 			fieldDefaults[field] = defaultValue
+			
+			// Implicit array detection: if default value has bracket notation and no explicit type is set
+			if _, hasExplicitType := types[field]; !hasExplicitType {
+				trimmed := strings.TrimSpace(defaultValue)
+				if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+					types[field] = "array"
+					if verbose {
+						fmt.Printf("Auto-detected array type for field '%s' due to bracket notation\n", field)
+					}
+				}
+			}
 		}
 	}
 
@@ -234,7 +251,13 @@ func runSet(cmd *cobra.Command, args []string) error {
 	for _, rule := range typeRules {
 		parts := strings.Split(rule, ":")
 		if len(parts) == 2 {
+			// Standard format: field:type
 			types[parts[0]] = parts[1]
+		} else if len(parts) == 1 && len(fields) == 1 {
+			// Implicit format: just type when there's only one field
+			types[fields[0]] = parts[0]
+		} else if len(parts) == 1 {
+			return fmt.Errorf("type %s specified but multiple fields provided - use field:type format", rule)
 		}
 	}
 
@@ -247,6 +270,17 @@ func runSet(cmd *cobra.Command, args []string) error {
 			fieldValues[field] = nil
 		} else {
 			fieldValues[field] = value
+			
+			// Implicit array detection: if value has bracket notation and no explicit type is set
+			if _, hasExplicitType := types[field]; !hasExplicitType {
+				trimmed := strings.TrimSpace(value)
+				if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+					types[field] = "array"
+					if verbose {
+						fmt.Printf("Auto-detected array type for field '%s' due to bracket notation\n", field)
+					}
+				}
+			}
 		}
 	}
 
@@ -576,7 +610,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	for _, rule := range typeRules {
 		parts := strings.Split(rule, ":")
 		if len(parts) == 2 {
+			// Standard format: field:type
 			types[parts[0]] = parts[1]
+		} else if len(parts) == 1 {
+			return fmt.Errorf("type %s specified but no field name provided - use field:type format", rule)
 		}
 	}
 
@@ -952,8 +989,9 @@ Enhanced Query Language:
   Date comparisons:
     --where "created after '2024-01-01'"     # Date after
     --where "modified before '2024-12-01'"   # Date before  
-    --where "updated within '7 days'"        # Within duration
-    --where "edited within '2 weeks'"        # Supports days/weeks/months/years
+    --where "updated within '7 days'"        # Within ±7 days from today
+    --where "edited within '3 weeks'"        # Within ±3 weeks from today
+    --where "accessed within '2 hours'"      # Supports minutes, hours, days, weeks, months, years
     
   Logical operators:
     --where "priority > 3 AND status != 'done'"           # Both conditions
@@ -1231,43 +1269,65 @@ func outputTable(files []*vault.VaultFile, fields []string, quiet bool) error {
 		fields = []string{"file", "title"}
 	}
 
-	// Simple table output (can be enhanced later)
+	// Calculate column widths for proper alignment
+	colWidths := make([]int, len(fields))
+	rows := make([][]string, len(files))
+
+	// Initialize column widths with header lengths
+	for i, field := range fields {
+		colWidths[i] = len(strings.Title(field))
+	}
+
+	// Collect all data and calculate maximum width for each column
+	for fileIdx, file := range files {
+		row := make([]string, len(fields))
+		for i, field := range fields {
+			var cellValue string
+			if field == "file" {
+				cellValue = file.RelativePath
+			} else {
+				if value, exists := file.GetField(field); exists {
+					cellValue = fmt.Sprintf("%v", value)
+				} else {
+					cellValue = ""
+				}
+			}
+			row[i] = cellValue
+			if len(cellValue) > colWidths[i] {
+				colWidths[i] = len(cellValue)
+			}
+		}
+		rows[fileIdx] = row
+	}
+
 	if !quiet {
-		// Header
+		// Print header with proper alignment
 		for i, field := range fields {
 			if i > 0 {
-				fmt.Print("\t")
+				fmt.Print(" │ ")
 			}
-			fmt.Print(strings.Title(field))
+			header := strings.Title(field)
+			fmt.Printf("%-*s", colWidths[i], header)
 		}
 		fmt.Println()
 
-		// Separator
-		for i, field := range fields {
+		// Print separator line
+		for i, _ := range fields {
 			if i > 0 {
-				fmt.Print("\t")
+				fmt.Print("─┼─")
 			}
-			fmt.Print(strings.Repeat("-", len(field)))
+			fmt.Print(strings.Repeat("─", colWidths[i]))
 		}
 		fmt.Println()
 	}
 
-	// Data rows
-	for _, file := range files {
-		for i, field := range fields {
+	// Print data rows with proper alignment
+	for _, row := range rows {
+		for i, cellValue := range row {
 			if i > 0 {
-				fmt.Print("\t")
+				fmt.Print(" │ ")
 			}
-
-			if field == "file" {
-				fmt.Print(file.RelativePath)
-			} else {
-				if value, exists := file.GetField(field); exists {
-					fmt.Print(value)
-				} else {
-					fmt.Print("")
-				}
-			}
+			fmt.Printf("%-*s", colWidths[i], cellValue)
 		}
 		fmt.Println()
 	}

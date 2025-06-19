@@ -106,6 +106,52 @@ func (s *Scanner) Walk(root string) ([]*VaultFile, error) {
 	return files, err
 }
 
+// WalkWithCallback scans a directory tree and calls the callback for each markdown file
+// This enables streaming processing for better memory efficiency
+func (s *Scanner) WalkWithCallback(root string, callback func(*VaultFile) error) error {
+	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Get relative path from root
+		relPath, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+
+		// Check if path should be ignored
+		if s.shouldIgnore(relPath) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Only process markdown files
+		if d.IsDir() || !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+
+		// Load the file
+		vf, err := s.loadFile(path, relPath)
+		if err != nil {
+			if s.continueOnErrors {
+				// Store the error and continue
+				s.parseErrors = append(s.parseErrors, ParseError{
+					Path:  relPath,
+					Error: err,
+				})
+				return nil
+			}
+			return fmt.Errorf("loading %s: %w", path, err)
+		}
+
+		// Call the callback
+		return callback(vf)
+	})
+}
+
 // shouldIgnore checks if a path matches any ignore pattern
 func (s *Scanner) shouldIgnore(path string) bool {
 	for _, pattern := range s.ignorePatterns {

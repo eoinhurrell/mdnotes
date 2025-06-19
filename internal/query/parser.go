@@ -10,297 +10,576 @@ import (
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
+// Token types for lexical analysis
+type TokenType int
+
+const (
+	TokenEOF TokenType = iota
+	TokenIdentifier
+	TokenString
+	TokenNumber
+	TokenDate
+	TokenBoolean
+	TokenOperator
+	TokenLogical
+	TokenKeyword
+	TokenParen
+	TokenComma
+	TokenFunction
+)
+
+// Token represents a lexical token
+type Token struct {
+	Type  TokenType
+	Value string
+	Pos   int
+}
+
 // Expression represents a parsed query expression
 type Expression interface {
 	Evaluate(file *vault.VaultFile) bool
 }
 
-// ComparisonExpression represents field comparisons
+// NotExpression represents NOT operations
+type NotExpression struct {
+	Expr Expression
+}
+
+// ComparisonExpression represents field comparisons with full operator support
 type ComparisonExpression struct {
 	Field    string
-	Operator string
+	Operator string // "=", "!=", ">", ">=", "<", "<=", "contains", "not contains", "in", "not in"
 	Value    interface{}
 }
 
-// LogicalExpression represents AND/OR operations
+// LogicalExpression represents AND/OR operations with proper precedence
 type LogicalExpression struct {
 	Left     Expression
 	Operator string // "AND" or "OR"
 	Right    Expression
 }
 
-// ContainsExpression represents contains operations
+// FunctionCallExpression represents built-in function calls
+type FunctionCallExpression struct {
+	Name string
+	Args []Expression
+}
+
+// LiteralExpression represents literal values
+type LiteralExpression struct {
+	Value interface{}
+}
+
+// FieldExpression represents field references
+type FieldExpression struct {
+	Name string
+}
+
+// Legacy expressions for backward compatibility
 type ContainsExpression struct {
 	Field string
 	Value string
 }
 
-// DateExpression represents date comparisons
 type DateExpression struct {
 	Field    string
 	Operator string // "after", "before", "within"
 	Value    interface{}
 }
 
-// Parser handles parsing query expressions
+// Parser handles parsing query expressions with enhanced lexical analysis
 type Parser struct {
-	input string
-	pos   int
+	input  string
+	tokens []Token
+	pos    int
 }
 
 // NewParser creates a new expression parser
 func NewParser(input string) *Parser {
-	return &Parser{
+	p := &Parser{
 		input: strings.TrimSpace(input),
 		pos:   0,
 	}
+	p.tokenize()
+	return p
 }
 
-// Parse parses the input string into an Expression
+// tokenize performs lexical analysis
+func (p *Parser) tokenize() {
+	input := p.input
+	pos := 0
+
+	for pos < len(input) {
+		// Skip whitespace
+		if isWhitespace(input[pos]) {
+			pos++
+			continue
+		}
+
+		start := pos
+
+		// String literals
+		if input[pos] == '"' || input[pos] == '\'' {
+			quote := input[pos]
+			pos++
+			for pos < len(input) && input[pos] != quote {
+				if input[pos] == '\\' && pos+1 < len(input) {
+					pos += 2 // Skip escaped character
+				} else {
+					pos++
+				}
+			}
+			if pos < len(input) {
+				pos++ // Skip closing quote
+			}
+			p.tokens = append(p.tokens, Token{
+				Type:  TokenString,
+				Value: input[start+1 : pos-1], // Remove quotes
+				Pos:   start,
+			})
+			continue
+		}
+
+		// Numbers (integer or float)
+		if isDigit(input[pos]) || (input[pos] == '.' && pos+1 < len(input) && isDigit(input[pos+1])) {
+			for pos < len(input) && (isDigit(input[pos]) || input[pos] == '.') {
+				pos++
+			}
+			p.tokens = append(p.tokens, Token{
+				Type:  TokenNumber,
+				Value: input[start:pos],
+				Pos:   start,
+			})
+			continue
+		}
+
+		// Operators
+		if pos+1 < len(input) {
+			twoChar := input[pos : pos+2]
+			if twoChar == ">=" || twoChar == "<=" || twoChar == "!=" {
+				p.tokens = append(p.tokens, Token{
+					Type:  TokenOperator,
+					Value: twoChar,
+					Pos:   start,
+				})
+				pos += 2
+				continue
+			}
+		}
+
+		if input[pos] == '=' || input[pos] == '>' || input[pos] == '<' {
+			p.tokens = append(p.tokens, Token{
+				Type:  TokenOperator,
+				Value: string(input[pos]),
+				Pos:   start,
+			})
+			pos++
+			continue
+		}
+
+		// Parentheses
+		if input[pos] == '(' || input[pos] == ')' {
+			p.tokens = append(p.tokens, Token{
+				Type:  TokenParen,
+				Value: string(input[pos]),
+				Pos:   start,
+			})
+			pos++
+			continue
+		}
+
+		// Comma
+		if input[pos] == ',' {
+			p.tokens = append(p.tokens, Token{
+				Type:  TokenComma,
+				Value: ",",
+				Pos:   start,
+			})
+			pos++
+			continue
+		}
+
+		// Identifiers and keywords
+		if isAlpha(input[pos]) || input[pos] == '_' {
+			for pos < len(input) && (isAlphaNumeric(input[pos]) || input[pos] == '_') {
+				pos++
+			}
+			value := input[start:pos]
+			
+			// Check for keywords and logical operators
+			valueLower := strings.ToLower(value)
+			switch valueLower {
+			case "and", "or":
+				p.tokens = append(p.tokens, Token{
+					Type:  TokenLogical,
+					Value: strings.ToUpper(value),
+					Pos:   start,
+				})
+			case "not":
+				p.tokens = append(p.tokens, Token{
+					Type:  TokenKeyword,
+					Value: "NOT",
+					Pos:   start,
+				})
+			case "contains", "in", "after", "before", "within":
+				p.tokens = append(p.tokens, Token{
+					Type:  TokenKeyword,
+					Value: valueLower,
+					Pos:   start,
+				})
+			case "true", "false":
+				p.tokens = append(p.tokens, Token{
+					Type:  TokenBoolean,
+					Value: valueLower,
+					Pos:   start,
+				})
+			default:
+				// Check if it's a function call (followed by '(')
+				nextPos := pos
+				for nextPos < len(input) && isWhitespace(input[nextPos]) {
+					nextPos++
+				}
+				if nextPos < len(input) && input[nextPos] == '(' {
+					p.tokens = append(p.tokens, Token{
+						Type:  TokenFunction,
+						Value: value,
+						Pos:   start,
+					})
+				} else {
+					p.tokens = append(p.tokens, Token{
+						Type:  TokenIdentifier,
+						Value: value,
+						Pos:   start,
+					})
+				}
+			}
+			continue
+		}
+
+		// Unknown character - skip it
+		pos++
+	}
+
+	// Add EOF token
+	p.tokens = append(p.tokens, Token{
+		Type:  TokenEOF,
+		Value: "",
+		Pos:   len(input),
+	})
+}
+
+// Parse parses the tokens into an expression
 func (p *Parser) Parse() (Expression, error) {
-	return p.parseLogicalExpression()
-}
-
-// parseLogicalExpression handles AND/OR operations
-func (p *Parser) parseLogicalExpression() (Expression, error) {
-	left, err := p.parseComparisonExpression()
+	if len(p.tokens) == 0 {
+		return nil, fmt.Errorf("empty expression")
+	}
+	
+	expr, err := p.parseOrExpression()
 	if err != nil {
 		return nil, err
 	}
 
-	for p.peek() != "" {
-		// Look for AND/OR operators
-		if p.consumeKeyword("AND") {
-			right, err := p.parseComparisonExpression()
-			if err != nil {
-				return nil, err
-			}
-			left = &LogicalExpression{
-				Left:     left,
-				Operator: "AND",
-				Right:    right,
-			}
-		} else if p.consumeKeyword("OR") {
-			right, err := p.parseComparisonExpression()
-			if err != nil {
-				return nil, err
-			}
-			left = &LogicalExpression{
-				Left:     left,
-				Operator: "OR",
-				Right:    right,
-			}
-		} else {
-			break
+	// Check that we consumed all tokens
+	if p.current().Type != TokenEOF {
+		return nil, fmt.Errorf("unexpected token '%s' at position %d", p.current().Value, p.current().Pos)
+	}
+
+	return expr, nil
+}
+
+// parseOrExpression handles OR operations (lowest precedence)
+func (p *Parser) parseOrExpression() (Expression, error) {
+	left, err := p.parseAndExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.current().Type == TokenLogical && p.current().Value == "OR" {
+		p.advance() // consume OR
+		right, err := p.parseAndExpression()
+		if err != nil {
+			return nil, err
+		}
+		left = &LogicalExpression{
+			Left:     left,
+			Operator: "OR",
+			Right:    right,
 		}
 	}
 
 	return left, nil
 }
 
-// parseComparisonExpression handles field comparisons
+// parseAndExpression handles AND operations
+func (p *Parser) parseAndExpression() (Expression, error) {
+	left, err := p.parseNotExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.current().Type == TokenLogical && p.current().Value == "AND" {
+		p.advance() // consume AND
+		right, err := p.parseNotExpression()
+		if err != nil {
+			return nil, err
+		}
+		left = &LogicalExpression{
+			Left:     left,
+			Operator: "AND",
+			Right:    right,
+		}
+	}
+
+	return left, nil
+}
+
+// parseNotExpression handles NOT operations
+func (p *Parser) parseNotExpression() (Expression, error) {
+	if p.current().Type == TokenKeyword && p.current().Value == "NOT" {
+		p.advance() // consume NOT
+		expr, err := p.parseNotExpression() // Right associative
+		if err != nil {
+			return nil, err
+		}
+		return &NotExpression{Expr: expr}, nil
+	}
+
+	return p.parseComparisonExpression()
+}
+
+// parseComparisonExpression handles comparison operations
 func (p *Parser) parseComparisonExpression() (Expression, error) {
-	p.skipWhitespace()
-
-	// Parse field name
-	field := p.consumeIdentifier()
-	if field == "" {
-		return nil, fmt.Errorf("expected field name at position %d", p.pos)
+	left, err := p.parseTerm()
+	if err != nil {
+		return nil, err
 	}
 
-	p.skipWhitespace()
-
-	// Check for special operators first
-	if p.consumeKeyword("contains") {
-		p.skipWhitespace()
-		value := p.consumeValue()
-		if value == "" {
-			return nil, fmt.Errorf("expected value after 'contains' at position %d", p.pos)
+	// Check for comparison operators
+	if p.current().Type == TokenOperator {
+		op := p.current().Value
+		p.advance()
+		right, err := p.parseTerm()
+		if err != nil {
+			return nil, err
 		}
-		return &ContainsExpression{
-			Field: field,
-			Value: strings.Trim(value, "'\""),
-		}, nil
-	}
 
-	if p.consumeKeyword("after") || p.consumeKeyword("before") {
-		operator := "after"
-		if strings.Contains(p.input[p.pos-10:p.pos], "before") {
-			operator = "before"
+		// Convert right term to a literal value if it's a field expression
+		var rightValue interface{}
+		if fieldExpr, ok := right.(*FieldExpression); ok {
+			rightValue = fieldExpr.Name
+		} else if litExpr, ok := right.(*LiteralExpression); ok {
+			rightValue = litExpr.Value
+		} else if funcExpr, ok := right.(*FunctionCallExpression); ok {
+			// For now, just use the function name as a placeholder
+			// In a full implementation, you'd evaluate the function
+			rightValue = funcExpr.Name + "()"
+		} else {
+			return nil, fmt.Errorf("comparison operator '%s' requires a literal value on the right side", op)
 		}
-		p.skipWhitespace()
-		value := p.consumeValue()
-		if value == "" {
-			return nil, fmt.Errorf("expected date value after '%s' at position %d", operator, p.pos)
+
+		// Left side must be a field expression
+		if fieldExpr, ok := left.(*FieldExpression); ok {
+			return &ComparisonExpression{
+				Field:    fieldExpr.Name,
+				Operator: op,
+				Value:    rightValue,
+			}, nil
+		} else {
+			return nil, fmt.Errorf("comparison operator '%s' requires a field on the left side", op)
 		}
-		return &DateExpression{
-			Field:    field,
-			Operator: operator,
-			Value:    strings.Trim(value, "'\""),
-		}, nil
 	}
 
-	if p.consumeKeyword("within") {
-		p.skipWhitespace()
-		value := p.consumeValue()
-		if value == "" {
-			return nil, fmt.Errorf("expected duration after 'within' at position %d", p.pos)
+	// Check for keyword operators (contains, in, etc.)
+	if p.current().Type == TokenKeyword {
+		keyword := p.current().Value
+		
+		// Handle "not contains" and "not in"
+		if keyword == "NOT" {
+			p.advance()
+			if p.current().Type != TokenKeyword {
+				return nil, fmt.Errorf("expected 'contains' or 'in' after 'not'")
+			}
+			keyword = "not " + p.current().Value
 		}
-		return &DateExpression{
-			Field:    field,
-			Operator: "within",
-			Value:    strings.Trim(value, "'\""),
-		}, nil
+
+		switch keyword {
+		case "contains", "not contains", "in", "not in", "after", "before", "within":
+			p.advance()
+			right, err := p.parseTerm()
+			if err != nil {
+				return nil, err
+			}
+
+			var rightValue interface{}
+			if fieldExpr, ok := right.(*FieldExpression); ok {
+				rightValue = fieldExpr.Name
+			} else if litExpr, ok := right.(*LiteralExpression); ok {
+				rightValue = litExpr.Value
+			} else if funcExpr, ok := right.(*FunctionCallExpression); ok {
+				// For now, just use the function name as a placeholder
+				// In a full implementation, you'd evaluate the function
+				rightValue = funcExpr.Name + "()"
+			} else {
+				return nil, fmt.Errorf("operator '%s' requires a literal value on the right side", keyword)
+			}
+
+			if fieldExpr, ok := left.(*FieldExpression); ok {
+				// Use the enhanced comparison expression for all operators
+				return &ComparisonExpression{
+					Field:    fieldExpr.Name,
+					Operator: keyword,
+					Value:    rightValue,
+				}, nil
+			} else {
+				return nil, fmt.Errorf("operator '%s' requires a field on the left side", keyword)
+			}
+		}
 	}
 
-	// Parse comparison operators
-	p.skipWhitespace()
-	var operator string
-	if p.consume(">=") {
-		operator = ">="
-	} else if p.consume("<=") {
-		operator = "<="
-	} else if p.consume("!=") {
-		operator = "!="
-	} else if p.consume(">") {
-		operator = ">"
-	} else if p.consume("<") {
-		operator = "<"
-	} else if p.consume("=") {
-		operator = "="
-	} else {
-		return nil, fmt.Errorf("expected comparison operator at position %d", p.pos)
+	return left, nil
+}
+
+// parseTerm handles terms (identifiers, literals, function calls, parentheses)
+func (p *Parser) parseTerm() (Expression, error) {
+	token := p.current()
+
+	switch token.Type {
+	case TokenIdentifier:
+		p.advance()
+		return &FieldExpression{Name: token.Value}, nil
+
+	case TokenString:
+		p.advance()
+		return &LiteralExpression{Value: token.Value}, nil
+
+	case TokenNumber:
+		p.advance()
+		// Try to parse as int first, then float
+		if val, err := strconv.Atoi(token.Value); err == nil {
+			return &LiteralExpression{Value: val}, nil
+		}
+		if val, err := strconv.ParseFloat(token.Value, 64); err == nil {
+			return &LiteralExpression{Value: val}, nil
+		}
+		return &LiteralExpression{Value: token.Value}, nil
+
+	case TokenBoolean:
+		p.advance()
+		val := token.Value == "true"
+		return &LiteralExpression{Value: val}, nil
+
+	case TokenFunction:
+		return p.parseFunctionCall()
+
+	case TokenParen:
+		if token.Value == "(" {
+			p.advance() // consume '('
+			expr, err := p.parseOrExpression()
+			if err != nil {
+				return nil, err
+			}
+			if p.current().Value != ")" {
+				return nil, fmt.Errorf("expected ')' at position %d", p.current().Pos)
+			}
+			p.advance() // consume ')'
+			return expr, nil
+		}
+		return nil, fmt.Errorf("unexpected token '%s' at position %d", token.Value, token.Pos)
+
+	default:
+		return nil, fmt.Errorf("unexpected token '%s' at position %d", token.Value, token.Pos)
+	}
+}
+
+// parseFunctionCall handles function calls
+func (p *Parser) parseFunctionCall() (Expression, error) {
+	name := p.current().Value
+	p.advance() // consume function name
+
+	if p.current().Value != "(" {
+		return nil, fmt.Errorf("expected '(' after function name at position %d", p.current().Pos)
+	}
+	p.advance() // consume '('
+
+	var args []Expression
+
+	// Parse arguments
+	if p.current().Value != ")" {
+		for {
+			arg, err := p.parseOrExpression()
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, arg)
+
+			if p.current().Type == TokenComma {
+				p.advance() // consume ','
+			} else {
+				break
+			}
+		}
 	}
 
-	p.skipWhitespace()
-
-	// Parse value
-	valueStr := p.consumeValue()
-	if valueStr == "" {
-		return nil, fmt.Errorf("expected value after '%s' at position %d", operator, p.pos)
+	if p.current().Value != ")" {
+		return nil, fmt.Errorf("expected ')' at position %d", p.current().Pos)
 	}
+	p.advance() // consume ')'
 
-	// Convert value to appropriate type
-	value := p.parseValue(valueStr)
-
-	return &ComparisonExpression{
-		Field:    field,
-		Operator: operator,
-		Value:    value,
+	return &FunctionCallExpression{
+		Name: name,
+		Args: args,
 	}, nil
 }
 
-// Helper methods for parsing
-
-func (p *Parser) peek() string {
-	if p.pos >= len(p.input) {
-		return ""
+// Helper methods
+func (p *Parser) current() Token {
+	if p.pos >= len(p.tokens) {
+		return Token{Type: TokenEOF}
 	}
-	return string(p.input[p.pos])
+	return p.tokens[p.pos]
 }
 
-func (p *Parser) consume(s string) bool {
-	if p.pos+len(s) <= len(p.input) && p.input[p.pos:p.pos+len(s)] == s {
-		p.pos += len(s)
-		return true
-	}
-	return false
-}
-
-func (p *Parser) consumeKeyword(keyword string) bool {
-	p.skipWhitespace()
-	start := p.pos
-	if p.pos+len(keyword) <= len(p.input) &&
-		strings.ToLower(p.input[p.pos:p.pos+len(keyword)]) == strings.ToLower(keyword) {
-		// Check that it's a word boundary
-		if p.pos+len(keyword) < len(p.input) {
-			nextChar := p.input[p.pos+len(keyword)]
-			if isAlphaNumeric(nextChar) {
-				return false
-			}
-		}
-		p.pos += len(keyword)
-		return true
-	}
-	p.pos = start
-	return false
-}
-
-func (p *Parser) consumeIdentifier() string {
-	p.skipWhitespace()
-	start := p.pos
-	for p.pos < len(p.input) && (isAlphaNumeric(p.input[p.pos]) || p.input[p.pos] == '_') {
-		p.pos++
-	}
-	return p.input[start:p.pos]
-}
-
-func (p *Parser) consumeValue() string {
-	p.skipWhitespace()
-
-	// Handle quoted strings
-	if p.pos < len(p.input) && (p.input[p.pos] == '"' || p.input[p.pos] == '\'') {
-		quote := p.input[p.pos]
-		p.pos++
-		start := p.pos
-		for p.pos < len(p.input) && p.input[p.pos] != quote {
-			p.pos++
-		}
-		if p.pos >= len(p.input) {
-			return ""
-		}
-		value := p.input[start:p.pos]
-		p.pos++ // Skip closing quote
-		return value
-	}
-
-	// Handle unquoted values (until whitespace or operator)
-	start := p.pos
-	for p.pos < len(p.input) {
-		char := p.input[p.pos]
-		if char == ' ' || char == '\t' || char == '\n' ||
-			strings.ContainsAny(string(char), "><!=") {
-			break
-		}
-		// Stop at logical operators
-		if p.pos+3 <= len(p.input) && strings.ToLower(p.input[p.pos:p.pos+3]) == "and" {
-			break
-		}
-		if p.pos+2 <= len(p.input) && strings.ToLower(p.input[p.pos:p.pos+2]) == "or" {
-			break
-		}
-		p.pos++
-	}
-
-	return p.input[start:p.pos]
-}
-
-func (p *Parser) parseValue(valueStr string) interface{} {
-	// Remove quotes if present
-	valueStr = strings.Trim(valueStr, "'\"")
-
-	// Try to parse as number
-	if intVal, err := strconv.Atoi(valueStr); err == nil {
-		return intVal
-	}
-	if floatVal, err := strconv.ParseFloat(valueStr, 64); err == nil {
-		return floatVal
-	}
-
-	// Try to parse as boolean
-	if boolVal, err := strconv.ParseBool(valueStr); err == nil {
-		return boolVal
-	}
-
-	// Return as string
-	return valueStr
-}
-
-func (p *Parser) skipWhitespace() {
-	for p.pos < len(p.input) && (p.input[p.pos] == ' ' || p.input[p.pos] == '\t' || p.input[p.pos] == '\n') {
+func (p *Parser) advance() {
+	if p.pos < len(p.tokens) {
 		p.pos++
 	}
 }
+
+// Character classification helpers
+func isWhitespace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
+func isDigit(c byte) bool {
+	return c >= '0' && c <= '9'
+}
+
+func isAlpha(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+// Evaluation methods for new expression types
+
+func (e *NotExpression) Evaluate(file *vault.VaultFile) bool {
+	return !e.Expr.Evaluate(file)
+}
+
+func (e *FunctionCallExpression) Evaluate(file *vault.VaultFile) bool {
+	// Functions typically return values used in comparisons
+	// For now, just return true (this would be enhanced for actual function evaluation)
+	return true
+}
+
+func (e *LiteralExpression) Evaluate(file *vault.VaultFile) bool {
+	// Literals are typically used in comparisons, not standalone
+	return true
+}
+
+func (e *FieldExpression) Evaluate(file *vault.VaultFile) bool {
+	_, exists := file.GetField(e.Name)
+	return exists
+}
+
 
 func isAlphaNumeric(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
@@ -327,6 +606,20 @@ func (e *ComparisonExpression) Evaluate(file *vault.VaultFile) bool {
 		return compareGreater(value, e.Value) || compareEqual(value, e.Value)
 	case "<=":
 		return compareLess(value, e.Value) || compareEqual(value, e.Value)
+	case "contains":
+		return evaluateContains(value, e.Value)
+	case "not contains":
+		return !evaluateContains(value, e.Value)
+	case "in":
+		return evaluateIn(e.Value, value)
+	case "not in":
+		return !evaluateIn(e.Value, value)
+	case "after":
+		return evaluateDateComparison(value, e.Value, "after")
+	case "before":
+		return evaluateDateComparison(value, e.Value, "before")
+	case "within":
+		return evaluateDateComparison(value, e.Value, "within")
 	default:
 		return false
 	}
@@ -409,7 +702,145 @@ func (e *DateExpression) Evaluate(file *vault.VaultFile) bool {
 	}
 }
 
-// Helper functions for comparisons
+// Enhanced helper evaluation functions
+
+func evaluateContains(haystack, needle interface{}) bool {
+	switch h := haystack.(type) {
+	case string:
+		needleStr := fmt.Sprintf("%v", needle)
+		return strings.Contains(strings.ToLower(h), strings.ToLower(needleStr))
+	case []interface{}:
+		needleStr := strings.ToLower(fmt.Sprintf("%v", needle))
+		for _, item := range h {
+			if strings.Contains(strings.ToLower(fmt.Sprintf("%v", item)), needleStr) {
+				return true
+			}
+		}
+		return false
+	case []string:
+		needleStr := strings.ToLower(fmt.Sprintf("%v", needle))
+		for _, item := range h {
+			if strings.Contains(strings.ToLower(item), needleStr) {
+				return true
+			}
+		}
+		return false
+	default:
+		// Convert to string and check
+		haystackStr := strings.ToLower(fmt.Sprintf("%v", h))
+		needleStr := strings.ToLower(fmt.Sprintf("%v", needle))
+		return strings.Contains(haystackStr, needleStr)
+	}
+}
+
+func evaluateIn(needle, haystack interface{}) bool {
+	switch h := haystack.(type) {
+	case []interface{}:
+		needleStr := fmt.Sprintf("%v", needle)
+		for _, item := range h {
+			if fmt.Sprintf("%v", item) == needleStr {
+				return true
+			}
+		}
+		return false
+	case []string:
+		needleStr := fmt.Sprintf("%v", needle)
+		for _, item := range h {
+			if item == needleStr {
+				return true
+			}
+		}
+		return false
+	default:
+		// For non-arrays, treat as contains
+		return evaluateContains(haystack, needle)
+	}
+}
+
+func evaluateDateComparison(fieldValue, compareValue interface{}, operator string) bool {
+	// Parse the field value as a date
+	fieldDate, err := parseDate(fieldValue)
+	if err != nil {
+		return false
+	}
+
+	switch operator {
+	case "after":
+		compareDate, err := parseDate(compareValue)
+		if err != nil {
+			return false
+		}
+		return fieldDate.After(compareDate)
+	case "before":
+		compareDate, err := parseDate(compareValue)
+		if err != nil {
+			return false
+		}
+		return fieldDate.Before(compareDate)
+	case "within":
+		duration, err := parseDuration(fmt.Sprintf("%v", compareValue))
+		if err != nil {
+			return false
+		}
+		now := time.Now()
+		// Check if the field date is within the duration (plus or minus) from now
+		return fieldDate.After(now.Add(-duration)) && fieldDate.Before(now.Add(duration))
+	default:
+		return false
+	}
+}
+
+// Built-in function evaluation
+func EvaluateFunction(name string, args []interface{}) (interface{}, error) {
+	switch name {
+	case "now":
+		if len(args) != 0 {
+			return nil, fmt.Errorf("now() takes no arguments")
+		}
+		return time.Now(), nil
+	case "date":
+		if len(args) != 1 {
+			return nil, fmt.Errorf("date() takes exactly one argument")
+		}
+		dateStr, ok := args[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("date() argument must be a string")
+		}
+		return parseDate(dateStr)
+	case "len":
+		if len(args) != 1 {
+			return nil, fmt.Errorf("len() takes exactly one argument")
+		}
+		return evaluateLen(args[0]), nil
+	case "lower":
+		if len(args) != 1 {
+			return nil, fmt.Errorf("lower() takes exactly one argument")
+		}
+		return strings.ToLower(fmt.Sprintf("%v", args[0])), nil
+	case "upper":
+		if len(args) != 1 {
+			return nil, fmt.Errorf("upper() takes exactly one argument")
+		}
+		return strings.ToUpper(fmt.Sprintf("%v", args[0])), nil
+	default:
+		return nil, fmt.Errorf("unknown function: %s", name)
+	}
+}
+
+func evaluateLen(value interface{}) int {
+	switch v := value.(type) {
+	case string:
+		return len(v)
+	case []interface{}:
+		return len(v)
+	case []string:
+		return len(v)
+	default:
+		return len(fmt.Sprintf("%v", v))
+	}
+}
+
+// Legacy helper functions for comparisons
 
 func compareEqual(a, b interface{}) bool {
 	return fmt.Sprintf("%v", a) == fmt.Sprintf("%v", b)
@@ -476,8 +907,8 @@ func parseDate(v interface{}) (time.Time, error) {
 }
 
 func parseDuration(s string) (time.Duration, error) {
-	// Handle common duration formats
-	re := regexp.MustCompile(`(\d+)\s*(days?|weeks?|months?|years?)`)
+	// Handle common duration formats including minutes and hours
+	re := regexp.MustCompile(`(\d+)\s*(minutes?|mins?|hours?|hrs?|days?|weeks?|months?|years?)`)
 	matches := re.FindStringSubmatch(strings.ToLower(s))
 
 	if len(matches) == 3 {
@@ -488,6 +919,10 @@ func parseDuration(s string) (time.Duration, error) {
 
 		unit := matches[2]
 		switch {
+		case strings.HasPrefix(unit, "min"):
+			return time.Duration(num) * time.Minute, nil
+		case strings.HasPrefix(unit, "hour") || strings.HasPrefix(unit, "hr"):
+			return time.Duration(num) * time.Hour, nil
 		case strings.HasPrefix(unit, "day"):
 			return time.Duration(num) * 24 * time.Hour, nil
 		case strings.HasPrefix(unit, "week"):
@@ -499,6 +934,6 @@ func parseDuration(s string) (time.Duration, error) {
 		}
 	}
 
-	// Try standard Go duration parsing
+	// Try standard Go duration parsing (supports ns, us, ms, s, m, h)
 	return time.ParseDuration(s)
 }

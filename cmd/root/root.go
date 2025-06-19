@@ -164,15 +164,20 @@ func setupCustomCompletions(cmd *cobra.Command) {
 		// Add completion for common flags across commands
 		subCmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
 		subCmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
+		subCmd.RegisterFlagCompletionFunc("format", CompleteOutputFormats)
 
-		// Add specific completions for frontmatter commands
-		if subCmd.Name() == "frontmatter" {
+		// Add specific completions for different command types
+		switch subCmd.Name() {
+		case "frontmatter":
 			setupFrontmatterCompletions(subCmd)
-		}
-
-		// Add specific completions for rename command
-		if subCmd.Name() == "rename" {
+		case "rename":
 			setupRenameCompletions(subCmd)
+		case "analyze":
+			setupAnalyzeCompletions(subCmd)
+		case "links":
+			setupLinksCompletions(subCmd)
+		case "linkding":
+			setupLinkdingCompletions(subCmd)
 		}
 	}
 }
@@ -211,13 +216,23 @@ func CompleteIgnorePatterns(cmd *cobra.Command, args []string, toComplete string
 func setupFrontmatterCompletions(cmd *cobra.Command) {
 	for _, subCmd := range cmd.Commands() {
 		switch subCmd.Name() {
-		case "ensure", "set", "cast", "sync", "check", "download":
+		case "ensure", "set", "cast", "sync", "check", "download", "query":
 			// All frontmatter subcommands take paths
 			subCmd.ValidArgsFunction = CompleteDirs
 		}
 
-		// Special completions for specific commands
-		if subCmd.Name() == "download" {
+		// Field completions for commands that work with fields
+		switch subCmd.Name() {
+		case "ensure", "set", "cast", "sync":
+			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+		case "check":
+			subCmd.RegisterFlagCompletionFunc("required", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypes)
+		case "query":
+			subCmd.RegisterFlagCompletionFunc("missing", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("duplicates", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+		case "download":
 			subCmd.RegisterFlagCompletionFunc("field", CompleteCommonFields)
 		}
 	}
@@ -258,6 +273,109 @@ func CompleteCommonFields(cmd *cobra.Command, args []string, toComplete string) 
 		"resource",
 	}
 	return fields, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteOutputFormats provides completion for output format flags
+func CompleteOutputFormats(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	formats := []string{"text", "json", "csv", "yaml", "table"}
+	return formats, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteFrontmatterFields provides completion for standard frontmatter fields
+func CompleteFrontmatterFields(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	fields := []string{
+		"title",
+		"tags",
+		"created",
+		"modified",
+		"priority",
+		"status",
+		"published",
+		"category",
+		"author",
+		"description",
+		"url",
+		"type",
+		"id",
+	}
+	return fields, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteFieldTypes provides completion for frontmatter field types
+func CompleteFieldTypes(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	types := []string{
+		"string",
+		"number",
+		"boolean",
+		"array",
+		"date",
+		"null",
+	}
+	return types, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteLinkFormats provides completion for link format flags
+func CompleteLinkFormats(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	formats := []string{"wiki", "markdown"}
+	return formats, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteDuplicateTypes provides completion for duplicate analysis types
+func CompleteDuplicateTypes(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	types := []string{"all", "obsidian", "sync-conflicts", "content"}
+	return types, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteTimeSpans provides completion for time span analysis
+func CompleteTimeSpans(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	spans := []string{"1w", "1m", "3m", "6m", "1y", "all"}
+	return spans, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteGranularities provides completion for time granularity
+func CompleteGranularities(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	granularities := []string{"day", "week", "month", "quarter"}
+	return granularities, cobra.ShellCompDirectiveNoFileComp
+}
+
+// setupAnalyzeCompletions sets up completion for analyze subcommands
+func setupAnalyzeCompletions(cmd *cobra.Command) {
+	for _, subCmd := range cmd.Commands() {
+		subCmd.ValidArgsFunction = CompleteDirs
+		
+		switch subCmd.Name() {
+		case "duplicates":
+			subCmd.RegisterFlagCompletionFunc("type", CompleteDuplicateTypes)
+		case "trends":
+			subCmd.RegisterFlagCompletionFunc("timespan", CompleteTimeSpans)
+			subCmd.RegisterFlagCompletionFunc("granularity", CompleteGranularities)
+		}
+	}
+}
+
+// setupLinksCompletions sets up completion for links subcommands
+func setupLinksCompletions(cmd *cobra.Command) {
+	for _, subCmd := range cmd.Commands() {
+		subCmd.ValidArgsFunction = CompleteDirs
+		
+		if subCmd.Name() == "convert" {
+			subCmd.RegisterFlagCompletionFunc("from", CompleteLinkFormats)
+			subCmd.RegisterFlagCompletionFunc("to", CompleteLinkFormats)
+		}
+	}
+}
+
+// setupLinkdingCompletions sets up completion for linkding subcommands
+func setupLinkdingCompletions(cmd *cobra.Command) {
+	for _, subCmd := range cmd.Commands() {
+		subCmd.ValidArgsFunction = CompleteDirs
+		
+		if subCmd.Name() == "sync" {
+			subCmd.RegisterFlagCompletionFunc("url-field", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("title-field", CompleteFrontmatterFields)
+			subCmd.RegisterFlagCompletionFunc("tags-field", CompleteFrontmatterFields)
+		}
+	}
 }
 
 // Ultra-short global shortcuts for most common commands

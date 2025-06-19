@@ -2,6 +2,7 @@ package links
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/eoinhurrell/mdnotes/internal/processor"
@@ -30,12 +31,23 @@ func NewCheckCommand() *cobra.Command {
 		Aliases: []string{"c"},
 		Short:   "Check for broken internal links",
 		Long: `Check for broken internal links in markdown files.
-Reports links that point to non-existent files.`,
+Reports links that point to non-existent files.
+
+By default, markdown links are checked relative to the vault root (Obsidian behavior).
+Wiki links are always checked relative to the vault root.
+
+Examples:
+  # Check links (default: vault-relative)
+  mdnotes links check /path/to/vault
+  
+  # Check links relative to each file's directory
+  mdnotes links check --file-relative /path/to/vault`,
 		Args: cobra.ExactArgs(1),
 		RunE: runCheck,
 	}
 
 	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
+	cmd.Flags().Bool("file-relative", false, "Check markdown links relative to each file's directory instead of vault root")
 
 	return cmd
 }
@@ -45,6 +57,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 
 	// Get flags
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
+	fileRelative, _ := cmd.Flags().GetBool("file-relative")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
 
@@ -67,14 +80,26 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Create a map of existing files
-	existingFiles := make(map[string]bool)
+	// Get vault root absolute path for resolving links
+	vaultRoot, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("getting absolute path for vault: %w", err)
+	}
+
+	// Create maps for different types of file lookups
+	existingFiles := make(map[string]bool)           // vault-relative paths
+	baseNameFiles := make(map[string][]string)       // basename -> list of full paths
 	for _, file := range files {
 		existingFiles[file.RelativePath] = true
-		// Also add without .md extension for wiki links
+		
+		// Also add without .md extension for exact matches
 		if strings.HasSuffix(file.RelativePath, ".md") {
 			withoutExt := strings.TrimSuffix(file.RelativePath, ".md")
 			existingFiles[withoutExt] = true
+			
+			// For wiki links: map basename to full paths (Obsidian behavior)
+			baseName := filepath.Base(withoutExt)
+			baseNameFiles[baseName] = append(baseNameFiles[baseName], file.RelativePath)
 		}
 	}
 
@@ -93,26 +118,24 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			totalLinks++
 			fileLinksCount++
 
-			// Normalize link target for checking
-			target := link.Target
-			if link.Type == vault.WikiLink && !strings.HasSuffix(target, ".md") && !strings.Contains(target, ".") {
-				// Wiki links might not have extension
-				if !existingFiles[target] && !existingFiles[target+".md"] {
-					brokenLinks++
-					fileHasBrokenLinks = true
-					fmt.Printf("✗ %s: broken link [[%s]]\n", file.RelativePath, target)
-				} else if verbose {
-					fmt.Printf("✓ %s: valid link [[%s]]\n", file.RelativePath, target)
-				}
-			} else {
-				// Regular links with extensions
-				if !existingFiles[target] {
-					brokenLinks++
-					fileHasBrokenLinks = true
-					linkText := formatLinkForDisplay(link)
+			// Determine the target path to check based on link type and flags
+			targetToCheck := resolveTargetPath(link, file, vaultRoot, fileRelative)
+			linkExists := checkLinkExists(targetToCheck, existingFiles, baseNameFiles, link.Type)
+
+			if !linkExists {
+				brokenLinks++
+				fileHasBrokenLinks = true
+				linkText := formatLinkForDisplay(link)
+				if fileRelative && link.Type == vault.MarkdownLink {
+					fmt.Printf("✗ %s: broken link %s (checked relative to file)\n", file.RelativePath, linkText)
+				} else {
 					fmt.Printf("✗ %s: broken link %s\n", file.RelativePath, linkText)
-				} else if verbose {
-					linkText := formatLinkForDisplay(link)
+				}
+			} else if verbose {
+				linkText := formatLinkForDisplay(link)
+				if fileRelative && link.Type == vault.MarkdownLink {
+					fmt.Printf("✓ %s: valid link %s (checked relative to file)\n", file.RelativePath, linkText)
+				} else {
 					fmt.Printf("✓ %s: valid link %s\n", file.RelativePath, linkText)
 				}
 			}
@@ -253,6 +276,82 @@ func runConvert(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// resolveTargetPath determines the actual path to check based on link type and settings
+func resolveTargetPath(link vault.Link, file *vault.VaultFile, vaultRoot string, fileRelative bool) string {
+	switch link.Type {
+	case vault.WikiLink, vault.EmbedLink:
+		// Wiki links and embeds are always relative to vault root in Obsidian
+		return link.Target
+		
+	case vault.MarkdownLink:
+		if fileRelative {
+			// Check relative to the file's directory
+			fileDir := filepath.Dir(file.RelativePath)
+			if fileDir == "." {
+				return link.Target
+			}
+			return filepath.ToSlash(filepath.Join(fileDir, link.Target))
+		} else {
+			// Default: check relative to vault root (Obsidian behavior)
+			return link.Target
+		}
+		
+	default:
+		return link.Target
+	}
+}
+
+// checkLinkExists checks if a target path exists in the files map
+func checkLinkExists(target string, existingFiles map[string]bool, baseNameFiles map[string][]string, linkType vault.LinkType) bool {
+	// Normalize path separators
+	target = filepath.ToSlash(target)
+	
+	// Remove any fragment identifiers (e.g., file.md#heading)
+	if idx := strings.Index(target, "#"); idx != -1 {
+		target = target[:idx]
+	}
+	
+	// Check direct match first
+	if existingFiles[target] {
+		return true
+	}
+	
+	// For wiki links and embeds, use Obsidian's basename resolution
+	if linkType == vault.WikiLink || linkType == vault.EmbedLink {
+		// Try adding .md extension if not present
+		if !strings.HasSuffix(target, ".md") && !strings.Contains(target, ".") {
+			if existingFiles[target+".md"] {
+				return true
+			}
+		}
+		
+		// For wiki links, also check by basename (Obsidian behavior)
+		// This allows [[filename]] to match files in subdirectories
+		baseName := filepath.Base(target)
+		if paths, exists := baseNameFiles[baseName]; exists && len(paths) > 0 {
+			return true
+		}
+		
+		// Try basename with .md removed
+		if strings.HasSuffix(baseName, ".md") {
+			baseNameWithoutExt := strings.TrimSuffix(baseName, ".md")
+			if paths, exists := baseNameFiles[baseNameWithoutExt]; exists && len(paths) > 0 {
+				return true
+			}
+		}
+	}
+	
+	// For markdown links, also check without .md extension (for wiki-style references)
+	if strings.HasSuffix(target, ".md") {
+		withoutExt := strings.TrimSuffix(target, ".md")
+		if existingFiles[withoutExt] {
+			return true
+		}
+	}
+	
+	return false
 }
 
 func formatLinkForDisplay(link vault.Link) string {
