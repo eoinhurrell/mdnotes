@@ -2,6 +2,7 @@ package headings
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
@@ -18,6 +19,7 @@ func NewHeadingsCommand() *cobra.Command {
 
 	cmd.AddCommand(NewAnalyzeCommand())
 	cmd.AddCommand(NewFixCommand())
+	cmd.AddCommand(NewCleanCommand())
 
 	return cmd
 }
@@ -199,6 +201,128 @@ func runFix(cmd *cobra.Command, args []string) error {
 
 	// Print summary
 	fileProcessor.PrintSummary(result)
+
+	return nil
+}
+
+// NewCleanCommand creates the headings clean command
+func NewCleanCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "clean [path]",
+		Aliases: []string{"cl"},
+		Short:   "Clean headings for Obsidian compatibility",
+		Long: `Clean headings to ensure Obsidian compatibility:
+- Convert [X] to <X> in headings
+- Convert headings containing links to list items`,
+		Args: cobra.ExactArgs(1),
+		RunE: runClean,
+	}
+
+	cmd.Flags().Bool("square-brackets", true, "Enable square bracket cleaning")
+	cmd.Flags().Bool("link-headers", true, "Enable link header conversion")
+	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
+
+	return cmd
+}
+
+func runClean(cmd *cobra.Command, args []string) error {
+	path := args[0]
+
+	// Get flags
+	squareBrackets, _ := cmd.Flags().GetBool("square-brackets")
+	linkHeaders, _ := cmd.Flags().GetBool("link-headers")
+	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
+	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
+	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+	// Override verbose if quiet is specified
+	if quiet {
+		verbose = false
+	}
+
+	// Create clean rules
+	rules := processor.CleanRules{
+		SquareBrackets: squareBrackets,
+		LinkHeaders:    linkHeaders,
+	}
+
+	// Create processor
+	headingProcessor := processor.NewHeadingProcessor()
+
+	// Track total statistics
+	totalSquareBracketsFixed := 0
+	totalLinkHeadersConverted := 0
+
+	// Setup file processor
+	fileProcessor := &processor.FileProcessor{
+		DryRun:         dryRun,
+		Verbose:        verbose,
+		Quiet:          quiet,
+		IgnorePatterns: ignorePatterns,
+		ProcessFile: func(file *vault.VaultFile) (bool, error) {
+			originalBody := file.Body
+
+			stats, err := headingProcessor.Clean(file, rules)
+			if err != nil {
+				if verbose {
+					fmt.Printf("Examining: %s - Error cleaning headings: %v\n", file.RelativePath, err)
+				}
+				return false, nil // Don't fail the entire operation
+			}
+
+			// Accumulate statistics
+			totalSquareBracketsFixed += stats.SquareBracketsFixed
+			totalLinkHeadersConverted += stats.LinkHeadersConverted
+
+			modified := file.Body != originalBody
+			if verbose {
+				if modified {
+					changes := []string{}
+					if stats.SquareBracketsFixed > 0 {
+						changes = append(changes, fmt.Sprintf("Fixed %d square brackets", stats.SquareBracketsFixed))
+					}
+					if stats.LinkHeadersConverted > 0 {
+						changes = append(changes, fmt.Sprintf("converted %d link headers", stats.LinkHeadersConverted))
+					}
+					fmt.Printf("Examining: %s - %s\n", file.RelativePath, strings.Join(changes, ", "))
+				} else {
+					fmt.Printf("Examining: %s - No changes needed\n", file.RelativePath)
+				}
+			}
+
+			return modified, nil
+		},
+		OnFileProcessed: func(file *vault.VaultFile, modified bool) {
+			if modified && !verbose && !quiet {
+				fmt.Printf("✓ Processed: %s\n", file.RelativePath)
+			}
+		},
+	}
+
+	// Process files
+	result, err := fileProcessor.ProcessPath(path)
+	if err != nil {
+		return err
+	}
+
+	// Print summary with cleaning statistics
+	if !quiet {
+		if dryRun {
+			fmt.Printf("\nDry run summary: %d files would be examined, %d would be modified\n", result.TotalFiles, result.ProcessedFiles)
+		} else {
+			fmt.Printf("\nSummary: %d files examined, %d modified\n", result.TotalFiles, result.ProcessedFiles)
+		}
+		
+		if totalSquareBracketsFixed > 0 || totalLinkHeadersConverted > 0 {
+			if totalSquareBracketsFixed > 0 {
+				fmt.Printf("  - Square brackets fixed: %d\n", totalSquareBracketsFixed)
+			}
+			if totalLinkHeadersConverted > 0 {
+				fmt.Printf("  - Link headers converted: %d\n", totalLinkHeadersConverted)
+			}
+		}
+	}
 
 	return nil
 }

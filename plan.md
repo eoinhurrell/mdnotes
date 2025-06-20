@@ -494,13 +494,260 @@ mdnotes frontmatter query . \
 - The rename command should have a configurable default target that it renames to if a second parameter isn't passed, i.e. 'Case Closed.md' should be renamed by default to '{{file created time | YYYYMMDDHHmmss}}-{{filename all lowercase, with spaces replaced by underscores and non-alphanumeric characters removed}}.md' (i.e. 20250619121117-case_closed.md). This will let it work with batch mode.
 - Duplicate detection improvements (find Obsidian copies (with ' 1' at end of filename), or syncthing sync-conflict files)
 
-##### Task 2.3: Enhanced Analysis
+##### Task 2.2b: Headings Clean Command
 
-- Link graph visualization (text-based)
-- Content quality scoring
-- Vault growth trends
-- Health monitoring dashboard
-- Orphan analysis
+**Goal**: Add `mdnotes headings clean` command to sanitize headings for Obsidian compatibility
+
+**Functionality**:
+
+1. **Square Bracket Replacement**: Convert `# [X] Git` → `# <X> Git`
+
+   - Handles any content within square brackets in headings
+   - Works with date stamps: `## [2019-11-28 04:56]` → `## <2019-11-28 04:56>`
+   - Preserves content exactly, only changes bracket style
+
+2. **Link Heading Conversion**: Convert headings containing links to list items
+   - Wiki links: `# [[Some Link]]` → `- [[Some Link]]`
+   - Markdown links: `# [Text](url)` → `- [Text](url)`
+   - Mixed content: `# Project [[Link]] Notes` → `- Project [[Link]] Notes`
+
+**Command Structure**:
+
+```bash
+mdnotes headings clean [path]           # mdnotes headings cl
+  --dry-run, -n                         # Preview changes
+  --verbose, -v                         # Show each file processed
+  --quiet, -q                          # Only show summary
+  --square-brackets                    # Enable square bracket cleaning (default: true)
+  --link-headers                       # Enable link header conversion (default: true)
+```
+
+**Reporting**:
+
+- **Summary**: Total count of each transformation type across all files
+- **Verbose Mode**: Show per-file counts of each transformation type
+- **Example Output**:
+
+  ```
+  Examining: notes/project.md - Fixed 2 square brackets, converted 1 link header
+  Examining: daily/2024-01-15.md - Fixed 1 square bracket
+  Summary: 150 files examined, 12 modified
+    - Square brackets fixed: 15
+    - Link headers converted: 8
+  ```
+
+**Implementation Details**:
+
+- Extend existing `HeadingProcessor` with new cleaning methods
+- Add `CleanRules` struct with toggle options for each cleaning type
+- Integrate with existing heading infrastructure (dry-run, progress reporting)
+- Use regex patterns for robust detection and replacement
+- Maintain line number tracking for accurate reporting
+
+**Integration**:
+
+- Add to existing `cmd/headings/` command group
+- Follow established patterns from `headings fix` and `headings analyze`
+- Support all standard global flags (`--dry-run`, `--verbose`, `--config`)
+- Include in batch operations framework for large vault processing
+
+##### Task 2.3: Enhanced Analysis Commands
+
+**Goal**: Comprehensive vault analysis and content quality tools for better knowledge management
+
+#### 2.3.1: Link Graph Analysis (`mdnotes analyze links`)
+
+**Command**: `mdnotes analyze links [path]` (alias: `mdnotes a links`, `mdnotes a l`)
+
+**Features**:
+- **Local Links Only** (default): Only analyze `[[internal links]]` within the vault
+- **Text-based Graph Visualization**: ASCII art representation of link relationships
+- **Connection Statistics**: Most linked, least linked, orphaned files
+- **Hub Detection**: Files with unusually high in/out link counts
+
+**Flags**:
+```bash
+--include-external          # Include external URLs and markdown links
+--show-graph               # Display ASCII graph visualization  
+--min-connections <n>      # Only show files with n+ connections (default: 1)
+--format <type>           # Output: table, json, graph (default: table)
+--depth <n>               # Graph traversal depth (default: 2)
+--orphans-only            # Show only files with no inbound links
+--hubs-only               # Show only files with 5+ connections
+```
+
+**Output Examples**:
+```bash
+# Table format (default)
+┌─────────────────┬─────────┬──────────┬─────────────┐
+│ File            │ In-Links│ Out-Links│ Connections │
+├─────────────────┼─────────┼──────────┼─────────────┤
+│ index.md        │    8    │    12    │     20      │
+│ projects.md     │    5    │     7    │     12      │
+│ orphan.md       │    0    │     2    │      2      │
+└─────────────────┴─────────┴──────────┴─────────────┘
+
+# Graph format (--show-graph)
+index.md ──┬── projects.md
+           ├── daily-notes.md
+           └── archive.md ──── old-project.md
+                          └── orphan.md (orphan)
+```
+
+#### 2.3.2: Content Quality Scoring (`mdnotes analyze content`)
+
+**Command**: `mdnotes analyze content [path]` (alias: `mdnotes a content`, `mdnotes a c`)
+
+**Quality Metrics**:
+1. **Word Count**: Total words in content body (excluding frontmatter)
+2. **Line Count**: Total lines in file
+3. **Heading Count**: Number of headings (H1-H6)
+4. **Link Density**: Links per 100 words
+5. **Frontmatter Completeness**: Percentage of expected fields present
+6. **Content Structure Score**: Based on heading hierarchy, paragraph length
+7. **Recency Score**: How recently the file was modified
+
+**Scoring Algorithm**:
+```
+Quality Score = (Structure * 0.3) + (Completeness * 0.25) + (Density * 0.2) + (Recency * 0.15) + (Length * 0.1)
+- Structure: 0-100 based on proper heading sequence, paragraph balance
+- Completeness: 0-100 based on frontmatter field presence  
+- Density: 0-100 based on optimal link-to-word ratio (2-5 links per 100 words)
+- Recency: 0-100 based on modification date (100 = today, decreases over time)
+- Length: 0-100 based on word count (sweet spot: 200-2000 words)
+```
+
+**Flags**:
+```bash
+--min-score <n>           # Only show files with score >= n
+--max-score <n>           # Only show files with score <= n  
+--sort-by <metric>        # Sort by: score, words, lines, headings, links
+--show-metrics           # Show detailed breakdown of all metrics
+--quality-threshold <n>   # Mark files below threshold as "needs attention"
+```
+
+**Output Example**:
+```bash
+┌─────────────────┬───────┬───────┬───────┬──────────┬─────────┬─────────────┐
+│ File            │ Score │ Words │ Lines │ Headings │ Links   │ Quality     │
+├─────────────────┼───────┼───────┼───────┼──────────┼─────────┼─────────────┤
+│ project-a.md    │  87   │  1,205│   89  │    6     │   12    │ Excellent   │
+│ notes.md        │  65   │   234 │   45  │    2     │    3    │ Good        │
+│ draft.md        │  32   │   89  │   12  │    1     │    0    │ Needs Work  │
+└─────────────────┴───────┴───────┴───────┴──────────┴─────────┴─────────────┘
+```
+
+#### 2.3.3: INBOX Triage Commands (`mdnotes analyze inbox`)
+
+**Command**: `mdnotes analyze inbox [path]` (alias: `mdnotes a inbox`, `mdnotes a i`)
+
+**Purpose**: Find files with content under "INBOX" headings that need processing/organization
+
+**Features**:
+1. **INBOX Content Detection**: Find all content under headings containing "INBOX" (case-insensitive)
+2. **Content Size Analysis**: Measure lines/words under INBOX sections
+3. **Triage Prioritization**: Sort by amount of content needing attention
+4. **Quick Action Suggestions**: Common patterns and recommended actions
+
+**Detection Patterns**:
+- `# INBOX` or `## INBOX` or `### INBOX` (exact match)
+- `# Inbox` or `## Inbox` (case variations)  
+- `# 📥 INBOX` or `## 📥 Inbox` (with emoji)
+- `# INBOX - Unsorted` (with descriptive text)
+
+**Flags**:
+```bash
+--min-lines <n>           # Only show INBOX sections with n+ lines (default: 1)
+--max-lines <n>           # Only show INBOX sections with <= n lines
+--sort-by <metric>        # Sort by: lines, words, headings, age (default: lines desc)
+--show-content           # Preview first few lines of INBOX content
+--suggest-actions        # Show recommended actions for each file
+--format <type>          # Output: table, json, summary (default: table)
+```
+
+**Output Example**:
+```bash
+# Default table output
+┌─────────────────┬─────────┬───────┬──────────┬─────────────────────┐
+│ File            │ Lines   │ Words │ Headings │ Last Modified       │
+├─────────────────┼─────────┼───────┼──────────┼─────────────────────┤
+│ daily-2024.md   │   47    │  312  │    3     │ 2024-12-18 09:30   │
+│ meeting.md      │   23    │  156  │    1     │ 2024-12-17 14:22   │
+│ ideas.md        │   12    │   89  │    2     │ 2024-12-16 11:45   │
+└─────────────────┴─────────┴───────┴──────────┴─────────────────────┘
+
+# With content preview (--show-content)  
+daily-2024.md (47 lines under INBOX):
+  ## INBOX
+  - [ ] Follow up on project proposal
+  - Review quarterly metrics
+  - Schedule team meeting for next week
+  ... (44 more lines)
+  
+  Suggested actions: Create separate task notes, move to projects folder
+
+# Summary format (--format summary)
+INBOX Triage Summary:
+- 15 files contain INBOX sections
+- Total unprocessed lines: 234
+- Total unprocessed words: 1,567
+- Oldest unprocessed content: 45 days (in archive/old-notes.md)
+- Largest INBOX: daily-2024.md (47 lines)
+```
+
+#### 2.3.4: Vault Growth Trends (`mdnotes analyze trends`)
+
+**Command**: `mdnotes analyze trends [path]` (alias: `mdnotes a trends`, `mdnotes a t`)
+
+**Features**:
+- **File Creation Timeline**: Files created per day/week/month
+- **Content Growth**: Word count growth over time
+- **Link Network Growth**: How connections between files evolve
+- **Tag Usage Trends**: Most/least used tags over time
+- **Activity Patterns**: When you're most productive
+
+**Time Periods**:
+```bash
+--period <type>           # day, week, month, year (default: month)
+--since <date>           # Only analyze from this date forward
+--limit <n>              # Show last n periods (default: 12)
+```
+
+#### 2.3.5: Health Monitoring Dashboard (`mdnotes analyze health`)
+
+**Command**: `mdnotes analyze health [path]` (alias: `mdnotes a health`, `mdnotes a h`)
+
+**Health Checks**:
+1. **Broken Links**: Internal links pointing to non-existent files
+2. **Orphaned Files**: Files with no inbound links
+3. **Empty Files**: Files with no substantial content
+4. **Duplicate Content**: Files with similar/identical content
+5. **Inconsistent Tags**: Tag variations that should be unified
+6. **Missing Frontmatter**: Files lacking essential metadata
+7. **Stale Content**: Files not modified in 90+ days
+
+**Output**:
+```bash
+Vault Health Report:
+✅ Total Files: 1,247
+⚠️  Broken Links: 23 files
+❌ Orphaned Files: 156 files  
+⚠️  Empty Files: 12 files
+✅ Average Quality Score: 73/100
+❌ Files Needing Attention: 89 (7.1%)
+
+Priority Actions:
+1. Fix broken links in: project-archive.md, old-notes.md
+2. Review orphaned files in: drafts/, archive/
+3. Add content to empty files: placeholder.md, template.md
+```
+
+**Integration Points**:
+- All analyze commands support standard global flags (`--dry-run`, `--verbose`, `--quiet`)
+- Results can be exported in multiple formats (table, JSON, CSV)  
+- INBOX triage integrates with task management workflows
+- Health monitoring can trigger automated maintenance suggestions
+- Content quality scoring helps identify notes ready for publication or needing improvement
 
 #### Phase 3: Polish and Future-Proofing (Week 3)
 
@@ -552,3 +799,194 @@ mdnotes frontmatter query . \
 - **Safety**: Dry-run mode works everywhere
 
 This redesigned CLI maintains logical command organization while dramatically improving usability through multiple access patterns, consistent flag behavior, and powerful new query capabilities.
+
+## Future Work: Advanced Zettelkasten Features
+
+The following features represent natural extensions of mdnotes' core mission to maintain graph consistency and support effective knowledge management. These ideas focus on zettelkasten-specific workflows while maintaining the tool's emphasis on automation, analysis, and file consistency.
+
+### 1. Atomic Note Analysis (`mdnotes analyze atomic`)
+
+**Purpose**: Ensure notes follow zettelkasten principles of atomicity - one concept per note.
+
+**Features**:
+- **Complexity Scoring**: Analyze notes for multiple distinct concepts that should be split
+- **Topic Clustering**: Identify paragraphs/sections discussing different themes
+- **Split Suggestions**: Recommend where to break large notes into atomic units
+- **Concept Density**: Measure how focused each note is on a single idea
+
+**Detection Criteria**:
+- Multiple H2 headings suggesting different topics
+- Word count above threshold (configurable, default: 800 words)
+- Paragraph topic shifts detected through keyword analysis
+- Multiple unrelated tag combinations
+
+**Command**: `mdnotes analyze atomic [path] --suggest-splits --min-complexity 7`
+
+### 2. Note Sequencing Management (`mdnotes sequence`)
+
+**Purpose**: Manage Luhmann-style note sequences (1, 1a, 1b, 1a1, etc.) common in zettelkasten systems.
+
+**Features**:
+- **Sequence Validation**: Check for gaps or inconsistencies in numbering
+- **Auto-numbering**: Generate next sequence number for branching thoughts
+- **Sequence Visualization**: Show tree structure of note sequences
+- **Branch Optimization**: Suggest sequence reorganization for better flow
+
+**Commands**:
+```bash
+mdnotes sequence validate [path]        # Check sequence consistency
+mdnotes sequence next 1a               # Get next number in sequence (1b)
+mdnotes sequence tree [path]           # Visualize sequence hierarchy
+mdnotes sequence rebalance [path]      # Optimize sequence structure
+```
+
+### 3. Literature Note Processing (`mdnotes literature`)
+
+**Purpose**: Convert research highlights and citations into connected zettelkasten notes.
+
+**Features**:
+- **Highlight Extraction**: Parse highlights from imported sources (Kindle, Zotero, etc.)
+- **Citation Linking**: Automatically create links between literature and permanent notes
+- **Source Consolidation**: Group related excerpts from same source
+- **Reference Formatting**: Ensure consistent citation formats across vault
+
+**Workflow**:
+1. Import highlights/excerpts with source metadata
+2. Generate individual atomic notes from each highlight
+3. Create connections to existing relevant notes
+4. Maintain bibliography consistency
+
+**Command**: `mdnotes literature process highlights.md --source "Author (2024)" --link-existing`
+
+### 4. Concept Map Generation (`mdnotes concepts`)
+
+**Purpose**: Discover and visualize recurring themes across the knowledge graph.
+
+**Features**:
+- **Theme Extraction**: Identify frequently co-occurring concepts
+- **Concept Clustering**: Group related ideas across different notes
+- **Missing Link Detection**: Suggest connections between conceptually related notes
+- **Semantic Analysis**: Use keyword/tag patterns to find conceptual relationships
+
+**Output**:
+- Visual concept maps showing idea relationships
+- Lists of notes that should be connected but aren't
+- Concept evolution over time
+
+**Command**: `mdnotes concepts map [path] --theme productivity --suggest-links`
+
+### 5. Note Maturity Tracking (`mdnotes maturity`)
+
+**Purpose**: Track the development and refinement of notes over time - key for zettelkasten evolution.
+
+**Features**:
+- **Development Stages**: Classify notes as fleeting, literature, permanent, evergreen
+- **Refinement Metrics**: Track how notes improve through editing cycles
+- **Review Scheduling**: Suggest notes due for review/development
+- **Maturity Scoring**: Algorithm combining content quality, link density, and revision history
+
+**Maturity Levels**:
+1. **Fleeting**: Quick captures, minimal processing
+2. **Literature**: Processed from sources but not fully integrated
+3. **Permanent**: Well-developed, properly linked
+4. **Evergreen**: Highly refined, frequently referenced
+
+**Command**: `mdnotes maturity assess [path] --schedule-reviews --upgrade-candidates`
+
+### 6. Cross-Reference Intelligence (`mdnotes xref`)
+
+**Purpose**: Smart suggestion system for creating meaningful connections between notes.
+
+**Features**:
+- **Content Similarity**: Find notes with overlapping themes that should link
+- **Citation Patterns**: Suggest links based on shared references
+- **Tag Relationships**: Identify notes with complementary tag patterns
+- **Context-Aware Linking**: Understand WHY notes should connect, not just that they could
+
+**Smart Suggestions**:
+- "Note A discusses productivity systems, Note B discusses time management - consider linking"
+- "Both notes cite the same research paper but aren't connected"
+- "Notes in sequence 1a-1c reference this concept but don't link to the main note"
+
+**Command**: `mdnotes xref suggest [path] --confidence-threshold 0.7 --apply-suggestions`
+
+### 7. Knowledge Gap Analysis (`mdnotes gaps`)
+
+**Purpose**: Identify missing pieces in the knowledge graph - concepts mentioned but not developed.
+
+**Features**:
+- **Orphan Concept Detection**: Find frequently mentioned topics without dedicated notes
+- **Link Stub Analysis**: Identify broken links that represent knowledge gaps
+- **Research Direction Suggestions**: Highlight areas needing more development
+- **Concept Coverage Mapping**: Show which domains are well/poorly covered
+
+**Gap Types**:
+- **Missing Definitions**: Terms used but never defined
+- **Underdeveloped Concepts**: Single-mention topics that deserve expansion
+- **Connection Voids**: Areas with few interconnections
+- **Research Gaps**: Topics mentioned but lacking source material
+
+**Command**: `mdnotes gaps identify [path] --suggest-research --min-mentions 3`
+
+### 8. Note Consolidation Engine (`mdnotes consolidate`)
+
+**Purpose**: Find and merge duplicate or highly overlapping notes while preserving unique insights.
+
+**Features**:
+- **Content Similarity Detection**: Identify notes with substantial overlap
+- **Merge Conflict Resolution**: Smart merging of similar content
+- **Link Preservation**: Maintain all inbound/outbound links during consolidation
+- **Version History**: Track what was merged and allow rollback
+
+**Consolidation Types**:
+- **Exact Duplicates**: Identical content (easy merge)
+- **Partial Overlap**: Some shared content, some unique (selective merge)
+- **Theme Variants**: Same topic, different angles (careful consolidation)
+
+**Command**: `mdnotes consolidate detect [path] --similarity-threshold 0.8 --preview-merges`
+
+### 9. Template Intelligence (`mdnotes templates`)
+
+**Purpose**: Advanced template system optimized for different zettelkasten note types.
+
+**Features**:
+- **Context-Aware Templates**: Different templates for literature, permanent, fleeting notes
+- **Dynamic Field Population**: Auto-fill templates based on note context and connections
+- **Template Evolution**: Learn from user patterns to improve templates
+- **Consistency Enforcement**: Ensure all notes of same type follow template structure
+
+**Template Types**:
+- **Literature Note**: Citation, key points, personal insights, connections
+- **Permanent Note**: Core concept, evidence, implications, related ideas
+- **Meeting Note**: Attendees, decisions, action items, follow-ups
+- **Daily Note**: Structured format for daily zettelkasten practice
+
+**Command**: `mdnotes templates generate --type literature --source "Author (2024)" --connect-to productivity`
+
+### 10. Spaced Review System (`mdnotes review`)
+
+**Purpose**: Implement spaced repetition for note review - essential for zettelkasten maintenance.
+
+**Features**:
+- **Review Scheduling**: Algorithm-based review intervals (1 day, 3 days, 1 week, etc.)
+- **Priority Weighting**: Review important/connected notes more frequently
+- **Review Types**: Different review modes (quick scan, deep review, connection audit)
+- **Progress Tracking**: Monitor which notes are being maintained vs. neglected
+
+**Review Categories**:
+- **New Notes**: Require quick review to establish connections
+- **Developing Notes**: Need regular refinement
+- **Mature Notes**: Periodic maintenance checks
+- **Stale Notes**: Haven't been accessed recently, may need archiving
+
+**Command**: `mdnotes review schedule [path] --due-today --type deep-review`
+
+### Implementation Priority
+
+These features should be implemented in order of impact on core zettelkasten workflows:
+
+**Phase A (High Impact)**: Atomic Note Analysis, Cross-Reference Intelligence, Knowledge Gap Analysis
+**Phase B (Medium Impact)**: Note Maturity Tracking, Spaced Review System, Concept Map Generation  
+**Phase C (Nice-to-Have)**: Note Sequencing, Literature Processing, Template Intelligence, Consolidation Engine
+
+Each feature maintains mdnotes' philosophy of automation, consistency, and graph integrity while adding powerful capabilities specific to zettelkasten methodology and knowledge work.
