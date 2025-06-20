@@ -30,7 +30,7 @@ Examples:
   
   # Rename using default template
   mdnotes rename "Case Closed.md"
-  # Results in: 20250619121117-case_closed.md
+  # Results in: 20250620125421-case-closed.md
   
   # Rename with verbose output
   mdnotes rename --verbose old-name.md better-name.md
@@ -39,14 +39,14 @@ Examples:
   mdnotes rename --dry-run test.md renamed-test.md
   
   # Custom template
-  mdnotes rename --template "{{.Year}}{{.Month}}{{.Day}}-{{.Filename}}.md" note.md`,
+  mdnotes rename --template "{{created|date:2006-01-02}}-{{filename|slug}}.md" note.md`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: runRename,
 	}
 
 	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns for scanning vault")
 	cmd.Flags().String("vault", ".", "Vault root directory for link updates")
-	cmd.Flags().String("template", "{{.CreatedTime|YYYYMMDDHHmmss}}-{{.Filename|slugify}}.md", "Template for default rename target")
+	cmd.Flags().String("template", "{{created|date:20060102150405}}-{{filename|slug_underscore}}.md", "Template for default rename target")
 	cmd.Flags().Int("workers", runtime.NumCPU(), "Number of worker goroutines for parallel processing")
 
 	return cmd
@@ -117,8 +117,8 @@ func runRename(cmd *cobra.Command, args []string) error {
 		targetAbs += ".md"
 	}
 
-	// Check if target already exists (unless it's the same file)
-	if sourceAbs != targetAbs {
+	// Check if target already exists (unless it's the same file or case-only change)
+	if !isSameFile(sourceAbs, targetAbs) {
 		if _, err := os.Stat(targetAbs); err == nil {
 			return fmt.Errorf("target file already exists: %s", targetAbs)
 		}
@@ -185,6 +185,32 @@ func runRename(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// isSameFile checks if two paths refer to the same file, handling case-insensitive filesystems
+func isSameFile(path1, path2 string) bool {
+	// Quick check for exact match
+	if path1 == path2 {
+		return true
+	}
+	
+	// Get file info for both paths
+	info1, err1 := os.Stat(path1)
+	info2, err2 := os.Stat(path2)
+	
+	// If either file doesn't exist, they're not the same
+	if os.IsNotExist(err1) || os.IsNotExist(err2) {
+		return false
+	}
+	
+	// If we can't stat either file, fall back to case-insensitive string comparison
+	if err1 != nil || err2 != nil {
+		return strings.EqualFold(path1, path2)
+	}
+	
+	// On most filesystems, if the inodes are the same, it's the same file
+	// This works for case-insensitive renames and also handles hard links
+	return os.SameFile(info1, info2)
 }
 
 

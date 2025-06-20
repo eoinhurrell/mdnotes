@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/eoinhurrell/mdnotes/internal/analyzer"
@@ -30,6 +31,7 @@ func NewAnalyzeCommand() *cobra.Command {
 	cmd.AddCommand(newLinksCommand())
 	cmd.AddCommand(newContentCommand())
 	cmd.AddCommand(newTrendsCommand())
+	cmd.AddCommand(newInboxCommand())
 
 	return cmd
 }
@@ -511,6 +513,9 @@ func newContentCommand() *cobra.Command {
 				vaultPath = args[0]
 			}
 
+			// Check for verbose flag from global flags
+			verbose, _ := cmd.Flags().GetBool("verbose")
+
 			// Load configuration
 			cfg, err := loadConfig(cmd)
 			if err != nil {
@@ -539,7 +544,7 @@ func newContentCommand() *cobra.Command {
 				}
 				fmt.Println(string(data))
 			} else {
-				output := formatContentAnalysisText(contentAnalysis, includeScores, minScore)
+				output := formatContentAnalysisText(contentAnalysis, includeScores, minScore, verbose)
 				fmt.Print(output)
 			}
 
@@ -547,9 +552,9 @@ func newContentCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
+	cmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json, table, csv)")
 	cmd.Flags().BoolVar(&includeScores, "scores", false, "Include individual file quality scores")
-	cmd.Flags().Float64Var(&minScore, "min-score", 0.0, "Minimum quality score to display (0.0-1.0)")
+	cmd.Flags().Float64Var(&minScore, "min-score", 0.0, "Minimum quality score to display (0.0-100)")
 
 	return cmd
 }
@@ -669,11 +674,18 @@ Connectivity:
 	return output
 }
 
-func formatContentAnalysisText(analysis analyzer.ContentAnalysis, includeScores bool, minScore float64) string {
-	output := fmt.Sprintf(`Content Quality Analysis
-========================
+func formatContentAnalysisText(analysis analyzer.ContentAnalysis, includeScores bool, minScore float64, verbose bool) string {
+	output := fmt.Sprintf(`Zettelkasten Content Quality Analysis
+====================================
 
 Overall Quality Score: %.1f/100
+
+Scoring based on Zettelkasten principles:
+  1. Readability (Flesch-Kincaid Reading Ease)
+  2. Link Density (outbound links per 100 words)
+  3. Completeness (title, summary, word count)
+  4. Atomicity (one concept per note)
+  5. Recency (recently modified content)
 
 Distribution:
   Excellent (90-100): %d files
@@ -696,6 +708,21 @@ Content Metrics:
 		analysis.AvgContentLength, analysis.AvgWordCount,
 		analysis.FilesWithFrontmatter, analysis.FilesWithHeadings, analysis.FilesWithLinks)
 
+	// Show worst-scoring files in the summary
+	if len(analysis.FileScores) > 0 {
+		worstFiles := getWorstScoringFiles(analysis.FileScores, 5)
+		if len(worstFiles) > 0 {
+			output += "⚠️  Files Needing Attention (lowest scores):\n"
+			for i, score := range worstFiles {
+				output += fmt.Sprintf("  %d. %.1f  %s\n", i+1, score.Score, score.Path)
+				if len(score.SuggestedFixes) > 0 && len(score.SuggestedFixes[0]) > 0 {
+					output += fmt.Sprintf("      → %s\n", score.SuggestedFixes[0])
+				}
+			}
+			output += "\n"
+		}
+	}
+
 	if len(analysis.QualityIssues) > 0 {
 		output += "Quality Issues Found:\n"
 		for _, issue := range analysis.QualityIssues {
@@ -712,16 +739,70 @@ Content Metrics:
 		output += "\n"
 	}
 
+	// Show individual file scores
 	if includeScores && len(analysis.FileScores) > 0 {
-		output += "Individual File Scores:\n"
-		for _, score := range analysis.FileScores {
-			if score.Score >= minScore {
-				output += fmt.Sprintf("  %.1f - %s\n", score.Score, score.Path)
+		if verbose {
+			output += fmt.Sprintf("📊 Individual File Scores (showing files >= %.1f):\n", minScore)
+			output += "====================================================================\n"
+			output += "Score  File                                    Read Link Comp Atom Rec\n"
+			output += "--------------------------------------------------------------------\n"
+			for _, score := range analysis.FileScores {
+				if score.Score >= minScore {
+					// Truncate path if too long
+					displayPath := score.Path
+					if len(displayPath) > 35 {
+						displayPath = "..." + displayPath[len(displayPath)-32:]
+					}
+					
+					output += fmt.Sprintf("%-6.1f %-35s %4.0f %4.0f %4.0f %4.0f %4.0f\n", 
+						score.Score, displayPath, 
+						score.ReadabilityScore*100, score.LinkDensityScore*100, 
+						score.CompletenessScore*100, score.AtomicityScore*100, score.RecencyScore*100)
+					
+					if verbose && len(score.SuggestedFixes) > 0 {
+						output += fmt.Sprintf("       Improvements: %s\n", strings.Join(score.SuggestedFixes, "; "))
+					}
+				}
+			}
+			output += "\nMetrics: Read=Readability, Link=Link Density, Comp=Completeness, Atom=Atomicity, Rec=Recency\n"
+		} else {
+			output += fmt.Sprintf("Individual File Scores (showing files >= %.1f):\n", minScore)
+			output += "================================================================\n"
+			for _, score := range analysis.FileScores {
+				if score.Score >= minScore {
+					output += fmt.Sprintf("%.1f  %s\n", score.Score, score.Path)
+					if len(score.SuggestedFixes) > 0 {
+						output += "     → " + strings.Join(score.SuggestedFixes, "; ") + "\n"
+					}
+					output += "\n"
+				}
 			}
 		}
 	}
 
 	return output
+}
+
+// getWorstScoringFiles returns the N worst-scoring files
+func getWorstScoringFiles(fileScores []analyzer.FileQualityScore, n int) []analyzer.FileQualityScore {
+	if len(fileScores) == 0 {
+		return nil
+	}
+	
+	// Create a copy and sort by score ascending (worst first)
+	scores := make([]analyzer.FileQualityScore, len(fileScores))
+	copy(scores, fileScores)
+	
+	sort.Slice(scores, func(i, j int) bool {
+		return scores[i].Score < scores[j].Score
+	})
+	
+	// Return first N (worst) files
+	if len(scores) < n {
+		n = len(scores)
+	}
+	
+	return scores[:n]
 }
 
 func formatTrendsAnalysisText(analysis analyzer.TrendsAnalysis) string {
@@ -930,4 +1011,142 @@ func formatAllDuplicatesText(obsidianCopies []analyzer.ObsidianCopy, syncConflic
 	}
 
 	return output
+}
+
+// newInboxCommand creates the INBOX triage analysis command
+func newInboxCommand() *cobra.Command {
+	var (
+		outputFormat string
+		sortBy       string
+		minItems     int
+	)
+
+	cmd := &cobra.Command{
+		Use:     "inbox [vault-path]",
+		Aliases: []string{"i"},
+		Short:   "Analyze INBOX content that needs processing",
+		Long:    `Find content under INBOX headings and other temporary sections that need processing, sorted by content volume for prioritization`,
+		Args:    cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			vaultPath := "."
+			if len(args) > 0 {
+				vaultPath = args[0]
+			}
+
+			// Load configuration
+			cfg, err := loadConfig(cmd)
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
+
+			// Scan vault files
+			scanner := vault.NewScanner(
+				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
+				vault.WithContinueOnErrors(),
+			)
+			files, err := scanner.Walk(vaultPath)
+			if err != nil {
+				return fmt.Errorf("scanning vault: %w", err)
+			}
+
+			// Generate inbox analysis
+			ana := analyzer.NewAnalyzer()
+			inboxAnalysis := ana.AnalyzeInbox(files, sortBy, minItems)
+
+			// Output results
+			if outputFormat == "json" {
+				data, err := json.MarshalIndent(inboxAnalysis, "", "  ")
+				if err != nil {
+					return fmt.Errorf("marshaling JSON: %w", err)
+				}
+				fmt.Println(string(data))
+			} else {
+				output := formatInboxAnalysisText(inboxAnalysis)
+				fmt.Print(output)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
+	cmd.Flags().StringVar(&sortBy, "sort", "size", "Sort inbox items by: size, count, urgency")
+	cmd.Flags().IntVar(&minItems, "min-items", 1, "Minimum number of items to show section")
+
+	return cmd
+}
+
+// formatInboxAnalysisText formats inbox analysis results as text
+func formatInboxAnalysisText(analysis *analyzer.InboxAnalysis) string {
+	var output strings.Builder
+
+	output.WriteString("INBOX Triage Analysis\n")
+	output.WriteString("====================\n\n")
+
+	if len(analysis.InboxSections) == 0 {
+		output.WriteString("No INBOX sections found!\n\n")
+		output.WriteString("This is great - your vault appears to be well-organized without pending tasks.\n")
+		return output.String()
+	}
+
+	output.WriteString(fmt.Sprintf("Found %d INBOX sections with pending content:\n\n", len(analysis.InboxSections)))
+
+	// Summary statistics
+	totalItems := 0
+	totalSize := 0
+	for _, section := range analysis.InboxSections {
+		totalItems += section.ItemCount
+		totalSize += section.ContentSize
+	}
+
+	output.WriteString(fmt.Sprintf("Total items to process: %d\n", totalItems))
+	output.WriteString(fmt.Sprintf("Total content size: %d characters\n\n", totalSize))
+
+	// Priority recommendations
+	output.WriteString("Priority Recommendations:\n")
+	output.WriteString("------------------------\n")
+	if len(analysis.InboxSections) > 0 {
+		output.WriteString(fmt.Sprintf("🔥 Start with: %s (%d items, %d chars)\n", 
+			analysis.InboxSections[0].File, 
+			analysis.InboxSections[0].ItemCount, 
+			analysis.InboxSections[0].ContentSize))
+	}
+	output.WriteString("\n")
+
+	// Detailed sections
+	output.WriteString("Inbox Sections by Priority:\n")
+	output.WriteString("---------------------------\n")
+	for i, section := range analysis.InboxSections {
+		priority := "📝"
+		if i == 0 {
+			priority = "🔥"
+		} else if i < 3 {
+			priority = "⚡"
+		}
+
+		output.WriteString(fmt.Sprintf("%s %s\n", priority, section.File))
+		output.WriteString(fmt.Sprintf("   Heading: %s\n", section.Heading))
+		output.WriteString(fmt.Sprintf("   Items: %d | Size: %d chars | Urgency: %s\n", 
+			section.ItemCount, section.ContentSize, section.UrgencyLevel))
+		
+		if len(section.ActionSuggestions) > 0 {
+			output.WriteString("   Suggestions: ")
+			output.WriteString(strings.Join(section.ActionSuggestions, ", "))
+			output.WriteString("\n")
+		}
+		output.WriteString("\n")
+	}
+
+	// Action plan
+	if len(analysis.InboxSections) > 0 {
+		output.WriteString("Suggested Action Plan:\n")
+		output.WriteString("---------------------\n")
+		output.WriteString("1. Process the 🔥 high-priority section first\n")
+		output.WriteString("2. Break down large items into smaller, actionable tasks\n")
+		output.WriteString("3. Move completed items to appropriate permanent locations\n")
+		output.WriteString("4. Archive or delete obsolete items\n")
+		output.WriteString("5. Re-run this analysis to track progress\n")
+	}
+
+	return output.String()
 }

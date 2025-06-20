@@ -11,10 +11,11 @@ A powerful CLI tool for managing Obsidian markdown note vaults with automated ba
 - **🔧 Frontmatter Management**: Ensure, validate, cast, and sync frontmatter fields
 - **📝 Content Operations**: Fix headings, parse links, and organize files  
 - **🔗 Link Management**: Convert between wiki/markdown links and check integrity
-- **📊 Vault Analysis**: Generate statistics, find duplicates, and assess health
+- **📊 Vault Analysis**: Generate statistics, find duplicates, and assess quality
 - **⚡ Batch Operations**: Execute multiple operations with progress tracking
 - **🔄 External Integrations**: Sync with Linkding and other services
 - **🚀 Performance**: Parallel processing and memory optimization for large vaults
+- **👁️ File Watching**: Automated processing on file changes with configurable rules
 - **🛡️ Safety**: Dry-run mode, backups, and atomic operations
 
 ## 🚀 Quick Start
@@ -40,8 +41,11 @@ mdnotes frontmatter validate --required title --required tags /path/to/vault
 # Fix heading structure
 mdnotes headings fix --ensure-h1-title /path/to/vault
 
-# Check vault health
-mdnotes analyze health /path/to/vault
+# Analyze content quality scores
+mdnotes analyze content --scores /path/to/vault
+
+# Start file watching for automated processing
+mdnotes watch --config .obsidian-admin.yaml
 
 # Always preview changes first!
 mdnotes frontmatter ensure --field created --default "{{current_date}}" --dry-run /path/to/vault
@@ -65,10 +69,11 @@ mdnotes frontmatter ensure --field created --default "{{current_date}}" --dry-ru
 - Standardize field formats and types
 - Convert link formats for consistency
 
-### Vault Analysis
-- Generate comprehensive statistics
-- Find duplicate content
-- Assess vault health over time
+### Vault Analysis & Quality Assessment
+- Generate comprehensive statistics and health reports
+- Find duplicate content and sync conflicts
+- Assess content quality with Zettelkasten scoring
+- Monitor vault trends and growth patterns
 
 ## 📋 Complete Command Reference
 
@@ -586,25 +591,60 @@ mdnotes analyze links --graph --depth 2 --min-connections 3 /path/to/vault
 - Standard global flags (--verbose, --quiet)
 
 #### `mdnotes analyze content` (alias: `c`)
-Analyze content quality and completeness.
+Analyze content quality using Zettelkasten principles.
 
 **Basic Usage:**
 ```bash
-# Analyze content quality
+# Analyze content quality with summary
 mdnotes analyze content /path/to/vault
 
-# Include individual file scores
+# Include individual file scores  
 mdnotes analyze content --scores /path/to/vault
 
+# Show detailed metric breakdown in verbose mode
+mdnotes analyze content --scores --verbose /path/to/vault
+
 # Filter by minimum quality score
-mdnotes analyze content --scores --min-score 0.7 /path/to/vault
+mdnotes analyze content --scores --min-score 75 /path/to/vault
+```
+
+**Quality Scoring (0-100 scale):**
+The analysis evaluates content based on five Zettelkasten principles:
+
+1. **Readability** (Flesch-Kincaid Reading Ease) - Clear, simple language
+2. **Link Density** - Outbound links per 100 words (optimal: 2-4 links)
+3. **Completeness** - Title, summary, and adequate word count
+4. **Atomicity** - One concept per note, appropriate length
+5. **Recency** - Recently modified content scores higher
+
+**Enhanced Features:**
+- **Worst-scoring files** shown in summary for immediate attention
+- **Verbose mode** displays individual metrics breakdown in tabular format
+- **Actionable suggestions** provided for each low-scoring file
+- **Score distribution** shows vault-wide quality patterns
+
+**Output Examples:**
+```bash
+# Summary shows worst files needing attention:
+⚠️  Files Needing Attention (lowest scores):
+  1. 42.1  drafts/incomplete-note.md
+      → Add more links to related concepts
+  2. 45.8  notes/stub-article.md  
+      → Expand content - add more detail
+
+# Verbose mode shows detailed breakdown:
+📊 Individual File Scores (showing files >= 0.0):
+Score  File                          Read Link Comp Atom Rec
+52.4   poor-note.md                   77    0   10   75  100
+       Improvements: Add title; Link to related concepts
 ```
 
 **Flags:**
 - `--format` (string): Output format (text, json) [default: text]
 - `--scores` (bool): Include individual file quality scores
-- `--min-score` (float64): Minimum quality score to display (0.0-1.0) [default: 0.0]
-- Standard global flags (--verbose, --quiet)
+- `--min-score` (float64): Minimum quality score to display (0.0-100) [default: 0.0]
+- `--verbose` (global): Show detailed metric breakdown for each file
+- Standard global flags (--quiet)
 
 #### `mdnotes analyze trends` (alias: `t`)
 Analyze vault growth trends and patterns.
@@ -641,29 +681,97 @@ mdnotes rename "old-note.md" "new-note.md"
 mdnotes rename "messy filename.md"
 
 # Rename with custom template
-mdnotes rename "note.md" --template "{{.Year}}-{{.Month}}-{{.Day}}-{{.Filename|slugify}}.md"
+mdnotes rename "note.md" --template "{{created|date:20060102150405}}-{{filename|slug}}.md"
 
 # Specify vault root for link updates
 mdnotes rename "note.md" "better-name.md" --vault "/path/to/vault"
 ```
 
 **Template Variables:**
-- `{{.CreatedTime|YYYYMMDDHHmmss}}`: Formatted creation time
-- `{{.Filename|slugify}}`: Slugified filename
-- `{{.Filename}}`: Original filename
-- `{{.Year}}`, `{{.Month}}`, `{{.Day}}`: Date components
+- `{{created|date:20060102150405}}`: Formatted creation time from frontmatter
+- `{{filename|slug}}`: Slugified filename
+- `{{filename}}`: Original filename
+- `{{file_mtime}}`: File modification time
+- `{{current_date}}`: Current date
 
 **Behavior:**
 1. Renames the source file to the target name
-2. Scans entire vault for references to the old file
+2. Uses ripgrep (if available) to quickly find files containing references
 3. Updates all wiki links and markdown links pointing to the renamed file
 4. Creates target directories if needed
+5. Falls back to full vault scan if ripgrep is unavailable
+
+**Performance Optimization:**
+- **Ripgrep Integration**: Uses ripgrep for ultra-fast file discovery, processing only files that contain references
+- **Smart Fallback**: If ripgrep isn't available, gracefully falls back to comprehensive vault scanning
+- **Typical Speedup**: 10x-100x faster than traditional approaches, especially for large vaults
 
 **Flags:**
-- `--template` (string): Template for default rename target [default: "{{.CreatedTime|YYYYMMDDHHmmss}}-{{.Filename|slugify}}.md"]
+- `--template` (string): Template for default rename target [default: "{{created|date:20060102150405}}-{{filename|slug}}.md"]
 - `--vault` (string): Vault root directory for link updates [default: "."]
 - `--ignore` (multiple): Ignore patterns for scanning vault [default: [".obsidian/*", "*.tmp"]]
 - Standard global flags (--dry-run, --verbose, --quiet)
+
+#### `mdnotes watch`
+Monitor file system for changes and automatically execute mdnotes commands.
+
+**Basic Usage:**
+```bash
+# Start watching with default config
+mdnotes watch
+
+# Start watching with specific config file
+mdnotes watch --config .obsidian-admin.yaml
+
+# Run in daemon mode (background)
+mdnotes watch --daemon
+```
+
+**Configuration Example:**
+Watch rules are configured in the YAML configuration file:
+
+```yaml
+watch:
+  enabled: true
+  debounce_timeout: "2s"
+  ignore_patterns:
+    - ".obsidian/*"
+    - ".git/*"
+    - "*.tmp"
+    - "*.bak"
+  rules:
+    - name: "Auto-ensure frontmatter"
+      paths: ["./notes/", "./inbox/"]
+      events: ["create", "write"]
+      actions: ["mdnotes frontmatter ensure {{file}}"]
+    - name: "Sync with Linkding"
+      paths: ["./notes/"]
+      events: ["write"]
+      actions: ["mdnotes linkding sync {{file}}"]
+```
+
+**Watch Events:**
+- `create`: File created
+- `write`: File modified
+- `remove`: File deleted
+- `rename`: File moved/renamed
+- `chmod`: File permissions changed
+
+**Action Placeholders:**
+- `{{file}}`: Full file path
+- `{{dir}}`: Directory containing the file
+- `{{basename}}`: Filename only
+
+**Behavior:**
+1. Monitors specified paths for markdown file changes
+2. Debounces rapid events to avoid duplicate processing
+3. Executes configured actions when events match rules
+4. Runs in foreground by default, or background with `--daemon`
+
+**Flags:**
+- `--config` (string): Path to configuration file
+- `--daemon` (bool): Run in daemon mode (background)
+- Standard global flags (--verbose, --quiet)
 
 ### External Integrations
 
@@ -875,6 +983,20 @@ batch:
 safety:
   backup_retention: "7d"
   max_backups: 10
+
+watch:
+  enabled: true
+  debounce_timeout: "2s"
+  ignore_patterns:
+    - ".obsidian/*"
+    - ".git/*"
+    - "*.tmp"
+    - "*.bak"
+  rules:
+    - name: "Auto-ensure frontmatter"
+      paths: ["./notes/", "./inbox/"]
+      events: ["create", "write"]
+      actions: ["mdnotes frontmatter ensure {{file}}"]
 ```
 
 ### Linkding Integration Setup

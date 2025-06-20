@@ -554,8 +554,14 @@ type ContentAnalysis struct {
 
 // FileQualityScore represents the quality score of an individual file
 type FileQualityScore struct {
-	Path  string  `json:"path"`
-	Score float64 `json:"score"`
+	Path             string  `json:"path"`
+	Score            float64 `json:"score"`
+	ReadabilityScore float64 `json:"readability_score"`
+	LinkDensityScore float64 `json:"link_density_score"`
+	CompletenessScore float64 `json:"completeness_score"`
+	AtomicityScore   float64 `json:"atomicity_score"`
+	RecencyScore     float64 `json:"recency_score"`
+	SuggestedFixes   []string `json:"suggested_fixes"`
 }
 
 // TrendsAnalysis represents vault growth and trend analysis
@@ -589,6 +595,27 @@ type TimelinePoint struct {
 type TagTrend struct {
 	Count      int     `json:"count"`
 	GrowthRate float64 `json:"growth_rate"`
+}
+
+// InboxAnalysis represents analysis of INBOX sections that need processing
+type InboxAnalysis struct {
+	TotalSections  int           `json:"total_sections"`
+	TotalItems     int           `json:"total_items"`
+	TotalSize      int           `json:"total_size"`
+	InboxSections  []InboxSection `json:"inbox_sections"`
+	Summary        string        `json:"summary"`
+}
+
+// InboxSection represents a single INBOX section found in a file
+type InboxSection struct {
+	File              string   `json:"file"`
+	Heading           string   `json:"heading"`
+	LineNumber        int      `json:"line_number"`
+	ItemCount         int      `json:"item_count"`
+	ContentSize       int      `json:"content_size"`
+	UrgencyLevel      string   `json:"urgency_level"`
+	ActionSuggestions []string `json:"action_suggestions"`
+	Content           string   `json:"content"`
 }
 
 // AnalyzeLinks performs comprehensive link structure analysis
@@ -719,24 +746,41 @@ func (a *Analyzer) AnalyzeContentQuality(files []*vault.VaultFile) ContentAnalys
 	analysis.ScoreDistribution["critical"] = 0
 
 	for _, file := range files {
-		// Calculate file quality score
-		score := a.calculateFileQualityScore(file)
+		// Calculate file quality score with detailed breakdown
+		overallScore := a.calculateFileQualityScore(file)
+		
+		// Calculate individual scores for detailed breakdown
+		readabilityScore := a.calculateReadabilityScore(file)
+		linkDensityScore := a.calculateLinkDensityScore(file)
+		completenessScore := a.calculateCompletenessScore(file)
+		atomicityScore := a.calculateAtomicityScore(file)
+		recencyScore := a.calculateRecencyScore(file)
+		
+		// Generate suggested fixes
+		suggestedFixes := a.generateFileQualityFixes(file, readabilityScore, linkDensityScore, completenessScore, atomicityScore, recencyScore)
+		
 		analysis.FileScores = append(analysis.FileScores, FileQualityScore{
-			Path:  file.RelativePath,
-			Score: score * 100, // Convert to 0-100 scale
+			Path:             file.RelativePath,
+			Score:            overallScore * 100, // Convert to 0-100 scale
+			ReadabilityScore: readabilityScore,
+			LinkDensityScore: linkDensityScore,
+			CompletenessScore: completenessScore,
+			AtomicityScore:   atomicityScore,
+			RecencyScore:     recencyScore,
+			SuggestedFixes:   suggestedFixes,
 		})
 
-		totalScore += score
+		totalScore += overallScore
 
 		// Categorize score
 		switch {
-		case score >= 0.9:
+		case overallScore >= 0.9:
 			analysis.ScoreDistribution["excellent"]++
-		case score >= 0.75:
+		case overallScore >= 0.75:
 			analysis.ScoreDistribution["good"]++
-		case score >= 0.6:
+		case overallScore >= 0.6:
 			analysis.ScoreDistribution["fair"]++
-		case score >= 0.4:
+		case overallScore >= 0.4:
 			analysis.ScoreDistribution["poor"]++
 		default:
 			analysis.ScoreDistribution["critical"]++
@@ -776,81 +820,489 @@ func (a *Analyzer) AnalyzeContentQuality(files []*vault.VaultFile) ContentAnalys
 	return analysis
 }
 
-// calculateFileQualityScore calculates a quality score for an individual file
+// calculateFileQualityScore calculates a Zettelkasten quality score for an individual file
 func (a *Analyzer) calculateFileQualityScore(file *vault.VaultFile) float64 {
+	// Calculate all five Zettelkasten quality criteria
+	readability := a.calculateReadabilityScore(file)
+	linkDensity := a.calculateLinkDensityScore(file)
+	completeness := a.calculateCompletenessScore(file)
+	atomicity := a.calculateAtomicityScore(file)
+	recency := a.calculateRecencyScore(file)
+
+	// Weighted average (equal weights for each criterion)
+	totalScore := (readability + linkDensity + completeness + atomicity + recency) / 5.0
+
+	return totalScore
+}
+
+// CalculateReadabilityScore calculates Flesch-Kincaid Reading Ease score (0.0-1.0)
+func (a *Analyzer) CalculateReadabilityScore(file *vault.VaultFile) float64 {
+	return a.calculateReadabilityScore(file)
+}
+
+// CalculateLinkDensityScore calculates outbound links per 100 words (0.0-1.0)
+func (a *Analyzer) CalculateLinkDensityScore(file *vault.VaultFile) float64 {
+	return a.calculateLinkDensityScore(file)
+}
+
+// CalculateCompletenessScore calculates completeness based on frontmatter and content (0.0-1.0)
+func (a *Analyzer) CalculateCompletenessScore(file *vault.VaultFile) float64 {
+	return a.calculateCompletenessScore(file)
+}
+
+// CalculateAtomicityScore calculates atomicity based on content length and focus (0.0-1.0)
+func (a *Analyzer) CalculateAtomicityScore(file *vault.VaultFile) float64 {
+	return a.calculateAtomicityScore(file)
+}
+
+// CalculateRecencyScore calculates recency based on modification time (0.0-1.0)
+func (a *Analyzer) CalculateRecencyScore(file *vault.VaultFile) float64 {
+	return a.calculateRecencyScore(file)
+}
+
+// calculateReadabilityScore calculates Flesch-Kincaid Reading Ease score (0.0-1.0)
+func (a *Analyzer) calculateReadabilityScore(file *vault.VaultFile) float64 {
+	if len(file.Body) == 0 {
+		return 0.0
+	}
+
+	// Extract text for readability analysis
+	text := a.extractReadableText(file.Body)
+	if len(text) == 0 {
+		return 0.0
+	}
+
+	// Calculate Flesch-Kincaid Reading Ease
+	sentences := a.countSentences(text)
+	words := len(strings.Fields(text))
+	syllables := a.countSyllables(text)
+
+	if sentences == 0 || words == 0 {
+		return 0.0
+	}
+
+	// Flesch Reading Ease formula: 206.835 - (1.015 × ASL) - (84.6 × ASW)
+	// ASL = Average Sentence Length = words/sentences
+	// ASW = Average Syllables per Word = syllables/words
+	asl := float64(words) / float64(sentences)
+	asw := float64(syllables) / float64(words)
+	
+	fleschScore := 206.835 - (1.015 * asl) - (84.6 * asw)
+
+	// Convert Flesch score (0-100) to 0-1 scale
+	// Scores: 90-100=very easy, 80-89=easy, 70-79=fairly easy, 60-69=standard, 50-59=fairly difficult, 30-49=difficult, 0-29=very difficult
+	normalizedScore := fleschScore / 100.0
+	if normalizedScore > 1.0 {
+		normalizedScore = 1.0
+	}
+	if normalizedScore < 0.0 {
+		normalizedScore = 0.0
+	}
+
+	return normalizedScore
+}
+
+// calculateLinkDensityScore calculates outbound links per 100 words (0.0-1.0)
+func (a *Analyzer) calculateLinkDensityScore(file *vault.VaultFile) float64 {
+	wordCount := len(strings.Fields(file.Body))
+	if wordCount == 0 {
+		return 0.0
+	}
+
+	// Count outbound links
+	linkCount := len(file.Links)
+	linksPer100Words := float64(linkCount) / float64(wordCount) * 100.0
+
+	// Optimal link density for Zettelkasten: 2-5 links per 100 words
+	// Score peaks at 3-4 links per 100 words
+	var score float64
+	switch {
+	case linksPer100Words >= 3.0 && linksPer100Words <= 4.0:
+		score = 1.0 // Optimal
+	case linksPer100Words >= 2.0 && linksPer100Words < 3.0:
+		score = 0.8 + (linksPer100Words-2.0)*0.2 // Good
+	case linksPer100Words > 4.0 && linksPer100Words <= 6.0:
+		score = 1.0 - (linksPer100Words-4.0)*0.1 // Slightly too many
+	case linksPer100Words > 6.0:
+		score = 0.5 // Too many links, probably not focused
+	case linksPer100Words >= 1.0:
+		score = linksPer100Words * 0.4 // Some links but could be better
+	default:
+		score = 0.0 // No links - poor for Zettelkasten
+	}
+
+	if score > 1.0 {
+		score = 1.0
+	}
+	return score
+}
+
+// calculateCompletenessScore checks for title, summary, and adequate word count (0.0-1.0)
+func (a *Analyzer) calculateCompletenessScore(file *vault.VaultFile) float64 {
 	score := 0.0
-	maxScore := 0.0
 
-	// Frontmatter presence (20% weight)
-	maxScore += 0.2
-	if len(file.Frontmatter) > 0 {
-		score += 0.2
-
-		// Bonus for essential fields
-		if _, hasTitle := file.Frontmatter["title"]; hasTitle {
-			score += 0.05
-		}
-		if _, hasTags := file.Frontmatter["tags"]; hasTags {
-			score += 0.05
+	// Title presence (40% weight)
+	if title, hasTitle := file.Frontmatter["title"]; hasTitle {
+		if titleStr, ok := title.(string); ok && len(strings.TrimSpace(titleStr)) > 0 {
+			score += 0.4
 		}
 	}
 
-	// Content length (25% weight)
-	maxScore += 0.25
+	// Summary/description presence (30% weight) 
+	summaryFields := []string{"summary", "description", "abstract", "excerpt"}
+	for _, field := range summaryFields {
+		if summary, hasSummary := file.Frontmatter[field]; hasSummary {
+			if summaryStr, ok := summary.(string); ok && len(strings.TrimSpace(summaryStr)) > 0 {
+				score += 0.3
+				break
+			}
+		}
+	}
+
+	// Word count adequacy (30% weight)
 	wordCount := len(strings.Fields(file.Body))
 	switch {
-	case wordCount >= 500:
-		score += 0.25
-	case wordCount >= 200:
-		score += 0.20
-	case wordCount >= 100:
-		score += 0.15
 	case wordCount >= 50:
-		score += 0.10
-	case wordCount > 0:
-		score += 0.05
+		score += 0.3 // Good length
+	case wordCount >= 30:
+		score += 0.2 // Acceptable
+	case wordCount >= 15:
+		score += 0.1 // Minimal
+	default:
+		// Too short - no points
 	}
 
-	// Structure - headings (20% weight)
-	maxScore += 0.2
-	if len(file.Headings) > 0 {
-		score += 0.15
-		// Bonus for proper heading hierarchy
-		if len(file.Headings) >= 2 {
-			score += 0.05
-		}
+	return score
+}
+
+// calculateAtomicityScore checks if note follows "one concept per note" principle (0.0-1.0)
+func (a *Analyzer) calculateAtomicityScore(file *vault.VaultFile) float64 {
+	score := 1.0 // Start with perfect score
+
+	// Check word count - notes over 500 words may be too complex
+	wordCount := len(strings.Fields(file.Body))
+	if wordCount > 500 {
+		// Gradually reduce score for longer notes
+		penalty := float64(wordCount-500) / 1000.0 // Lose 0.1 for every 100 words over 500
+		score -= penalty
 	}
 
-	// Links and connectivity (20% weight)
-	maxScore += 0.2
-	if len(file.Links) > 0 {
-		score += 0.15
-		// Bonus for multiple links
-		if len(file.Links) >= 3 {
-			score += 0.05
-		}
-	}
-
-	// Content quality indicators (15% weight)
-	maxScore += 0.15
-	if len(file.Body) > 0 {
-		// Check for code blocks, lists, etc.
-		if strings.Contains(file.Body, "```") {
-			score += 0.05
-		}
-		if strings.Contains(file.Body, "- ") || strings.Contains(file.Body, "* ") {
-			score += 0.05
-		}
-		if strings.Count(file.Body, "\n") >= 10 { // Multi-paragraph content
-			score += 0.05
+	// Check heading count - multiple h1/h2 headings suggest multiple concepts
+	h1Count := 0
+	h2Count := 0
+	for _, heading := range file.Headings {
+		if heading.Level == 1 {
+			h1Count++
+		} else if heading.Level == 2 {
+			h2Count++
 		}
 	}
 
-	// Normalize score to 0-1 range
-	if maxScore > 0 {
-		return score / maxScore
+	// Penalize multiple top-level concepts
+	if h1Count > 1 {
+		score -= float64(h1Count-1) * 0.3 // Heavy penalty for multiple H1s
 	}
-	return 0
+	if h2Count > 3 {
+		score -= float64(h2Count-3) * 0.1 // Lighter penalty for many H2s
+	}
+
+	// Check for topic coherence by examining repeated terms
+	// This is a simple heuristic - more sophisticated NLP could be used
+	if wordCount > 0 {
+		topicCoherence := a.calculateTopicCoherence(file.Body)
+		score = score * topicCoherence // Multiply by coherence factor
+	}
+
+	if score < 0.0 {
+		score = 0.0
+	}
+	return score
+}
+
+// calculateRecencyScore penalizes old untouched notes (0.0-1.0)
+func (a *Analyzer) calculateRecencyScore(file *vault.VaultFile) float64 {
+	now := time.Now()
+	daysSinceModified := now.Sub(file.Modified).Hours() / 24
+
+	// Scoring based on how recently the file was modified
+	switch {
+	case daysSinceModified <= 7:
+		return 1.0 // Perfect - modified within a week
+	case daysSinceModified <= 30:
+		return 0.9 // Excellent - modified within a month
+	case daysSinceModified <= 90:
+		return 0.7 // Good - modified within 3 months
+	case daysSinceModified <= 150:
+		return 0.5 // Fair - modified within 5 months
+	case daysSinceModified <= 365:
+		return 0.3 // Poor - modified within a year
+	default:
+		return 0.1 // Very old - over a year since modification
+	}
+}
+
+// Helper functions for readability analysis
+
+// extractReadableText removes markdown formatting for readability analysis
+func (a *Analyzer) extractReadableText(markdown string) string {
+	// Remove code blocks
+	codeBlockRegex := regexp.MustCompile("```[\\s\\S]*?```")
+	text := codeBlockRegex.ReplaceAllString(markdown, "")
+	
+	// Remove inline code
+	inlineCodeRegex := regexp.MustCompile("`[^`]+`")
+	text = inlineCodeRegex.ReplaceAllString(text, "")
+	
+	// Remove links but keep text
+	linkRegex := regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+	text = linkRegex.ReplaceAllString(text, "$1")
+	
+	// Remove wiki links but keep text
+	wikiLinkRegex := regexp.MustCompile(`\[\[([^|\]]+)(\|[^\]]+)?\]\]`)
+	text = wikiLinkRegex.ReplaceAllString(text, "$1")
+	
+	// Remove headings markers
+	headingRegex := regexp.MustCompile(`^#+\s*`)
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = headingRegex.ReplaceAllString(line, "")
+	}
+	text = strings.Join(lines, "\n")
+	
+	// Remove list markers
+	listRegex := regexp.MustCompile(`^(\s*[-*+]\s*|\s*\d+\.\s*)`)
+	lines = strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = listRegex.ReplaceAllString(line, "")
+	}
+	
+	return strings.Join(lines, "\n")
+}
+
+// countSentences counts sentences in text
+func (a *Analyzer) countSentences(text string) int {
+	// Simple sentence counting based on sentence-ending punctuation
+	sentenceRegex := regexp.MustCompile(`[.!?]+`)
+	matches := sentenceRegex.FindAllString(text, -1)
+	count := len(matches)
+	
+	// Ensure at least 1 sentence if there's text
+	if count == 0 && len(strings.TrimSpace(text)) > 0 {
+		count = 1
+	}
+	
+	return count
+}
+
+// countSyllables estimates syllable count for words
+func (a *Analyzer) countSyllables(text string) int {
+	words := strings.Fields(strings.ToLower(text))
+	totalSyllables := 0
+	
+	for _, word := range words {
+		syllables := a.estimateSyllables(word)
+		totalSyllables += syllables
+	}
+	
+	return totalSyllables
+}
+
+// estimateSyllables estimates syllables in a single word using simple heuristics
+func (a *Analyzer) estimateSyllables(word string) int {
+	if len(word) == 0 {
+		return 0
+	}
+	
+	// Remove punctuation
+	wordRegex := regexp.MustCompile(`[^a-z]`)
+	cleanWord := wordRegex.ReplaceAllString(word, "")
+	
+	if len(cleanWord) == 0 {
+		return 1
+	}
+	
+	// Count vowel groups
+	vowelRegex := regexp.MustCompile(`[aeiouy]+`)
+	vowelGroups := vowelRegex.FindAllString(cleanWord, -1)
+	syllables := len(vowelGroups)
+	
+	// Adjust for silent 'e' at the end
+	if strings.HasSuffix(cleanWord, "e") && syllables > 1 {
+		syllables--
+	}
+	
+	// Ensure at least 1 syllable
+	if syllables == 0 {
+		syllables = 1
+	}
+	
+	return syllables
+}
+
+// calculateTopicCoherence estimates how focused the content is on a single topic
+func (a *Analyzer) calculateTopicCoherence(text string) float64 {
+	words := strings.Fields(strings.ToLower(text))
+	if len(words) < 10 {
+		return 1.0 // Short text is assumed coherent
+	}
+	
+	// Count word frequencies
+	wordFreq := make(map[string]int)
+	for _, word := range words {
+		// Skip very short words and common words
+		if len(word) >= 4 && !a.isCommonWord(word) {
+			wordFreq[word]++
+		}
+	}
+	
+	if len(wordFreq) == 0 {
+		return 0.5 // Neutral if no significant words
+	}
+	
+	// Calculate the proportion of total content covered by top words
+	totalSignificantWords := 0
+	for _, count := range wordFreq {
+		totalSignificantWords += count
+	}
+	
+	// Find top 5 most frequent words
+	type wordCount struct {
+		word  string
+		count int
+	}
+	
+	var wordCounts []wordCount
+	for word, count := range wordFreq {
+		wordCounts = append(wordCounts, wordCount{word, count})
+	}
+	
+	sort.Slice(wordCounts, func(i, j int) bool {
+		return wordCounts[i].count > wordCounts[j].count
+	})
+	
+	// Calculate coherence based on how much content is covered by top words
+	topWordsCount := 0
+	maxWords := 5
+	if len(wordCounts) < maxWords {
+		maxWords = len(wordCounts)
+	}
+	
+	for i := 0; i < maxWords; i++ {
+		topWordsCount += wordCounts[i].count
+	}
+	
+	coherence := float64(topWordsCount) / float64(totalSignificantWords)
+	
+	// Scale coherence to be more reasonable (0.5 to 1.0 range typically)
+	coherence = 0.5 + (coherence * 0.5)
+	if coherence > 1.0 {
+		coherence = 1.0
+	}
+	
+	return coherence
+}
+
+// isCommonWord checks if a word is a common English word that shouldn't count for topic coherence
+func (a *Analyzer) isCommonWord(word string) bool {
+	commonWords := map[string]bool{
+		"that": true, "with": true, "have": true, "this": true, "will": true,
+		"your": true, "from": true, "they": true, "know": true, "want": true,
+		"been": true, "good": true, "much": true, "some": true, "time": true,
+		"very": true, "when": true, "come": true, "here": true, "just": true,
+		"like": true, "long": true, "make": true, "many": true, "over": true,
+		"such": true, "take": true, "than": true, "them": true, "well": true,
+		"were": true, "also": true, "back": true, "call": true, "came": true,
+		"each": true, "find": true, "give": true, "hand": true, "high": true,
+		"keep": true, "last": true, "left": true, "life": true, "live": true,
+		"look": true, "made": true, "most": true, "move": true, "must": true,
+		"name": true, "need": true, "next": true, "open": true, "part": true,
+		"play": true, "said": true, "same": true, "seem": true, "show": true,
+		"side": true, "tell": true, "turn": true, "used": true, "ways": true,
+		"week": true, "went": true, "what": true, "work": true, "year": true, 
+		"years": true, "about": true, "after": true, "again": true, "before": true, 
+		"being": true, "could": true, "every": true, "first": true, "found": true, 
+		"great": true, "group": true, "might": true, "never": true, "often": true, 
+		"other": true, "place": true, "right": true, "should": true, "small": true, 
+		"still": true, "their": true, "there": true, "these": true, "think": true, 
+		"three": true, "through": true, "under": true, "until": true, "water": true, 
+		"where": true, "which": true, "while": true, "world": true, "would": true, 
+		"write": true, "young": true,
+	}
+	
+	return commonWords[word]
+}
+
+// generateFileQualityFixes generates specific improvement suggestions for a file
+func (a *Analyzer) generateFileQualityFixes(file *vault.VaultFile, readability, linkDensity, completeness, atomicity, recency float64) []string {
+	var fixes []string
+	
+	// Readability fixes
+	if readability < 0.4 {
+		fixes = append(fixes, "Simplify sentence structure for better readability")
+		fixes = append(fixes, "Use shorter sentences and common vocabulary")
+	}
+	
+	// Link density fixes
+	if linkDensity < 0.3 {
+		fixes = append(fixes, "Add more links to related concepts (aim for 2-4 links per 100 words)")
+	} else if linkDensity < 0.6 {
+		fixes = append(fixes, "Consider adding a few more relevant links")
+	}
+	
+	// Completeness fixes
+	if completeness < 0.7 {
+		if _, hasTitle := file.Frontmatter["title"]; !hasTitle {
+			fixes = append(fixes, "Add a descriptive title in frontmatter")
+		}
+		
+		summaryFields := []string{"summary", "description", "abstract", "excerpt"}
+		hasSummary := false
+		for _, field := range summaryFields {
+			if _, exists := file.Frontmatter[field]; exists {
+				hasSummary = true
+				break
+			}
+		}
+		if !hasSummary {
+			fixes = append(fixes, "Add a summary or description in frontmatter")
+		}
+		
+		wordCount := len(strings.Fields(file.Body))
+		if wordCount < 50 {
+			fixes = append(fixes, "Expand content - add more detail and context")
+		}
+	}
+	
+	// Atomicity fixes
+	if atomicity < 0.6 {
+		wordCount := len(strings.Fields(file.Body))
+		if wordCount > 500 {
+			fixes = append(fixes, "Consider breaking this into smaller, more focused notes")
+		}
+		
+		h1Count := 0
+		for _, heading := range file.Headings {
+			if heading.Level == 1 {
+				h1Count++
+			}
+		}
+		if h1Count > 1 {
+			fixes = append(fixes, "Split multiple main topics into separate notes")
+		}
+	}
+	
+	// Recency fixes
+	if recency < 0.5 {
+		fixes = append(fixes, "Review and update this note - it hasn't been modified recently")
+		fixes = append(fixes, "Add current date to track when content was last reviewed")
+	}
+	
+	// General suggestions based on overall quality
+	if len(fixes) == 0 {
+		fixes = append(fixes, "This note has good quality - consider linking it to related concepts")
+	}
+	
+	return fixes
 }
 
 // generateQualityInsights generates quality issues and suggestions
@@ -1231,5 +1683,250 @@ func (a *Analyzer) GetHealthScore(stats VaultStats) HealthScore {
 		Score:       score,
 		Issues:      issues,
 		Suggestions: suggestions,
+	}
+}
+
+// AnalyzeInbox analyzes INBOX sections and pending content that needs processing
+func (a *Analyzer) AnalyzeInbox(files []*vault.VaultFile, sortBy string, minItems int) *InboxAnalysis {
+	analysis := &InboxAnalysis{
+		InboxSections: []InboxSection{},
+	}
+
+	// Define patterns for INBOX-like headings
+	inboxPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`(?i)^#+ ?(inbox|INBOX)`),
+		regexp.MustCompile(`(?i)^#+ ?(todo|TODO|To Do)`),
+		regexp.MustCompile(`(?i)^#+ ?(pending|PENDING)`),
+		regexp.MustCompile(`(?i)^#+ ?(later|LATER)`),
+		regexp.MustCompile(`(?i)^#+ ?(unsorted|UNSORTED)`),
+		regexp.MustCompile(`(?i)^#+ ?(draft|DRAFT|drafts|DRAFTS)`),
+		regexp.MustCompile(`(?i)^#+ ?(notes|quick notes|temporary)`),
+		regexp.MustCompile(`(?i)^#+ ?(capture|quick capture)`),
+		regexp.MustCompile(`(?i)^#+ ?(process|to process)`),
+	}
+
+	totalItems := 0
+	totalSize := 0
+
+	for _, file := range files {
+		sections := a.findInboxSections(file, inboxPatterns, minItems)
+		for _, section := range sections {
+			totalItems += section.ItemCount
+			totalSize += section.ContentSize
+			analysis.InboxSections = append(analysis.InboxSections, section)
+		}
+	}
+
+	// Sort sections based on the sortBy parameter
+	a.sortInboxSections(analysis.InboxSections, sortBy)
+
+	analysis.TotalSections = len(analysis.InboxSections)
+	analysis.TotalItems = totalItems
+	analysis.TotalSize = totalSize
+
+	// Generate summary
+	if len(analysis.InboxSections) == 0 {
+		analysis.Summary = "No INBOX sections found - vault appears well-organized!"
+	} else {
+		analysis.Summary = fmt.Sprintf("Found %d INBOX sections with %d items (%d chars) requiring attention",
+			analysis.TotalSections, analysis.TotalItems, analysis.TotalSize)
+	}
+
+	return analysis
+}
+
+// findInboxSections finds INBOX-like sections within a file
+func (a *Analyzer) findInboxSections(file *vault.VaultFile, patterns []*regexp.Regexp, minItems int) []InboxSection {
+	var sections []InboxSection
+	
+	lines := strings.Split(file.Body, "\n")
+	var currentSection *InboxSection
+	var sectionContent strings.Builder
+
+	for lineNum, line := range lines {
+		// Check if this line is an INBOX heading
+		isInboxHeading := false
+		for _, pattern := range patterns {
+			if pattern.MatchString(line) {
+				// Finish previous section if exists
+				if currentSection != nil {
+					content := sectionContent.String()
+					itemCount := a.countItems(content)
+					if itemCount >= minItems {
+						currentSection.Content = content
+						currentSection.ItemCount = itemCount
+						currentSection.ContentSize = len(content)
+						currentSection.UrgencyLevel = a.assessUrgency(content, currentSection.Heading)
+						currentSection.ActionSuggestions = a.generateActionSuggestions(content, itemCount)
+						sections = append(sections, *currentSection)
+					}
+				}
+
+				// Start new section
+				currentSection = &InboxSection{
+					File:       file.Path,
+					Heading:    strings.TrimSpace(line),
+					LineNumber: lineNum + 1,
+				}
+				sectionContent.Reset()
+				isInboxHeading = true
+				break
+			}
+		}
+
+		// If we're in an INBOX section, collect content until next heading
+		if currentSection != nil && !isInboxHeading {
+			// Stop if we hit another heading (not INBOX)
+			if strings.HasPrefix(strings.TrimSpace(line), "#") {
+				content := sectionContent.String()
+				itemCount := a.countItems(content)
+				if itemCount >= minItems {
+					currentSection.Content = content
+					currentSection.ItemCount = itemCount
+					currentSection.ContentSize = len(content)
+					currentSection.UrgencyLevel = a.assessUrgency(content, currentSection.Heading)
+					currentSection.ActionSuggestions = a.generateActionSuggestions(content, itemCount)
+					sections = append(sections, *currentSection)
+				}
+				currentSection = nil
+			} else {
+				sectionContent.WriteString(line + "\n")
+			}
+		}
+	}
+
+	// Handle last section if exists
+	if currentSection != nil {
+		content := sectionContent.String()
+		itemCount := a.countItems(content)
+		if itemCount >= minItems {
+			currentSection.Content = content
+			currentSection.ItemCount = itemCount
+			currentSection.ContentSize = len(content)
+			currentSection.UrgencyLevel = a.assessUrgency(content, currentSection.Heading)
+			currentSection.ActionSuggestions = a.generateActionSuggestions(content, itemCount)
+			sections = append(sections, *currentSection)
+		}
+	}
+
+	return sections
+}
+
+// countItems counts the number of actionable items in the content
+func (a *Analyzer) countItems(content string) int {
+	lines := strings.Split(content, "\n")
+	itemCount := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Count bullet points, numbered lists, checkboxes, etc.
+		if strings.HasPrefix(trimmed, "-") ||
+			strings.HasPrefix(trimmed, "*") ||
+			strings.HasPrefix(trimmed, "+") ||
+			strings.HasPrefix(trimmed, "- [ ]") ||
+			strings.HasPrefix(trimmed, "- [x]") ||
+			strings.HasPrefix(trimmed, "* [ ]") ||
+			strings.HasPrefix(trimmed, "* [x]") ||
+			regexp.MustCompile(`^\d+\.`).MatchString(trimmed) {
+			if len(trimmed) > 3 { // Avoid counting empty bullets
+				itemCount++
+			}
+		}
+	}
+
+	// If no structured items found, count non-empty lines as potential items
+	if itemCount == 0 {
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				itemCount++
+			}
+		}
+	}
+
+	return itemCount
+}
+
+// assessUrgency determines the urgency level based on content and heading
+func (a *Analyzer) assessUrgency(content, heading string) string {
+	lowerContent := strings.ToLower(content)
+	lowerHeading := strings.ToLower(heading)
+
+	// High urgency indicators
+	urgentKeywords := []string{"urgent", "asap", "deadline", "emergency", "critical", "priority", "due"}
+	for _, keyword := range urgentKeywords {
+		if strings.Contains(lowerContent, keyword) || strings.Contains(lowerHeading, keyword) {
+			return "High"
+		}
+	}
+
+	// Medium urgency indicators
+	mediumKeywords := []string{"todo", "pending", "waiting", "review", "process"}
+	for _, keyword := range mediumKeywords {
+		if strings.Contains(lowerHeading, keyword) {
+			return "Medium"
+		}
+	}
+
+	// Check for dates that might indicate urgency
+	datePattern := regexp.MustCompile(`\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}`)
+	if datePattern.MatchString(content) {
+		return "Medium"
+	}
+
+	return "Low"
+}
+
+// generateActionSuggestions provides actionable suggestions based on content analysis
+func (a *Analyzer) generateActionSuggestions(content string, itemCount int) []string {
+	var suggestions []string
+	lowerContent := strings.ToLower(content)
+
+	if itemCount > 10 {
+		suggestions = append(suggestions, "Break down into smaller tasks")
+	}
+
+	if itemCount > 5 {
+		suggestions = append(suggestions, "Prioritize by urgency")
+	}
+
+	if strings.Contains(lowerContent, "link") || strings.Contains(lowerContent, "url") {
+		suggestions = append(suggestions, "Process links with linkding sync")
+	}
+
+	if strings.Contains(lowerContent, "note") || strings.Contains(lowerContent, "idea") {
+		suggestions = append(suggestions, "Convert to permanent notes")
+	}
+
+	if strings.Contains(lowerContent, "book") || strings.Contains(lowerContent, "article") {
+		suggestions = append(suggestions, "Add to reading list")
+	}
+
+	if len(suggestions) == 0 {
+		suggestions = append(suggestions, "Review and organize content")
+	}
+
+	return suggestions
+}
+
+// sortInboxSections sorts inbox sections based on the specified criteria
+func (a *Analyzer) sortInboxSections(sections []InboxSection, sortBy string) {
+	switch sortBy {
+	case "size":
+		sort.Slice(sections, func(i, j int) bool {
+			return sections[i].ContentSize > sections[j].ContentSize
+		})
+	case "count":
+		sort.Slice(sections, func(i, j int) bool {
+			return sections[i].ItemCount > sections[j].ItemCount
+		})
+	case "urgency":
+		sort.Slice(sections, func(i, j int) bool {
+			urgencyOrder := map[string]int{"High": 3, "Medium": 2, "Low": 1}
+			return urgencyOrder[sections[i].UrgencyLevel] > urgencyOrder[sections[j].UrgencyLevel]
+		})
+	default: // Default to size
+		sort.Slice(sections, func(i, j int) bool {
+			return sections[i].ContentSize > sections[j].ContentSize
+		})
 	}
 }

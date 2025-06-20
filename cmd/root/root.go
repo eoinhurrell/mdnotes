@@ -11,6 +11,7 @@ import (
 	"github.com/eoinhurrell/mdnotes/cmd/links"
 	"github.com/eoinhurrell/mdnotes/cmd/profile"
 	"github.com/eoinhurrell/mdnotes/cmd/rename"
+	"github.com/eoinhurrell/mdnotes/cmd/watch"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +43,7 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.AddCommand(linkding.NewLinkdingCommand())
 	cmd.AddCommand(profile.NewProfileCommand())
 	cmd.AddCommand(rename.NewRenameCommand())
+	cmd.AddCommand(watch.Cmd)
 
 	// Add ultra-short global shortcuts for most common commands
 	cmd.AddCommand(newEnsureShortcut())

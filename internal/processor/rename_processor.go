@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -95,73 +96,8 @@ func (rp *RenameProcessor) ProcessRename(ctx context.Context, sourcePath, target
 	// Create file move record
 	move := FileMove{From: sourceRel, To: targetRel}
 
-	// Pre-compile regex patterns for performance
-	linkRegex := rp.compileOptimizedLinkRegex(sourceRel)
-
-	// Scan vault for files - stream processing instead of loading all at once
-	fileStream := make(chan *vault.VaultFile, 100)
-	go func() {
-		defer close(fileStream)
-		err := rp.scanner.WalkWithCallback(options.VaultRoot, func(file *vault.VaultFile) error {
-			select {
-			case fileStream <- file:
-				return nil
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		})
-		if err != nil && options.Verbose {
-			fmt.Printf("Warning: error during vault scan: %v\n", err)
-		}
-	}()
-
-	// Process files in parallel with worker pool
-	processResults := make(chan FileProcessResult, rp.workers)
-	var wg sync.WaitGroup
-
-	// Start workers
-	for i := 0; i < rp.workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			rp.processFileWorker(ctx, fileStream, processResults, move, linkRegex, options.DryRun)
-		}()
-	}
-
-	// Close results channel when all workers are done
-	go func() {
-		wg.Wait()
-		close(processResults)
-	}()
-
-	// Collect results
-	var modifiedFiles []*vault.VaultFile
-	var errors []error
-
-	for processResult := range processResults {
-		result.FilesScanned++
-
-		if processResult.Error != nil {
-			errors = append(errors, processResult.Error)
-			if options.Verbose {
-				fmt.Printf("Error processing %s: %v\n", processResult.File.RelativePath, processResult.Error)
-			}
-			continue
-		}
-
-		if processResult.Modified {
-			result.FilesModified++
-			result.LinksUpdated += processResult.LinksUpdated
-			result.ModifiedFiles = append(result.ModifiedFiles, processResult.File.RelativePath)
-			modifiedFiles = append(modifiedFiles, processResult.File)
-
-			if options.Verbose {
-				fmt.Printf("Examining: %s - updated %d links\n", processResult.File.RelativePath, processResult.LinksUpdated)
-			}
-		} else if options.Verbose {
-			fmt.Printf("Examining: %s - no changes needed\n", processResult.File.RelativePath)
-		}
-	}
+	// Use ripgrep for all rename operations
+	modifiedFiles, errors := rp.processRenameWithRipgrep(ctx, move, options, result)
 
 	// Check for context cancellation
 	if ctx.Err() != nil {
@@ -357,6 +293,182 @@ func (rp *RenameProcessor) performFileRename(sourcePath, targetPath string) erro
 	return nil
 }
 
+
+// processRenameWithRipgrep uses ripgrep to find candidate files and process them
+func (rp *RenameProcessor) processRenameWithRipgrep(ctx context.Context, move FileMove, options RenameOptions, result *RenameResult) ([]*vault.VaultFile, []error) {
+	var modifiedFiles []*vault.VaultFile
+	var errors []error
+
+	// Try to use ripgrep for faster file discovery
+	candidateFiles, rgErr := rp.findCandidateFilesWithRipgrep(ctx, move, options)
+	
+	if rgErr != nil {
+		if options.Verbose {
+			fmt.Printf("Ripgrep unavailable, falling back to full scan: %v\n", rgErr)
+		}
+		// Fallback to original approach if ripgrep failed
+		return rp.processFullRenameFallback(ctx, move, options, result)
+	}
+
+	if options.Verbose {
+		fmt.Printf("Ripgrep found %d candidate files to examine\n", len(candidateFiles))
+	}
+
+	// Process only files that ripgrep found containing potential matches
+	for _, filePath := range candidateFiles {
+		vaultFile := &vault.VaultFile{Path: filePath}
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("reading %s: %w", filePath, err))
+			continue
+		}
+		
+		if err := vaultFile.Parse(content); err != nil {
+			errors = append(errors, fmt.Errorf("parsing %s: %w", filePath, err))
+			continue
+		}
+		
+		// Set relative path
+		if rel, err := filepath.Rel(options.VaultRoot, filePath); err == nil {
+			vaultFile.RelativePath = rel
+		}
+		
+		processResult := rp.processFile(vaultFile, move, nil, options.DryRun)
+		result.FilesScanned++
+		
+		if processResult.Error != nil {
+			errors = append(errors, processResult.Error)
+			continue
+		}
+		
+		if processResult.Modified {
+			result.FilesModified++
+			result.LinksUpdated += processResult.LinksUpdated
+			result.ModifiedFiles = append(result.ModifiedFiles, vaultFile.RelativePath)
+			modifiedFiles = append(modifiedFiles, vaultFile)
+			
+			if options.Verbose {
+				fmt.Printf("Examining: %s - updated %d links\n", vaultFile.RelativePath, processResult.LinksUpdated)
+			}
+		} else if options.Verbose {
+			fmt.Printf("Examining: %s - no changes needed\n", vaultFile.RelativePath)
+		}
+	}
+
+	return modifiedFiles, errors
+}
+
+// findCandidateFilesWithRipgrep uses ripgrep to quickly find files that might contain references
+func (rp *RenameProcessor) findCandidateFilesWithRipgrep(ctx context.Context, move FileMove, options RenameOptions) ([]string, error) {
+	// Create search patterns for the file being renamed
+	sourceFile := filepath.Base(move.From)
+	sourceWithoutExt := strings.TrimSuffix(sourceFile, ".md")
+	
+	// Build ripgrep pattern that matches potential links
+	// This is a broad pattern to catch wiki links, markdown links, and embeds
+	pattern := fmt.Sprintf(`(\[\[%s(\]\]|\|)|\]?\(%s\)|!\[\[%s)`, 
+		regexp.QuoteMeta(sourceWithoutExt),
+		regexp.QuoteMeta(sourceFile), 
+		regexp.QuoteMeta(sourceWithoutExt))
+	
+	// Use ripgrep to find files containing potential references
+	cmd := exec.CommandContext(ctx, "rg", 
+		"--files-with-matches",  // Only return filenames, not content
+		"--type", "md",          // Only markdown files
+		"--case-insensitive",    // Case insensitive search
+		pattern, 
+		options.VaultRoot)
+	
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("ripgrep execution failed: %w", err)
+	}
+	
+	// Parse ripgrep output (one filename per line)
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	var files []string
+	for _, line := range lines {
+		if line != "" {
+			files = append(files, strings.TrimSpace(line))
+		}
+	}
+	
+	return files, nil
+}
+
+// processFullRenameFallback is the original comprehensive approach
+func (rp *RenameProcessor) processFullRenameFallback(ctx context.Context, move FileMove, options RenameOptions, result *RenameResult) ([]*vault.VaultFile, []error) {
+	var modifiedFiles []*vault.VaultFile
+	var errors []error
+
+	// Pre-compile regex patterns for performance
+	linkRegex := rp.compileOptimizedLinkRegex(move.From)
+
+	// Scan vault for files - stream processing instead of loading all at once
+	fileStream := make(chan *vault.VaultFile, 100)
+	go func() {
+		defer close(fileStream)
+		err := rp.scanner.WalkWithCallback(options.VaultRoot, func(file *vault.VaultFile) error {
+			select {
+			case fileStream <- file:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+		if err != nil && options.Verbose {
+			fmt.Printf("Warning: error during vault scan: %v\n", err)
+		}
+	}()
+
+	// Process files in parallel with worker pool
+	processResults := make(chan FileProcessResult, rp.workers)
+	var wg sync.WaitGroup
+
+	// Start workers
+	for i := 0; i < rp.workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rp.processFileWorker(ctx, fileStream, processResults, move, linkRegex, options.DryRun)
+		}()
+	}
+
+	// Close results channel when all workers are done
+	go func() {
+		wg.Wait()
+		close(processResults)
+	}()
+
+	// Collect results
+	for processResult := range processResults {
+		result.FilesScanned++
+
+		if processResult.Error != nil {
+			errors = append(errors, processResult.Error)
+			if options.Verbose {
+				fmt.Printf("Error processing %s: %v\n", processResult.File.RelativePath, processResult.Error)
+			}
+			continue
+		}
+
+		if processResult.Modified {
+			result.FilesModified++
+			result.LinksUpdated += processResult.LinksUpdated
+			result.ModifiedFiles = append(result.ModifiedFiles, processResult.File.RelativePath)
+			modifiedFiles = append(modifiedFiles, processResult.File)
+
+			if options.Verbose {
+				fmt.Printf("Examining: %s - updated %d links\n", processResult.File.RelativePath, processResult.LinksUpdated)
+			}
+		} else if options.Verbose {
+			fmt.Printf("Examining: %s - no changes needed\n", processResult.File.RelativePath)
+		}
+	}
+
+	return modifiedFiles, errors
+}
+
 // GenerateNameFromTemplate generates a new filename using the template system
 func GenerateNameFromTemplate(sourcePath, templateStr string) (string, error) {
 	// Get file info
@@ -390,8 +502,22 @@ func GenerateNameFromTemplate(sourcePath, templateStr string) (string, error) {
 	baseName := filepath.Base(sourcePath)
 	filename := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 
+	// Check if filename already has a datestring prefix
+	engine := template.NewEngine()
+	existingDatestring := engine.ExtractDatestring(filename)
+	
+	// If filename already has a datestring, use it and remove it from the filename
+	if existingDatestring != "" {
+		// Use existing datestring and extract filename without it
+		filenameWithoutDatestring := engine.ExtractFilenameWithoutDatestring(filename)
+		
+		// Create slug with underscores
+		slugified := engine.SlugifyWithUnderscore(filenameWithoutDatestring)
+		
+		return fmt.Sprintf("%s-%s.md", existingDatestring, slugified), nil
+	}
 
-	// Create a temporary VaultFile for template processing
+	// Create a temporary VaultFile for template processing with proper setup
 	tempFile := &vault.VaultFile{
 		Path:         sourcePath,
 		RelativePath: filepath.Base(sourcePath),
@@ -399,12 +525,18 @@ func GenerateNameFromTemplate(sourcePath, templateStr string) (string, error) {
 		Frontmatter:  make(map[string]interface{}),
 	}
 	
+	// Copy all existing frontmatter
+	for k, v := range vaultFile.Frontmatter {
+		tempFile.Frontmatter[k] = v
+	}
+	
 	// Add template data to frontmatter
 	tempFile.Frontmatter["filename"] = filename
-	tempFile.Frontmatter["created"] = createdTime
+	if _, exists := tempFile.Frontmatter["created"]; !exists {
+		tempFile.Frontmatter["created"] = createdTime.Format("2006-01-02")
+	}
 	
 	// Use the template engine
-	engine := template.NewEngine()
 	result := engine.Process(templateStr, tempFile)
 	
 	return result, nil

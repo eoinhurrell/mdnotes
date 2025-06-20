@@ -21,6 +21,7 @@ type Config struct {
 	Batch       BatchConfig       `yaml:"batch"`
 	Safety      SafetyConfig      `yaml:"safety"`
 	Downloads   DownloadConfig    `yaml:"downloads"`
+	Watch       WatchConfig       `yaml:"watch"`
 }
 
 // VaultConfig contains vault-specific settings
@@ -67,6 +68,22 @@ type DownloadConfig struct {
 	Timeout        string `yaml:"timeout"`
 	UserAgent      string `yaml:"user_agent"`
 	MaxFileSize    int64  `yaml:"max_file_size"`
+}
+
+// WatchConfig contains file watching settings
+type WatchConfig struct {
+	Enabled         bool                `yaml:"enabled"`
+	DebounceTimeout string              `yaml:"debounce_timeout"`
+	Rules           []WatchRule         `yaml:"rules"`
+	IgnorePatterns  []string            `yaml:"ignore_patterns"`
+}
+
+// WatchRule defines a file watching rule
+type WatchRule struct {
+	Name    string   `yaml:"name"`
+	Paths   []string `yaml:"paths"`
+	Events  []string `yaml:"events"`
+	Actions []string `yaml:"actions"`
 }
 
 // LoadConfig loads configuration from a reader with environment variable expansion
@@ -150,6 +167,20 @@ func DefaultConfig() *Config {
 			UserAgent:      "mdnotes/1.0",
 			MaxFileSize:    10 * 1024 * 1024, // 10MB
 		},
+		Watch: WatchConfig{
+			Enabled:         false,
+			DebounceTimeout: "2s",
+			Rules:           []WatchRule{},
+			IgnorePatterns: []string{
+				".obsidian/*",
+				".git/*",
+				"node_modules/*",
+				"*.tmp",
+				"*.bak",
+				"*.swp",
+				".DS_Store",
+			},
+		},
 	}
 }
 
@@ -193,6 +224,30 @@ func (c *Config) Validate() error {
 	if c.Safety.BackupRetention != "" {
 		if _, err := time.ParseDuration(c.Safety.BackupRetention); err != nil {
 			return fmt.Errorf("invalid backup retention duration: %w", err)
+		}
+	}
+
+	// Validate watch debounce timeout
+	if c.Watch.DebounceTimeout != "" {
+		if _, err := time.ParseDuration(c.Watch.DebounceTimeout); err != nil {
+			return fmt.Errorf("invalid watch debounce timeout: %w", err)
+		}
+	}
+
+	// Validate watch rule events
+	validEvents := map[string]bool{
+		"create": true,
+		"write":  true,
+		"remove": true,
+		"rename": true,
+		"chmod":  true,
+	}
+
+	for _, rule := range c.Watch.Rules {
+		for _, event := range rule.Events {
+			if !validEvents[event] {
+				return fmt.Errorf("invalid watch event '%s' in rule '%s'", event, rule.Name)
+			}
 		}
 	}
 

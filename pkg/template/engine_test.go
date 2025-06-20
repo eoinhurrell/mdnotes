@@ -171,6 +171,18 @@ func TestTemplateEngine_Filters(t *testing.T) {
 			want:   "Jan 15, 2023",
 		},
 		{
+			name:   "slug_underscore filter",
+			input:  "Hello World! @#$",
+			filter: "slug_underscore",
+			want:   "hello_world",
+		},
+		{
+			name:   "slug_underscore filter with special chars",
+			input:  "My Awesome Note (v2)",
+			filter: "slug_underscore",
+			want:   "my_awesome_note_v2",
+		},
+		{
 			name:   "unknown filter",
 			input:  "test",
 			filter: "unknown",
@@ -183,6 +195,96 @@ func TestTemplateEngine_Filters(t *testing.T) {
 			got := engine.applyFilter(tt.input, tt.filter)
 			if got != tt.want {
 				t.Errorf("applyFilter(%v, %v) = %v, want %v", tt.input, tt.filter, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTemplateEngine_DatestringExtraction(t *testing.T) {
+	engine := NewEngine()
+
+	tests := []struct {
+		name                string
+		filename            string
+		expectedDatestring  string
+		expectedFilename    string
+	}{
+		{
+			name:                "filename with datestring",
+			filename:            "20250601223002-The Queen",
+			expectedDatestring:  "20250601223002",
+			expectedFilename:    "The Queen",
+		},
+		{
+			name:                "filename without datestring",
+			filename:            "Regular Note",
+			expectedDatestring:  "",
+			expectedFilename:    "Regular Note",
+		},
+		{
+			name:                "filename with partial datestring",
+			filename:            "2025-Note",
+			expectedDatestring:  "",
+			expectedFilename:    "2025-Note",
+		},
+		{
+			name:                "complex filename with datestring",
+			filename:            "20231215120000-My Complex Note (Version 2)",
+			expectedDatestring:  "20231215120000",
+			expectedFilename:    "My Complex Note (Version 2)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotDatestring := engine.ExtractDatestring(tt.filename)
+			if gotDatestring != tt.expectedDatestring {
+				t.Errorf("ExtractDatestring(%v) = %v, want %v", tt.filename, gotDatestring, tt.expectedDatestring)
+			}
+
+			gotFilename := engine.ExtractFilenameWithoutDatestring(tt.filename)
+			if gotFilename != tt.expectedFilename {
+				t.Errorf("ExtractFilenameWithoutDatestring(%v) = %v, want %v", tt.filename, gotFilename, tt.expectedFilename)
+			}
+		})
+	}
+}
+
+func TestTemplateEngine_SlugifyWithUnderscore(t *testing.T) {
+	engine := NewEngine()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "simple text",
+			input: "Hello World",
+			want:  "hello_world",
+		},
+		{
+			name:  "text with special characters",
+			input: "My Awesome Note (Version 2)!",
+			want:  "my_awesome_note_version_2",
+		},
+		{
+			name:  "text with numbers",
+			input: "Note 123 ABC",
+			want:  "note_123_abc",
+		},
+		{
+			name:  "already lowercase with underscores",
+			input: "already_good",
+			want:  "already_good",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := engine.SlugifyWithUnderscore(tt.input)
+			if got != tt.want {
+				t.Errorf("SlugifyWithUnderscore(%v) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}
