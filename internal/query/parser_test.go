@@ -102,6 +102,56 @@ func TestTokenization(t *testing.T) {
 				{Type: TokenEOF, Value: "", Pos: 62},
 			},
 		},
+		{
+			name:  "has operator tokenization",
+			input: `tags has "learning"`,
+			expected: []Token{
+				{Type: TokenIdentifier, Value: "tags", Pos: 0},
+				{Type: TokenKeyword, Value: "has", Pos: 5},
+				{Type: TokenString, Value: "learning", Pos: 9},
+				{Type: TokenEOF, Value: "", Pos: 19},
+			},
+		},
+		{
+			name:  "starts_with operator tokenization",
+			input: `title starts_with "Project"`,
+			expected: []Token{
+				{Type: TokenIdentifier, Value: "title", Pos: 0},
+				{Type: TokenKeyword, Value: "starts_with", Pos: 6},
+				{Type: TokenString, Value: "Project", Pos: 19},
+				{Type: TokenEOF, Value: "", Pos: 28},
+			},
+		},
+		{
+			name:  "ends_with operator tokenization",
+			input: `filename ends_with ".md"`,
+			expected: []Token{
+				{Type: TokenIdentifier, Value: "filename", Pos: 0},
+				{Type: TokenKeyword, Value: "ends_with", Pos: 9},
+				{Type: TokenString, Value: ".md", Pos: 19},
+				{Type: TokenEOF, Value: "", Pos: 24},
+			},
+		},
+		{
+			name:  "matches operator tokenization",
+			input: `title matches "^Project.*"`,
+			expected: []Token{
+				{Type: TokenIdentifier, Value: "title", Pos: 0},
+				{Type: TokenKeyword, Value: "matches", Pos: 6},
+				{Type: TokenString, Value: "^Project.*", Pos: 14},
+				{Type: TokenEOF, Value: "", Pos: 26},
+			},
+		},
+		{
+			name:  "between operator tokenization",
+			input: `priority between "1,10"`,
+			expected: []Token{
+				{Type: TokenIdentifier, Value: "priority", Pos: 0},
+				{Type: TokenKeyword, Value: "between", Pos: 9},
+				{Type: TokenString, Value: "1,10", Pos: 17},
+				{Type: TokenEOF, Value: "", Pos: 23},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -184,6 +234,36 @@ func TestExpressionParsing(t *testing.T) {
 		{
 			name:      "function call",
 			input:     `created after now()`,
+			shouldErr: false,
+		},
+		{
+			name:      "has operator parsing",
+			input:     `tags has "learning"`,
+			shouldErr: false,
+		},
+		{
+			name:      "starts_with operator parsing",
+			input:     `title starts_with "Project"`,
+			shouldErr: false,
+		},
+		{
+			name:      "ends_with operator parsing",
+			input:     `filename ends_with ".md"`,
+			shouldErr: false,
+		},
+		{
+			name:      "matches operator parsing",
+			input:     `title matches "^Project.*"`,
+			shouldErr: false,
+		},
+		{
+			name:      "between operator parsing",
+			input:     `priority between "1,10"`,
+			shouldErr: false,
+		},
+		{
+			name:      "not has operator parsing",
+			input:     `NOT tags has "archived"`,
 			shouldErr: false,
 		},
 		{
@@ -392,6 +472,118 @@ func TestExpressionEvaluation(t *testing.T) {
 				"due_date": time.Now().AddDate(0, 0, 15).Format("2006-01-02"), // 15 days from now
 			},
 			expected: false,
+		},
+		{
+			name:       "has operator - exact array element match",
+			expression: `tags has "learning"`,
+			frontmatter: map[string]interface{}{
+				"tags": []string{"learning", "machine_learning", "ai"},
+			},
+			expected: true,
+		},
+		{
+			name:       "has operator - should not match partial string",
+			expression: `tags has "learning"`,
+			frontmatter: map[string]interface{}{
+				"tags": []string{"machine_learning", "deep_learning", "ai"},
+			},
+			expected: false,
+		},
+		{
+			name:       "not has operator",
+			expression: `NOT tags has "archived"`,
+			frontmatter: map[string]interface{}{
+				"tags": []string{"learning", "active"},
+			},
+			expected: true,
+		},
+		{
+			name:       "starts_with operator - string field",
+			expression: `title starts_with "Project"`,
+			frontmatter: map[string]interface{}{
+				"title": "Project Alpha Notes",
+			},
+			expected: true,
+		},
+		{
+			name:       "starts_with operator - array field",
+			expression: `tags starts_with "machine"`,
+			frontmatter: map[string]interface{}{
+				"tags": []string{"machine_learning", "deep_learning"},
+			},
+			expected: true,
+		},
+		{
+			name:       "ends_with operator - string field",
+			expression: `filename ends_with ".md"`,
+			frontmatter: map[string]interface{}{
+				"filename": "notes.md",
+			},
+			expected: true,
+		},
+		{
+			name:       "ends_with operator - array field",
+			expression: `tags ends_with "ing"`,
+			frontmatter: map[string]interface{}{
+				"tags": []string{"learning", "coding", "testing"},
+			},
+			expected: true,
+		},
+		{
+			name:       "matches operator - regex pattern",
+			expression: `title matches "^Project [A-Z]+"`,
+			frontmatter: map[string]interface{}{
+				"title": "Project ALPHA",
+			},
+			expected: true,
+		},
+		{
+			name:       "matches operator - regex pattern false",
+			expression: `title matches "^Project [A-Z]+"`,
+			frontmatter: map[string]interface{}{
+				"title": "project alpha", // lowercase doesn't match
+			},
+			expected: false,
+		},
+		{
+			name:       "matches operator - array field",
+			expression: `tags matches "^[a-z]+_learning$"`,
+			frontmatter: map[string]interface{}{
+				"tags": []string{"machine_learning", "deep_learning", "ai"},
+			},
+			expected: true,
+		},
+		{
+			name:       "between operator - numeric range",
+			expression: `priority between "1,5"`,
+			frontmatter: map[string]interface{}{
+				"priority": 3,
+			},
+			expected: true,
+		},
+		{
+			name:       "between operator - numeric range false",
+			expression: `priority between "1,5"`,
+			frontmatter: map[string]interface{}{
+				"priority": 7,
+			},
+			expected: false,
+		},
+		{
+			name:       "between operator - date range",
+			expression: `created between "2024-01-01,2024-12-31"`,
+			frontmatter: map[string]interface{}{
+				"created": "2024-06-15",
+			},
+			expected: true,
+		},
+		{
+			name:       "not matches operator",
+			expression: `NOT title matches "archived"`,
+			frontmatter: map[string]interface{}{
+				"title": "Active Project Notes",
+			},
+			expected: true,
 		},
 	}
 
@@ -706,6 +898,118 @@ func TestHelperEvaluationFunctions(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("evaluateLen(%v) = %v, expected %v", 
 					tt.value, result, tt.expected)
+			}
+		}
+	})
+
+	t.Run("evaluateHas", func(t *testing.T) {
+		tests := []struct {
+			haystack interface{}
+			needle   interface{}
+			expected bool
+		}{
+			{[]string{"learning", "machine_learning", "ai"}, "learning", true},
+			{[]string{"machine_learning", "deep_learning"}, "learning", false},
+			{[]interface{}{"apple", "banana", "cherry"}, "banana", true},
+			{[]interface{}{"apple", "banana", "cherry"}, "grape", false},
+			{"exact_match", "exact_match", true},
+			{"partial_match", "partial", false},
+		}
+
+		for _, tt := range tests {
+			result := evaluateHas(tt.haystack, tt.needle)
+			if result != tt.expected {
+				t.Errorf("evaluateHas(%v, %v) = %v, expected %v", 
+					tt.haystack, tt.needle, result, tt.expected)
+			}
+		}
+	})
+
+	t.Run("evaluateStartsWith", func(t *testing.T) {
+		tests := []struct {
+			fieldValue interface{}
+			prefix     interface{}
+			expected   bool
+		}{
+			{"Project Alpha", "Project", true},
+			{"project alpha", "Project", true}, // case insensitive
+			{"Alpha Project", "Project", false},
+			{[]string{"machine_learning", "deep_learning"}, "machine", true},
+			{[]string{"deep_learning", "ai"}, "machine", false},
+		}
+
+		for _, tt := range tests {
+			result := evaluateStartsWith(tt.fieldValue, tt.prefix)
+			if result != tt.expected {
+				t.Errorf("evaluateStartsWith(%v, %v) = %v, expected %v", 
+					tt.fieldValue, tt.prefix, result, tt.expected)
+			}
+		}
+	})
+
+	t.Run("evaluateEndsWith", func(t *testing.T) {
+		tests := []struct {
+			fieldValue interface{}
+			suffix     interface{}
+			expected   bool
+		}{
+			{"notes.md", ".md", true},
+			{"notes.txt", ".md", false},
+			{[]string{"learning", "coding", "testing"}, "ing", true},
+			{[]string{"apple", "banana"}, "ing", false},
+		}
+
+		for _, tt := range tests {
+			result := evaluateEndsWith(tt.fieldValue, tt.suffix)
+			if result != tt.expected {
+				t.Errorf("evaluateEndsWith(%v, %v) = %v, expected %v", 
+					tt.fieldValue, tt.suffix, result, tt.expected)
+			}
+		}
+	})
+
+	t.Run("evaluateMatches", func(t *testing.T) {
+		tests := []struct {
+			fieldValue interface{}
+			pattern    interface{}
+			expected   bool
+		}{
+			{"Project ALPHA", "^Project [A-Z]+$", true},
+			{"project alpha", "^Project [A-Z]+$", false},
+			{[]string{"machine_learning", "deep_learning"}, "^[a-z]+_learning$", true},
+			{[]string{"ai", "nlp"}, "^[a-z]+_learning$", false},
+			{"invalid", "[invalid regex", false}, // Invalid regex should return false
+		}
+
+		for _, tt := range tests {
+			result := evaluateMatches(tt.fieldValue, tt.pattern)
+			if result != tt.expected {
+				t.Errorf("evaluateMatches(%v, %v) = %v, expected %v", 
+					tt.fieldValue, tt.pattern, result, tt.expected)
+			}
+		}
+	})
+
+	t.Run("evaluateBetween", func(t *testing.T) {
+		tests := []struct {
+			fieldValue interface{}
+			rangeValue interface{}
+			expected   bool
+		}{
+			{3, "1,5", true},
+			{7, "1,5", false},
+			{3.5, "1.0,5.0", true},
+			{"2024-06-15", "2024-01-01,2024-12-31", true},
+			{"2023-06-15", "2024-01-01,2024-12-31", false},
+			{"banana", "apple,cherry", true}, // String comparison
+			{"invalid", "no_comma", false},   // Invalid range format
+		}
+
+		for _, tt := range tests {
+			result := evaluateBetween(tt.fieldValue, tt.rangeValue)
+			if result != tt.expected {
+				t.Errorf("evaluateBetween(%v, %v) = %v, expected %v", 
+					tt.fieldValue, tt.rangeValue, result, tt.expected)
 			}
 		}
 	})

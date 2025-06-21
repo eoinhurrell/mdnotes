@@ -221,7 +221,7 @@ func (p *Parser) tokenize() {
 					Value: "NOT",
 					Pos:   start,
 				})
-			case "contains", "in", "after", "before", "within":
+			case "contains", "in", "after", "before", "within", "has", "starts_with", "ends_with", "matches", "between":
 				p.tokens = append(p.tokens, Token{
 					Type:  TokenKeyword,
 					Value: valueLower,
@@ -403,7 +403,7 @@ func (p *Parser) parseComparisonExpression() (Expression, error) {
 		}
 
 		switch keyword {
-		case "contains", "not contains", "in", "not in", "after", "before", "within":
+		case "contains", "not contains", "in", "not in", "after", "before", "within", "has", "not has", "starts_with", "not starts_with", "ends_with", "not ends_with", "matches", "not matches", "between", "not between":
 			p.advance()
 			right, err := p.parseTerm()
 			if err != nil {
@@ -620,6 +620,26 @@ func (e *ComparisonExpression) Evaluate(file *vault.VaultFile) bool {
 		return evaluateDateComparison(value, e.Value, "before")
 	case "within":
 		return evaluateDateComparison(value, e.Value, "within")
+	case "has":
+		return evaluateHas(value, e.Value)
+	case "not has":
+		return !evaluateHas(value, e.Value)
+	case "starts_with":
+		return evaluateStartsWith(value, e.Value)
+	case "not starts_with":
+		return !evaluateStartsWith(value, e.Value)
+	case "ends_with":
+		return evaluateEndsWith(value, e.Value)
+	case "not ends_with":
+		return !evaluateEndsWith(value, e.Value)
+	case "matches":
+		return evaluateMatches(value, e.Value)
+	case "not matches":
+		return !evaluateMatches(value, e.Value)
+	case "between":
+		return evaluateBetween(value, e.Value)
+	case "not between":
+		return !evaluateBetween(value, e.Value)
 	default:
 		return false
 	}
@@ -936,4 +956,145 @@ func parseDuration(s string) (time.Duration, error) {
 
 	// Try standard Go duration parsing (supports ns, us, ms, s, m, h)
 	return time.ParseDuration(s)
+}
+
+// Enhanced operator evaluation functions
+
+// evaluateHas provides exact array element matching (solves learning vs machine_learning edge case)
+func evaluateHas(haystack, needle interface{}) bool {
+	needleStr := fmt.Sprintf("%v", needle)
+	
+	switch h := haystack.(type) {
+	case []interface{}:
+		for _, item := range h {
+			if fmt.Sprintf("%v", item) == needleStr {
+				return true
+			}
+		}
+		return false
+	case []string:
+		for _, item := range h {
+			if item == needleStr {
+				return true
+			}
+		}
+		return false
+	default:
+		// For non-arrays, fall back to exact equality
+		return fmt.Sprintf("%v", h) == needleStr
+	}
+}
+
+// evaluateStartsWith checks if field value starts with the given prefix
+func evaluateStartsWith(fieldValue, prefix interface{}) bool {
+	fieldStr := strings.ToLower(fmt.Sprintf("%v", fieldValue))
+	prefixStr := strings.ToLower(fmt.Sprintf("%v", prefix))
+	
+	switch h := fieldValue.(type) {
+	case []interface{}:
+		for _, item := range h {
+			if strings.HasPrefix(strings.ToLower(fmt.Sprintf("%v", item)), prefixStr) {
+				return true
+			}
+		}
+		return false
+	case []string:
+		for _, item := range h {
+			if strings.HasPrefix(strings.ToLower(item), prefixStr) {
+				return true
+			}
+		}
+		return false
+	default:
+		return strings.HasPrefix(fieldStr, prefixStr)
+	}
+}
+
+// evaluateEndsWith checks if field value ends with the given suffix
+func evaluateEndsWith(fieldValue, suffix interface{}) bool {
+	fieldStr := strings.ToLower(fmt.Sprintf("%v", fieldValue))
+	suffixStr := strings.ToLower(fmt.Sprintf("%v", suffix))
+	
+	switch h := fieldValue.(type) {
+	case []interface{}:
+		for _, item := range h {
+			if strings.HasSuffix(strings.ToLower(fmt.Sprintf("%v", item)), suffixStr) {
+				return true
+			}
+		}
+		return false
+	case []string:
+		for _, item := range h {
+			if strings.HasSuffix(strings.ToLower(item), suffixStr) {
+				return true
+			}
+		}
+		return false
+	default:
+		return strings.HasSuffix(fieldStr, suffixStr)
+	}
+}
+
+// evaluateMatches checks if field value matches the given regex pattern
+func evaluateMatches(fieldValue, pattern interface{}) bool {
+	patternStr := fmt.Sprintf("%v", pattern)
+	re, err := regexp.Compile(patternStr)
+	if err != nil {
+		return false // Invalid regex pattern
+	}
+	
+	switch h := fieldValue.(type) {
+	case []interface{}:
+		for _, item := range h {
+			if re.MatchString(fmt.Sprintf("%v", item)) {
+				return true
+			}
+		}
+		return false
+	case []string:
+		for _, item := range h {
+			if re.MatchString(item) {
+				return true
+			}
+		}
+		return false
+	default:
+		return re.MatchString(fmt.Sprintf("%v", h))
+	}
+}
+
+// evaluateBetween checks if numeric/date field value is between two values
+func evaluateBetween(fieldValue, rangeValue interface{}) bool {
+	// Expected format: "min,max" or "start_date,end_date"
+	rangeStr := fmt.Sprintf("%v", rangeValue)
+	parts := strings.Split(rangeStr, ",")
+	if len(parts) != 2 {
+		return false
+	}
+	
+	minStr := strings.TrimSpace(parts[0])
+	maxStr := strings.TrimSpace(parts[1])
+	
+	// Try numeric comparison first
+	fieldFloat, fieldErr := convertToFloat(fieldValue)
+	minFloat, minErr := convertToFloat(minStr)
+	maxFloat, maxErr := convertToFloat(maxStr)
+	
+	if fieldErr == nil && minErr == nil && maxErr == nil {
+		return fieldFloat >= minFloat && fieldFloat <= maxFloat
+	}
+	
+	// Try date comparison
+	fieldDate, fieldErr := parseDate(fieldValue)
+	minDate, minErr := parseDate(minStr)
+	maxDate, maxErr := parseDate(maxStr)
+	
+	if fieldErr == nil && minErr == nil && maxErr == nil {
+		return (fieldDate.After(minDate) || fieldDate.Equal(minDate)) && 
+			   (fieldDate.Before(maxDate) || fieldDate.Equal(maxDate))
+	}
+	
+	// Fall back to string comparison
+	fieldStr := fmt.Sprintf("%v", fieldValue)
+	return fieldStr >= minStr && fieldStr <= maxStr
 }
