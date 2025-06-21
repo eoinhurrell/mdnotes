@@ -12,6 +12,7 @@ A powerful CLI tool for managing Obsidian markdown note vaults with automated ba
 - **📝 Content Operations**: Fix headings, parse links, and organize files  
 - **🔗 Link Management**: Convert between wiki/markdown links and check integrity
 - **📊 Vault Analysis**: Generate statistics, find duplicates, and assess quality
+- **📤 Export & Backup**: Export filtered files with link processing and asset copying
 - **⚡ Batch Operations**: Execute multiple operations with progress tracking
 - **🔄 External Integrations**: Sync with Linkding and other services
 - **🚀 Performance**: Parallel processing and memory optimization for large vaults
@@ -44,6 +45,9 @@ mdnotes headings fix --ensure-h1-title /path/to/vault
 # Analyze content quality scores
 mdnotes analyze content --scores /path/to/vault
 
+# Export filtered files with link processing
+mdnotes export ./backup --query "tags contains 'published'" --include-assets
+
 # Start file watching for automated processing
 mdnotes watch --config .obsidian-admin.yaml
 
@@ -68,6 +72,12 @@ mdnotes frontmatter ensure --field created --default "{{current_date}}" --dry-ru
 - Add missing frontmatter to imported files
 - Standardize field formats and types
 - Convert link formats for consistency
+
+### Content Export & Publishing
+- Export filtered collections for publishing workflows
+- Process links for external compatibility
+- Include referenced assets and backlinks
+- Optimize for performance with large vault exports
 
 ### Vault Analysis & Quality Assessment
 - Generate comprehensive statistics and health reports
@@ -710,6 +720,115 @@ mdnotes rename "note.md" "better-name.md" --vault "/path/to/vault"
 - `--template` (string): Template for default rename target [default: "{{created|date:20060102150405}}-{{filename|slug}}.md"]
 - `--vault` (string): Vault root directory for link updates [default: "."]
 - `--ignore` (multiple): Ignore patterns for scanning vault [default: [".obsidian/*", "*.tmp"]]
+- Standard global flags (--dry-run, --verbose, --quiet)
+
+#### `mdnotes export` (alias: `e`)
+Export markdown files from vault to another location with filtering and processing options.
+
+**Basic Usage:**
+```bash
+# Export entire vault to backup folder
+mdnotes export ./backup
+
+# Export specific vault to output folder
+mdnotes export ./output /path/to/vault
+
+# Export files matching query criteria
+mdnotes export ./blog --query "tags contains 'published'"
+mdnotes export ./work --query "folder = 'projects/' AND status = 'active'"
+mdnotes export ./recent --query "created >= '2024-01-01'"
+```
+
+**Link Processing:**
+```bash
+# Convert external links to plain text (default)
+mdnotes export ./output --link-strategy remove
+
+# Use frontmatter URLs for external links
+mdnotes export ./output --link-strategy url
+
+# Skip link processing entirely
+mdnotes export ./output --process-links=false
+```
+
+**Advanced Features:**
+```bash
+# Include referenced assets (images, PDFs, etc.)
+mdnotes export ./complete --include-assets
+
+# Include files that link to exported files (recursive)
+mdnotes export ./network --with-backlinks
+
+# Normalize filenames for web compatibility
+mdnotes export ./web --slugify --flatten
+```
+
+**Performance Options:**
+```bash
+# Use parallel processing (auto-detects CPU count)
+mdnotes export ./output --parallel 0
+
+# Use specific number of workers
+mdnotes export ./output --parallel 4
+
+# Optimize memory usage for large vaults
+mdnotes export ./large-vault --optimize-memory
+
+# Set timeout for large exports
+mdnotes export ./huge-vault --timeout 30m
+```
+
+**Preview and Debugging:**
+```bash
+# Preview what would be exported without copying
+mdnotes export ./output --dry-run
+
+# Show detailed progress information
+mdnotes export ./output --verbose
+
+# Minimize output (errors only)
+mdnotes export ./output --quiet
+```
+
+**Behavior:**
+1. Scans vault for markdown files
+2. Filters files based on query (if provided)
+3. Optionally expands selection with backlinks
+4. Normalizes filenames (if requested)
+5. Copies files while preserving directory structure
+6. Processes links according to strategy
+7. Copies referenced assets (if requested)
+
+**Error Handling:**
+The export command provides clear error messages for common issues:
+- Invalid query syntax with suggestions
+- Missing vault directories with helpful paths
+- Permission errors with recommended fixes
+- Output directory conflicts with resolution options
+
+**Performance Guidelines:**
+- For vaults with <100 files: ~1 second processing time
+- For vaults with <1000 files: ~10 seconds processing time
+- Use `--parallel` flag for vaults with >50 files
+- Use `--optimize-memory` for vaults with >1000 files
+- Large vaults benefit from SSD storage and adequate RAM
+
+**Flags:**
+- **Query & Filtering:**
+  - `--query` (string): Query to filter which files are exported (uses frontmatter query syntax)
+  - `--ignore` (multiple): Ignore patterns for scanning vault [default: [".obsidian/*", "*.tmp"]]
+- **Link Processing:**
+  - `--process-links` (bool): Process and rewrite links in exported files [default: true]
+  - `--link-strategy` (string): Strategy for handling external links: 'remove' (convert to plain text) or 'url' (use frontmatter URL field) [default: remove]
+- **Advanced Features:**
+  - `--include-assets` (bool): Copy referenced assets (images, PDFs, etc.) to output directory
+  - `--with-backlinks` (bool): Include files that link to exported files (recursive)
+  - `--slugify` (bool): Convert filenames to URL-safe slugs
+  - `--flatten` (bool): Put all files in a single directory
+- **Performance:**
+  - `--parallel` (int): Number of parallel workers for file processing (0 = auto-detect) [default: 0]
+  - `--optimize-memory` (bool): Use memory-optimized processing for large vaults
+  - `--timeout` (duration): Maximum time to wait for export to complete [default: 10m]
 - Standard global flags (--dry-run, --verbose, --quiet)
 
 #### `mdnotes watch`

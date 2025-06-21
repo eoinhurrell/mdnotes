@@ -1,419 +1,368 @@
-# mdnotes CLI - Complete Development Plan
+# 🗃️ mdnotes export - Implementation Plan
 
-## Executive Summary
+## 🎯 Phase-Based Implementation Strategy
 
-The mdnotes CLI has **significantly exceeded** its original 6-cycle development plan, achieving 100% of planned features plus substantial additional functionality. This plan provides a clear roadmap for future development while documenting current status and outstanding tasks.
+Breaking down the export feature into **4 phases** with **12 focused tasks** that provide incremental value and can be developed by junior engineers.
 
-## Current Implementation Status
+---
 
-### ✅ **Fully Completed Features**
+## 📋 **Phase 1: Core Export Foundation** (Weeks 1-2)
 
-**Core Foundation**
+_Goal: Basic file copying with query selection_
 
-- ✅ Vault file parsing and frontmatter handling
-- ✅ Directory scanning with ignore patterns
-- ✅ CLI structure with Cobra framework
-- ✅ Configuration system with environment variables
+### Task 1.1: Basic Export Command Structure
 
-**Frontmatter Management**
+**Effort:** 2-3 days | **Value:** High | **Risk:** Low
 
-- ✅ Frontmatter ensure command with templates
-- ✅ Validation with rules and type constraints
-- ✅ Type casting system with auto-detection
-- ✅ Field synchronization with file system
-- ✅ Template engine with variables and filters
+**Description:** Create the CLI command scaffold and basic file copying mechanism.
 
-**Content Operations**
+**Acceptance Criteria:**
 
-- ✅ Heading analysis and fixing
-- ✅ **Heading cleaning for Obsidian compatibility** (Task 2.2b - COMPLETED)
-- ✅ Comprehensive link parsing (wiki, markdown, embed)
-- ✅ Link format conversion (bidirectional)
-- ✅ File organization with pattern-based renaming
-- ✅ Link update tracking for file moves
+- [ ] `mdnotes export <output-folder>` command exists
+- [ ] Copies all markdown files from vault to output folder
+- [ ] Preserves directory structure
+- [ ] Handles basic error cases (output exists, permissions)
+- [ ] Returns exit codes (0=success, 1=error)
 
-**External Integration**
+**Implementation Notes:**
 
-- ✅ Complete Linkding API client with rate limiting
-- ✅ Linkding sync processor
-- ✅ Web resource downloader with automatic link conversion
+- Extend existing CLI parser with export subcommand
+- Use filesystem utilities for recursive copying
+- Create output directory if it doesn't exist
+- Basic validation of input/output paths
 
-**Analysis and Safety**
+**Test Cases:**
 
-- ✅ Vault statistics and health analysis
-- ✅ Content quality scoring with actionable suggestions
-- ✅ **INBOX triage analysis for pending content** (NEW!)
-- ✅ Link graph analysis with centrality scoring
-- ✅ Vault trends and growth pattern analysis
-- ✅ Comprehensive duplicate detection (content, Obsidian copies, sync conflicts)
-- ✅ Backup and restore functionality
-- ✅ Dry-run mode with detailed reporting
-- ✅ Batch operations framework
-- ✅ Progress reporting (terminal, JSON, silent modes)
+- Export empty vault
+- Export vault with nested folders
+- Export to existing/non-existing directories
+- Permission errors
 
-**Polish and Quality**
+---
 
-- ✅ Performance optimization and benchmarking
-- ✅ User-friendly error messages
-- ✅ Comprehensive shell completion
-- ✅ Cross-platform build support
-- ✅ File rename command with link reference updates
-- ✅ Performance profiling tools
-- ✅ Advanced error handling with suggestions
+### Task 1.2: Query Integration
 
-### 🔄 **In Progress / Planned Tasks**
+**Effort:** 2-3 days | **Value:** High | **Risk:** Low
 
-**Phase 1: CLI Restructure** ✅ **COMPLETED**
+**Description:** Integrate existing query engine to filter which files get exported.
 
-- ✅ **Task 1.1**: Remove Batch Command
-- ✅ **Task 1.2**: Add Command Aliases (fm, a, etc.)
-- ✅ **Task 1.3**: Implement Frontmatter Query Command
-- ✅ **Task 1.4**: Standardize Flag Behavior
+**Acceptance Criteria:**
 
-**Phase 2: Enhanced Features** ✅ **COMPLETED**
+- [ ] `--query` flag accepts query strings
+- [ ] Only files matching query are exported
+- [ ] Uses existing `mdnotes frontmatter query` predicates
+- [ ] Maintains directory structure for filtered results
+- [ ] Logs count of files selected vs total
 
-- ✅ **Task 2.1**: Enhanced Query Language with Complex Expressions
-- ✅ **Task 2.2**: Performance and Smart Organization Features  
-- ✅ **Task 2.3**: Enhanced Analysis Commands (Link Graph, Content Quality, INBOX Triage, Trends, Health)
+**Implementation Notes:**
 
-**Phase 3: Polish and Future-Proofing**
+- Reuse existing query parser and execution engine
+- Filter file list before copying
+- Preserve relative paths in output
 
-- ⏳ **Task 3.1**: Comprehensive Testing
-- ⏳ **Task 3.2**: Documentation and Examples
-- ⏳ **Task 3.3**: Future Command Framework
+**Test Cases:**
 
-## Current Command Structure
+- `--query "folder=areas/"`
+- `--query "tags=philosophy"`
+- `--query "created>=2024-01-01"`
+- Complex queries with AND/OR
+- No files match query
 
-### Available Commands
+---
 
-```bash
-# Frontmatter Management
-mdnotes frontmatter ensure [path]     # Add/ensure frontmatter fields
-mdnotes frontmatter validate [path]   # Validate frontmatter rules
-mdnotes frontmatter cast [path]       # Type cast frontmatter fields
-mdnotes frontmatter sync [path]       # Sync with file system metadata
+### Task 1.3: Export Summary & Dry Run
 
-# Content Operations
-mdnotes headings analyze [path]       # Analyze heading structure
-mdnotes headings fix [path]           # Fix heading issues
-mdnotes headings clean [path]         # Clean headings for Obsidian (NEW!)
-mdnotes links check [path]            # Check for broken links
-mdnotes links convert [path]          # Convert link formats
+**Effort:** 1-2 days | **Value:** Medium | **Risk:** Low
 
-# File Operations
-mdnotes rename <file> [new]           # Rename with link updates
-mdnotes organize [path]               # Pattern-based organization
+**Description:** Add reporting and preview capabilities.
 
-# External Integration
-mdnotes linkding sync [path]          # Sync URLs to Linkding
-mdnotes linkding list [path]          # List vault URLs
+**Acceptance Criteria:**
 
-# Analysis & Utilities
-mdnotes analyze health [path]         # Vault health report
-mdnotes analyze content [path]        # Content quality scoring
-mdnotes analyze inbox [path]          # INBOX triage analysis
-mdnotes analyze links [path]          # Link graph analysis
-mdnotes analyze trends [path]         # Vault growth trends
-mdnotes analyze duplicates [path]     # Find duplicate files
+- [ ] `--dry-run` flag shows what would be exported without copying
+- [ ] Summary shows: files included, total size, output path
+- [ ] `--verbose` flag shows individual file paths
+- [ ] Clean, readable output format
+
+**Implementation Notes:**
+
+- Separate planning phase from execution phase
+- File size calculation
+- Pretty-printed summary table
+
+**Test Cases:**
+
+- Dry run with various queries
+- Verbose output formatting
+- Large vault performance
+
+---
+
+## 📋 **Phase 2: Link Processing** (Weeks 3-4)
+
+_Goal: Handle internal links in exported files_
+
+### Task 2.1: Link Discovery & Analysis
+
+**Effort:** 3-4 days | **Value:** High | **Risk:** Medium
+
+**Description:** Scan markdown files to find and categorize all links.
+
+**Acceptance Criteria:**
+
+- [ ] Detects wikilinks: `[[Note Name]]`, `[[Note|Display]]`
+- [ ] Detects markdown links: `[text](path.md)`
+- [ ] Detects image embeds: `![[image.png]]`, `![alt](image.png)`
+- [ ] Categorizes links as: internal (in export), external (not in export), assets
+- [ ] Returns structured data about all links found
+
+**Implementation Notes:**
+
+- Use regex or markdown parser to find links
+- Resolve relative paths correctly
+- Handle edge cases: encoded characters, spaces in filenames
+- Create link registry data structure
+
+**Test Cases:**
+
+- Various link formats and syntaxes
+- Nested folders and relative paths
+- Malformed links
+- Unicode in filenames
+
+---
+
+### Task 2.2: Link Rewrite Engine
+
+**Effort:** 2-3 days | **Value:** High | **Risk:** Medium
+
+**Description:** Core engine to rewrite links based on strategy.
+
+**Acceptance Criteria:**
+
+- [ ] `--strategy remove` converts external links to plain text
+- [ ] `--strategy url` uses frontmatter `url:` field when available
+- [ ] Preserves internal links (updates paths if needed)
+- [ ] Maintains link text/display names
+- [ ] Handles both wikilinks and markdown links
+
+**Implementation Notes:**
+
+- String replacement with careful boundary detection
+- Preserve surrounding markdown formatting
+- Handle frontmatter parsing for URL strategy
+
+**Test Cases:**
+
+- External wikilinks → plain text
+- External markdown links → plain text
+- URL strategy with/without frontmatter URLs
+- Mixed link types in same file
+- Edge cases: nested brackets, special characters
+
+---
+
+### Task 2.3: Link Processing Integration
+
+**Effort:** 2 days | **Value:** High | **Risk:** Low
+
+**Description:** Integrate link processing into export workflow.
+
+**Acceptance Criteria:**
+
+- [ ] Links are rewritten during file copying
+- [ ] Summary includes "External links rewritten: X"
+- [ ] File content is modified in output, not source
+- [ ] UTF-8 encoding preserved
+- [ ] YAML frontmatter preserved
+
+**Implementation Notes:**
+
+- Process content after reading, before writing
+- Ensure no corruption of file encoding
+- Maintain file metadata (timestamps, etc.)
+
+**Test Cases:**
+
+- Files with no links (unchanged)
+- Files with only internal links
+- Files with only external links
+- Mixed scenarios
+
+---
+
+## 📋 **Phase 3: Asset & Advanced Features** (Week 5)
+
+_Goal: Asset copying and enhanced functionality_
+
+### Task 3.1: Asset Discovery & Copying
+
+**Effort:** 2-3 days | **Value:** Medium | **Risk:** Low
+
+**Description:** Find and copy linked assets (images, PDFs, etc.).
+
+**Acceptance Criteria:**
+
+- [ ] `--include-assets` flag copies referenced files
+- [ ] Supports: `.png`, `.jpg`, `.pdf`, `.csv`, `.xlsx`
+- [ ] Updates asset links in markdown to match new paths
+- [ ] Handles missing assets gracefully (log warning, continue)
+- [ ] Summary includes "Assets copied: X"
+
+**Implementation Notes:**
+
+- Extend link discovery to track asset references
+- Copy assets to preserve relative path structure
+- Update asset links after copying
+
+**Test Cases:**
+
+- Images in various formats
+- Relative vs absolute asset paths
+- Missing asset files
+- Assets in subdirectories
+
+---
+
+### Task 3.2: Backlinks Support
+
+**Effort:** 2-3 days | **Value:** Medium | **Risk:** Medium
+
+**Description:** Include notes that link TO exported files.
+
+**Acceptance Criteria:**
+
+- [ ] `--with-backlinks` flag includes additional files
+- [ ] Finds files that link to any file in the export set
+- [ ] Recursive: if backlink file has backlinks, include those too
+- [ ] Prevents infinite loops
+- [ ] Summary shows backlinks added
+
+**Implementation Notes:**
+
+- Build reverse link index from existing link discovery
+- Iterative expansion of file set
+- Cycle detection for safety
+
+**Test Cases:**
+
+- Simple backlink inclusion
+- Multi-level backlink chains
+- Circular reference handling
+- Performance with large vaults
+
+---
+
+### Task 3.3: Filename Normalization
+
+**Effort:** 1-2 days | **Value:** Low | **Risk:** Low
+
+**Description:** Optional filename transformations for compatibility.
+
+**Acceptance Criteria:**
+
+- [ ] `--slugify` converts filenames to URL-safe slugs
+- [ ] `--flatten` puts all files in single directory
+- [ ] Updates internal links to match new filenames
+- [ ] Handles name collisions (add numbers)
+
+**Implementation Notes:**
+
+- Slug generation: lowercase, replace spaces/special chars
+- Collision detection and resolution
+- Link path updates
+
+**Test Cases:**
+
+- Various filename formats
+- Unicode in filenames
+- Name collision scenarios
+- Link consistency after renaming
+
+---
+
+## 📋 **Phase 4: Polish & Documentation** (Week 6)
+
+_Goal: Production readiness and user experience_
+
+### Task 4.1: Error Handling & Validation
+
+**Effort:** 2 days | **Value:** High | **Risk:** Low
+
+**Description:** Robust error handling and input validation.
+
+**Acceptance Criteria:**
+
+- [ ] Clear error messages for invalid queries
+- [ ] Graceful handling of filesystem errors
+- [ ] Validation of output path safety
+- [ ] Progress indicators for large exports
+- [ ] Consistent exit codes
+
+**Implementation Notes:**
+
+- Input sanitization and validation
+- User-friendly error messages
+- Progress bars for long operations
+
+---
+
+### Task 4.2: Performance Optimization
+
+**Effort:** 1-2 days | **Value:** Medium | **Risk:** Low
+
+**Description:** Ensure good performance with large vaults.
+
+**Acceptance Criteria:**
+
+- [ ] <1s export time for <100 files
+- [ ] <10s export time for <1000 files
+- [ ] Memory usage scales reasonably
+- [ ] Parallel file operations where safe
+
+**Implementation Notes:**
+
+- Profile current implementation
+- Optimize file I/O operations
+- Consider parallel processing
+
+---
+
+### Task 4.3: Documentation & Examples
+
+**Effort:** 1-2 days | **Value:** High | **Risk:** Low
+
+**Description:** Complete user documentation and examples.
+
+**Acceptance Criteria:**
+
+- [ ] CLI help text with all options
+- [ ] README examples for common use cases
+- [ ] Error scenarios and troubleshooting
+- [ ] Performance guidelines
+
+---
+
+## 🧩 **Task Dependencies**
+
+```
+1.1 (CLI) → 1.2 (Query) → 1.3 (Summary)
+                ↓
+2.1 (Link Discovery) → 2.2 (Rewrite) → 2.3 (Integration)
+                ↓
+3.1 (Assets) ← 3.2 (Backlinks) ← 3.3 (Normalization)
+                ↓
+4.1 (Errors) → 4.2 (Performance) → 4.3 (Docs)
 ```
 
-### Global Flags (Consistent Across All Commands)
+## 🎯 **Minimal Viable Product (MVP)**
 
-```bash
---dry-run, -n     # Preview changes without applying
---verbose, -v     # Detailed output with file-by-file progress
---quiet, -q       # Only show errors and final summary
---config, -c      # Specify configuration file path
-```
+Tasks 1.1, 1.2, 2.1, 2.2, 2.3 provide a working export with link rewriting - the core value proposition.
 
-## Outstanding Development Tasks
+## 🧪 **Integration Points**
 
-### Phase 1: CLI Restructure & Enhancement
+- Reuse existing query engine (no changes needed)
+- Extend CLI parser (minor addition)
+- Use existing file scanning utilities
+- Add new export module alongside existing commands
 
-#### Task 1.1: Remove Batch Command ✅
-
-**Status**: Completed  
-**Goal**: Eliminate redundant batch command since all commands work on directories
-
-- ✅ Verified `cmd/batch/` directory doesn't exist (batch command already removed)
-- ✅ Root command has no batch registration
-- ✅ Internal batch processing infrastructure preserved for operation coordination
-
-#### Task 1.2: Add Command Aliases ✅
-
-**Status**: Completed  
-**Goal**: Add convenient shortcuts for frequent operations
-
-```bash
-# Group aliases (implemented)
-mdnotes fm ensure      # frontmatter ensure
-mdnotes a health       # analyze health
-mdnotes ld sync        # linkding sync
-
-# Ultra-short global shortcuts (implemented)
-mdnotes e [path]       # frontmatter ensure
-mdnotes f [path]       # headings fix
-mdnotes c [path]       # links check
-mdnotes s [path]       # frontmatter set
-mdnotes q [path]       # frontmatter query
-```
-
-#### Task 1.3: Implement Frontmatter Query Command ✅
-
-**Status**: Completed  
-**Goal**: Add powerful search and filter capabilities
-
-```bash
-mdnotes frontmatter query [path] --where "tags contains 'project'"
-mdnotes fm q [path] --missing "created" --fix-with "{{current_date}}"
-mdnotes fm q [path] --duplicates "title" --format table
-```
-
-**Features** (all implemented):
-
-- ✅ Complex query expressions with AND/OR/NOT
-- ✅ Field presence/absence checking
-- ✅ Duplicate detection
-- ✅ Auto-fix capabilities
-- ✅ Multiple output formats (table, JSON, CSV, YAML)
-- ✅ Enhanced query language with date comparisons and contains operator
-
-#### Task 1.4: Standardize Flag Behavior ✅
-
-**Status**: Completed  
-**Goal**: Ensure consistent flag behavior across all commands
-
-- ✅ Implement consistent `--verbose` behavior everywhere
-- ✅ Ensure `--dry-run` works identically across commands
-- ✅ Add `--format` support to analysis commands
-- ✅ Update help text for clarity
-
-### Phase 2: Enhanced Features
-
-#### Task 2.1: Enhanced Query Language with Complex Expressions ✅
-
-**Status**: Completed  
-**Goal**: Advanced frontmatter query capabilities with complex logic
-
-**Features** (all implemented):
-- ✅ Complex query expressions with AND/OR/NOT operators
-- ✅ Date comparisons with natural language (after, before, within)
-- ✅ Contains operator for arrays and strings
-- ✅ Numeric comparisons (>, >=, <, <=, =, !=)
-- ✅ Field presence/absence checking
-- ✅ Duplicate detection and auto-fix capabilities
-- ✅ Multiple output formats (table, JSON, CSV, YAML)
-
-#### Task 2.2: Performance and Smart Organization Features ✅
-
-**Status**: Completed
-
-- ✅ **Table Output**: Well-formatted columns with proper alignment
-- ✅ **Rename Enhancement**: Configurable default patterns with `--template` flag
-- ✅ **Duplicate Detection**: Comprehensive detection of Obsidian copies, sync conflicts, and content duplicates
-
-#### Task 2.3: Enhanced Analysis Commands ✅
-
-**Status**: Completed  
-**Goal**: Comprehensive vault analysis tools
-
-**Link Graph Analysis** (`mdnotes analyze links`) ✅:
-
-- ✅ ASCII graph visualization of link relationships
-- ✅ Hub detection and orphan analysis
-- ✅ Connection statistics and centrality scoring
-
-**Content Quality Scoring** (`mdnotes analyze content`) ✅:
-
-- ✅ Multi-factor quality scoring (structure, completeness, complexity, density, recency)
-- ✅ Actionable improvement suggestions for quality improvement
-- ✅ Quality thresholds and score distribution analysis
-- ✅ Individual file scores with customizable minimum thresholds
-
-**INBOX Triage** (`mdnotes analyze inbox`) ✅ **NEW**:
-
-- ✅ Find content under INBOX headings needing processing
-- ✅ Sort by content volume, item count, or urgency for prioritization
-- ✅ Action suggestions for common patterns (linkding sync, note conversion, etc.)
-- ✅ Urgency assessment based on keywords and content analysis
-- ✅ Comprehensive pattern matching for TODO, PENDING, INBOX, DRAFTS, etc.
-
-**Vault Trends** (`mdnotes analyze trends`) ✅:
-
-- ✅ File creation timeline analysis
-- ✅ Content growth tracking with growth rate calculation
-- ✅ Tag usage evolution and trend analysis
-- ✅ Writing streak and activity percentage tracking
-
-**Health Dashboard** (`mdnotes analyze health`) ✅:
-
-- ✅ Comprehensive vault health checks
-- ✅ Broken links, orphans, empty files detection
-- ✅ Prioritized action recommendations with health scoring
-
-### Phase 3: Polish and Future-Proofing
-
-#### Task 3.1: Comprehensive Testing ⏳
-
-- Test all alias combinations
-- Performance testing with large vaults (10k+ files)
-- User experience testing with real workflows
-
-#### Task 3.2: Documentation and Examples ⏳
-
-- Complete command reference with examples
-- Workflow guides for common use cases
-- Video tutorials for complex features
-
-#### Task 3.3: Future Command Framework ⏳
-
-- Design extensible command architecture
-- Plugin system design
-- Command development guidelines
-
-## Future Work: Advanced Features
-
-### Near-Term Enhancements
-
-#### 1. **Watch Command** (`mdnotes watch`) - NEW
-
-**Purpose**: Automated file monitoring with configurable actions per folder
-
-**Core Functionality**:
-
-- Watch vault directories for new file additions
-- Execute specific commands based on folder-specific rules
-- Configuration-driven automation for common workflows
-
-**Command Structure**:
-
-```bash
-mdnotes watch [path]                    # Start watching with config
-mdnotes watch --config watch.yaml      # Custom config file
-mdnotes watch --daemon                 # Run as background service
-```
-
-**Configuration Example** (`.obsidian-admin.yaml`):
-
-```yaml
-watch:
-  enabled: true
-  rules:
-    - path: "inbox/"
-      recursive: true
-      actions:
-        - command: "linkding sync"
-          args: ["--dry-run=false"]
-        - command: "frontmatter ensure"
-          args: ["--field", "created", "--default", "{{current_date}}"]
-
-    - path: "resources/books/"
-      recursive: false
-      actions:
-        - command: "frontmatter ensure"
-          args: ["--field", "cover", "--default", "{{download_cover}}"]
-        - command: "frontmatter ensure"
-          args: ["--field", "type", "--default", "book"]
-
-    - path: "projects/"
-      recursive: true
-      actions:
-        - command: "headings fix"
-        - command: "frontmatter ensure"
-          args: ["--field", "status", "--default", "active"]
-
-  # Global settings
-  debounce: 2s # Wait 2 seconds after file changes
-  ignore_patterns:
-    - ".obsidian/*"
-    - "*.tmp"
-    - ".DS_Store"
-  max_file_size: "10MB" # Skip files larger than 10MB
-  log_level: "info" # info, debug, warn, error
-```
-
-**Advanced Features**:
-
-- **Debouncing**: Wait for file operations to complete before acting
-- **Conditional Execution**: Only run commands if certain conditions are met
-- **Template Variables**: Support for dynamic values in commands
-- **Error Handling**: Graceful failure with retry logic
-- **Performance**: Efficient file system watching with minimal resource usage
-
-**Example Use Cases**:
-
-1. **Inbox Processing**: New files in inbox get frontmatter populated and synced to Linkding
-2. **Book Management**: New book files get cover images downloaded automatically
-3. **Project Organization**: Project files get standardized frontmatter and heading structure
-4. **Daily Notes**: New daily notes get templates applied automatically
-
-**Integration**:
-
-- Uses existing command infrastructure
-- Leverages current configuration system
-- Supports all existing global flags for sub-commands
-- Works with dry-run mode for testing configurations
-
-### Long-Term Zettelkasten Features
-
-#### 2. **Atomic Note Analysis** (`mdnotes analyze atomic`)
-
-Ensure notes follow zettelkasten principles of one concept per note.
-
-#### 3. **Cross-Reference Intelligence** (`mdnotes xref`)
-
-Smart suggestion system for creating meaningful connections between notes.
-
-#### 4. **Knowledge Gap Analysis** (`mdnotes gaps`)
-
-Identify missing pieces in the knowledge graph.
-
-#### 5. **Note Maturity Tracking** (`mdnotes maturity`)
-
-Track development stages from fleeting to evergreen notes.
-
-#### 6. **Spaced Review System** (`mdnotes review`)
-
-Algorithm-based review scheduling for note maintenance.
-
-_[Additional features 7-10 as previously detailed...]_
-
-## Implementation Priority
-
-**Immediate Focus** (Next 2-4 weeks):
-
-1. ✅ Task 2.2b: Headings Clean Command (COMPLETED)
-2. Task 1.2: Command Aliases
-3. Task 1.3: Frontmatter Query Command
-
-**Short Term** (1-3 months): 4. Watch Command implementation 5. Task 2.3: Enhanced Analysis Commands 6. Task 1.4: Standardize Flag Behavior
-
-**Medium Term** (3-6 months): 7. Advanced Zettelkasten features (atomic analysis, cross-reference intelligence) 8. Performance optimizations for large vaults 9. Plugin architecture
-
-**Long Term** (6+ months): 10. AI-powered features 11. Advanced template intelligence 12. Real-time collaboration features
-
-## Success Metrics
-
-**Usability**:
-
-- ✅ Command efficiency (2-3 character shortcuts)
-- ✅ Multiple access patterns for different user types
-- ⏳ Clear help system with examples
-- ⏳ Advanced query capabilities
-
-**Technical Excellence**:
-
-- ✅ Consistent flag behavior across commands
-- ✅ No performance regression with new features
-- ✅ Comprehensive error handling
-- ⏳ Extensible command architecture
-
-**User Experience**:
-
-- ✅ Works for both beginners and power users
-- ✅ Multiple ways to access functionality
-- ✅ Transparent verbose mode
-- ✅ Safe dry-run mode everywhere
-
-This plan maintains mdnotes' philosophy of automation, consistency, and graph integrity while providing a clear roadmap for continued development and enhancement.
-
+This plan provides **incremental value** at each phase while keeping tasks **focused and achievable** for junior developers.

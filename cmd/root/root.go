@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/eoinhurrell/mdnotes/cmd/analyze"
+	"github.com/eoinhurrell/mdnotes/cmd/export"
 	"github.com/eoinhurrell/mdnotes/cmd/frontmatter"
 	"github.com/eoinhurrell/mdnotes/cmd/headings"
 	"github.com/eoinhurrell/mdnotes/cmd/linkding"
@@ -37,6 +38,7 @@ for managing frontmatter, headings, links, and file organization.`,
 
 	// Add subcommands
 	cmd.AddCommand(analyze.NewAnalyzeCommand())
+	cmd.AddCommand(export.NewExportCommand())
 	cmd.AddCommand(frontmatter.NewFrontmatterCommand())
 	cmd.AddCommand(headings.NewHeadingsCommand())
 	cmd.AddCommand(links.NewLinksCommand())
@@ -137,6 +139,10 @@ func setupCustomCompletions(cmd *cobra.Command) {
 			// These commands take vault/directory paths
 			subCmd.ValidArgsFunction = CompleteDirs
 
+		case "export":
+			// Export takes output path as first argument, vault path as optional second
+			subCmd.ValidArgsFunction = CompleteDirs
+
 		case "rename":
 			// Rename takes a source file as first argument
 			subCmd.ValidArgsFunction = CompleteMarkdownFiles
@@ -172,6 +178,8 @@ func setupCustomCompletions(cmd *cobra.Command) {
 		switch subCmd.Name() {
 		case "frontmatter":
 			setupFrontmatterCompletions(subCmd)
+		case "export":
+			setupExportCompletions(subCmd)
 		case "rename":
 			setupRenameCompletions(subCmd)
 		case "analyze":
@@ -496,6 +504,28 @@ func setupLinksCompletions(cmd *cobra.Command) {
 			subCmd.RegisterFlagCompletionFunc("to", CompleteLinkFormats)
 		}
 	}
+}
+
+// setupExportCompletions sets up completion for export command
+func setupExportCompletions(cmd *cobra.Command) {
+	// Export takes output directory as first argument, vault path as second
+	cmd.ValidArgsFunction = CompleteDirs
+	
+	// Query flag can use existing query completions (to be enhanced in Task 1.2)
+	cmd.RegisterFlagCompletionFunc("query", CompleteQueryExpressions)
+}
+
+// CompleteQueryExpressions provides completion for query expressions
+func CompleteQueryExpressions(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	expressions := []string{
+		"tags contains 'published'",
+		"type = 'note'",
+		"status = 'active'",
+		"created after '2024-01-01'",
+		"folder = 'areas/'",
+		"title contains 'project'",
+	}
+	return expressions, cobra.ShellCompDirectiveNoFileComp
 }
 
 // setupLinkdingCompletions sets up completion for linkding subcommands

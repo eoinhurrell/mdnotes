@@ -70,6 +70,14 @@ func (tp *TerminalProgress) render(message string) {
 	percentage := float64(tp.current) / float64(tp.total)
 	filled := int(float64(tp.width) * percentage)
 
+	// Ensure filled is within bounds
+	if filled < 0 {
+		filled = 0
+	}
+	if filled > tp.width {
+		filled = tp.width
+	}
+
 	// Create progress bar
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", tp.width-filled)
 
