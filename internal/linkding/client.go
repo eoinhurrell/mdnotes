@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -416,6 +418,26 @@ type CheckBookmarkResponse struct {
 	AutoTags []string `json:"auto_tags"`
 }
 
+// Asset represents a Linkding bookmark asset
+type Asset struct {
+	ID          int    `json:"id"`
+	AssetType   string `json:"asset_type"`
+	ContentType string `json:"content_type"`
+	DisplayName string `json:"display_name"`
+	FileSize    int64  `json:"file_size"`
+	Status      string `json:"status"`
+	DateCreated string `json:"date_created"`
+	File        string `json:"file"`
+}
+
+// AssetListResponse represents a list of assets from the API
+type AssetListResponse struct {
+	Count    int     `json:"count"`
+	Next     *string `json:"next"`
+	Previous *string `json:"previous"`
+	Results  []Asset `json:"results"`
+}
+
 // CheckBookmark checks if a URL is already bookmarked
 func (c *Client) CheckBookmark(ctx context.Context, url string) (*CheckBookmarkResponse, error) {
 	// Create request with URL parameter
@@ -458,4 +480,66 @@ func (c *Client) CheckBookmark(ctx context.Context, url string) (*CheckBookmarkR
 	}
 
 	return nil, fmt.Errorf("unexpected response handling") // Should never reach here
+}
+
+// ListAssets retrieves assets for a specific bookmark
+func (c *Client) ListAssets(ctx context.Context, bookmarkID int) ([]Asset, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET",
+		c.baseURL+"/api/bookmarks/"+strconv.Itoa(bookmarkID)+"/assets/", nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	c.setHeaders(httpReq)
+
+	resp, err := c.doRequestWithRetry(ctx, httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if err := c.checkResponse(resp); err != nil {
+		return nil, err
+	}
+
+	var assetList AssetListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&assetList); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	return assetList.Results, nil
+}
+
+// DownloadAsset downloads a specific asset and writes it to the destination path
+func (c *Client) DownloadAsset(ctx context.Context, bookmarkID, assetID int, destPath string) error {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET",
+		c.baseURL+"/api/bookmarks/"+strconv.Itoa(bookmarkID)+"/assets/"+strconv.Itoa(assetID)+"/download/", nil)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
+	c.setHeaders(httpReq)
+
+	resp, err := c.doRequestWithRetry(ctx, httpReq)
+	if err != nil {
+		return fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if err := c.checkResponse(resp); err != nil {
+		return err
+	}
+
+	// Write response body to file
+	file, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("creating destination file: %w", err)
+	}
+	defer file.Close()
+
+	if _, err := io.Copy(file, resp.Body); err != nil {
+		return fmt.Errorf("copying response to file: %w", err)
+	}
+
+	return nil
 }

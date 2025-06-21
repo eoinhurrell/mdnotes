@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -203,4 +204,147 @@ func TestClient_ContextCancellation(t *testing.T) {
 	_, err := client.GetBookmarks(ctx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
+}
+
+func TestClient_ListAssets(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/bookmarks/123/assets/", r.URL.Path)
+		assert.Equal(t, "Token test-token", r.Header.Get("Authorization"))
+
+		resp := AssetListResponse{
+			Count: 2,
+			Results: []Asset{
+				{
+					ID:          1,
+					AssetType:   "snapshot",
+					ContentType: "text/html",
+					DisplayName: "Snapshot 1",
+					FileSize:    1024,
+					Status:      "complete",
+					DateCreated: "2023-01-01T10:00:00Z",
+					File:        "/path/to/file1.html",
+				},
+				{
+					ID:          2,
+					AssetType:   "snapshot",
+					ContentType: "text/html",
+					DisplayName: "Snapshot 2",
+					FileSize:    2048,
+					Status:      "complete",
+					DateCreated: "2023-01-02T10:00:00Z",
+					File:        "/path/to/file2.html",
+				},
+			},
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-token")
+	assets, err := client.ListAssets(context.Background(), 123)
+
+	assert.NoError(t, err)
+	assert.Len(t, assets, 2)
+	assert.Equal(t, 1, assets[0].ID)
+	assert.Equal(t, "snapshot", assets[0].AssetType)
+	assert.Equal(t, "complete", assets[0].Status)
+	assert.Equal(t, int64(1024), assets[0].FileSize)
+	assert.Equal(t, 2, assets[1].ID)
+	assert.Equal(t, "2023-01-02T10:00:00Z", assets[1].DateCreated)
+}
+
+func TestClient_ListAssets_EmptyResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := AssetListResponse{
+			Count:   0,
+			Results: []Asset{},
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-token")
+	assets, err := client.ListAssets(context.Background(), 123)
+
+	assert.NoError(t, err)
+	assert.Len(t, assets, 0)
+}
+
+func TestClient_ListAssets_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-token")
+	assets, err := client.ListAssets(context.Background(), 999)
+
+	assert.Error(t, err)
+	assert.Nil(t, assets)
+	assert.Contains(t, err.Error(), "bookmark not found")
+}
+
+func TestClient_DownloadAsset(t *testing.T) {
+	testContent := "<html><body><h1>Test HTML</h1><p>This is test content.</p></body></html>"
+	
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/bookmarks/123/assets/456/download/", r.URL.Path)
+		assert.Equal(t, "Token test-token", r.Header.Get("Authorization"))
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(testContent))
+	}))
+	defer server.Close()
+
+	// Create temporary file for download
+	tmpFile, err := os.CreateTemp("", "test-download-*.html")
+	require.NoError(t, err)
+	tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	client := NewClient(server.URL, "test-token")
+	err = client.DownloadAsset(context.Background(), 123, 456, tmpFile.Name())
+
+	assert.NoError(t, err)
+
+	// Verify file content
+	content, err := os.ReadFile(tmpFile.Name())
+	assert.NoError(t, err)
+	assert.Equal(t, testContent, string(content))
+}
+
+func TestClient_DownloadAsset_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	tmpFile, err := os.CreateTemp("", "test-download-*.html")
+	require.NoError(t, err)
+	tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	client := NewClient(server.URL, "test-token")
+	err = client.DownloadAsset(context.Background(), 123, 456, tmpFile.Name())
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "bookmark not found")
+}
+
+func TestClient_DownloadAsset_InvalidPath(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("test content"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-token")
+	err := client.DownloadAsset(context.Background(), 123, 456, "/invalid/path/file.html")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "creating destination file")
 }

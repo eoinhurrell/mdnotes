@@ -350,3 +350,51 @@ func TestLinkdingSync_SyncBatch(t *testing.T) {
 
 	mockClient.AssertExpectations(t)
 }
+
+// TestLinkdingSync_IsArchivedFlag verifies that bookmarks are created and updated with IsArchived = true
+func TestLinkdingSync_IsArchivedFlag(t *testing.T) {
+	config := LinkdingSyncConfig{
+		URLField:    "url",
+		TitleField:  "title",
+		TagsField:   "tags",
+		SyncTitle:   true,
+		SyncTags:    true,
+	}
+
+	sync := NewLinkdingSync(config)
+
+	// Test buildCreateRequest sets IsArchived = true
+	t.Run("CreateRequest_SetsIsArchived", func(t *testing.T) {
+		file := &vault.VaultFile{
+			Frontmatter: map[string]interface{}{
+				"url":   "https://example.com/page",
+				"title": "Test Page",
+				"tags":  []string{"test", "example"},
+			},
+		}
+
+		req := sync.buildCreateRequest(file)
+
+		assert.Equal(t, "https://example.com/page", req.URL)
+		assert.Equal(t, "Test Page", req.Title)
+		assert.Equal(t, []string{"test", "example"}, req.Tags)
+		assert.True(t, req.IsArchived, "CreateBookmarkRequest should have IsArchived = true")
+	})
+
+	// Test buildUpdateRequest sets IsArchived = true
+	t.Run("UpdateRequest_SetsIsArchived", func(t *testing.T) {
+		file := &vault.VaultFile{
+			Frontmatter: map[string]interface{}{
+				"url":   "https://example.com/updated",
+				"title": "Updated Page",
+				"tags":  []string{"updated"},
+			},
+		}
+
+		req := sync.buildUpdateRequest(file)
+
+		assert.Equal(t, "Updated Page", req.Title)
+		assert.Equal(t, []string{"updated"}, req.Tags)
+		assert.True(t, req.IsArchived, "UpdateBookmarkRequest should have IsArchived = true")
+	})
+}

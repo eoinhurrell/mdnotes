@@ -24,6 +24,7 @@ func NewLinkdingCommand() *cobra.Command {
 	// Add subcommands
 	cmd.AddCommand(newSyncCommand())
 	cmd.AddCommand(newListCommand())
+	cmd.AddCommand(newGetCommand())
 
 	return cmd
 }
@@ -336,6 +337,139 @@ func newListCommand() *cobra.Command {
 			return nil
 		},
 	}
+
+	return cmd
+}
+
+func newGetCommand() *cobra.Command {
+	var (
+		maxSize uint64
+		timeout string
+		tmpDir  string
+	)
+
+	cmd := &cobra.Command{
+		Use:     "get <path-to-note.md>",
+		Aliases: []string{"g"},
+		Short:   "Get HTML snapshot or live content from a note's Linkding bookmark",
+		Long: `Get HTML snapshot or live content from a note's Linkding bookmark.
+
+Given a note with a 'linkding_id' frontmatter field, this command will:
+1. Query the Linkding API for any HTML "snapshot" assets
+2. If found, download the latest snapshot, extract text, and print to stdout
+3. If no snapshots exist, fetch the live URL from frontmatter and extract text
+
+The note must have either:
+- linkding_id: 123 (for snapshot retrieval)
+- url: "https://example.com" (for live fallback)
+
+Configuration:
+  Linkding API URL and token should be configured in .obsidian-admin.yaml:
+  
+  linkding:
+    api_url: "${LINKDING_URL}"
+    api_token: "${LINKDING_TOKEN}"`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			notePath := args[0]
+			
+			// Get flags from persistent flags
+			dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
+			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+			quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+
+			// Override verbose if quiet is specified
+			if quiet {
+				verbose = false
+			}
+
+			if dryRun {
+				if !quiet {
+					fmt.Printf("Dry run: Would process note %s\n", notePath)
+				}
+				
+				// Parse note to extract linkding_id and url
+				vaultFile, err := vault.LoadVaultFile(notePath)
+				if err != nil {
+					return fmt.Errorf("loading note: %w", err)
+				}
+
+				linkdingID, hasID := vaultFile.Frontmatter["linkding_id"]
+				url, hasURL := vaultFile.Frontmatter["url"]
+
+				if !hasID && !hasURL {
+					return fmt.Errorf("note must have either 'linkding_id' or 'url' frontmatter field")
+				}
+
+				if hasID {
+					fmt.Printf("Found linkding_id: %v\n", linkdingID)
+					fmt.Println("Would query Linkding API for snapshot assets")
+				}
+				
+				if hasURL {
+					fmt.Printf("Found fallback url: %v\n", url)
+					fmt.Println("Would use as fallback if no snapshots available")
+				}
+
+				return nil
+			}
+
+			// Load configuration
+			cfg, err := loadConfig(cmd)
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
+
+			// Validate Linkding configuration
+			if cfg.Linkding.APIURL == "" {
+				return fmt.Errorf("linkding.api_url not configured")
+			}
+			if cfg.Linkding.APIToken == "" {
+				return fmt.Errorf("linkding.api_token not configured")
+			}
+
+			// Parse note to extract linkding_id and url
+			vaultFile, err := vault.LoadVaultFile(notePath)
+			if err != nil {
+				return fmt.Errorf("loading note: %w", err)
+			}
+
+			linkdingID, hasID := vaultFile.Frontmatter["linkding_id"]
+			url, hasURL := vaultFile.Frontmatter["url"]
+
+			if !hasID && !hasURL {
+				return fmt.Errorf("note must have either 'linkding_id' or 'url' frontmatter field")
+			}
+
+			// Create Linkding client
+			client := linkding.NewClient(cfg.Linkding.APIURL, cfg.Linkding.APIToken)
+
+			// Create get processor
+			getProcessor := processor.NewLinkdingGet(processor.LinkdingGetConfig{
+				MaxSize: maxSize,
+				Timeout: timeout,
+				TmpDir:  tmpDir,
+				Verbose: verbose,
+			})
+			getProcessor.SetClient(client)
+
+			// Process the note
+			ctx := context.Background()
+			text, err := getProcessor.GetContent(ctx, linkdingID, url)
+			if err != nil {
+				return fmt.Errorf("getting content: %w", err)
+			}
+
+			// Print the extracted text to stdout
+			fmt.Print(text)
+			
+			return nil
+		},
+	}
+
+	cmd.Flags().Uint64Var(&maxSize, "max-size", 1000000, "Maximum bytes to fetch from live URL")
+	cmd.Flags().StringVar(&timeout, "timeout", "10s", "Request timeout")
+	cmd.Flags().StringVar(&tmpDir, "tmp-dir", "", "Where to store downloaded asset (default: OS temp)")
 
 	return cmd
 }

@@ -22,6 +22,8 @@ type Config struct {
 	Safety      SafetyConfig      `yaml:"safety"`
 	Downloads   DownloadConfig    `yaml:"downloads"`
 	Watch       WatchConfig       `yaml:"watch"`
+	Plugins     PluginConfig      `yaml:"plugins"`
+	Performance PerformanceConfig `yaml:"performance"`
 }
 
 // VaultConfig contains vault-specific settings
@@ -84,6 +86,24 @@ type WatchRule struct {
 	Paths   []string `yaml:"paths"`
 	Events  []string `yaml:"events"`
 	Actions []string `yaml:"actions"`
+}
+
+// PluginConfig contains plugin system settings
+type PluginConfig struct {
+	Enabled     bool                   `yaml:"enabled"`
+	SearchPaths []string               `yaml:"paths"`
+	Plugins     map[string]interface{} `yaml:"plugins"`
+}
+
+// PerformanceConfig contains performance optimization settings
+type PerformanceConfig struct {
+	MaxWorkers       int    `yaml:"max_workers"`
+	EnableRipgrep    bool   `yaml:"enable_ripgrep"`
+	EnableCaching    bool   `yaml:"enable_caching"`
+	CacheSize        int    `yaml:"cache_size"`
+	CacheTTL         string `yaml:"cache_ttl"`
+	ParallelAnalysis bool   `yaml:"parallel_analysis"`
+	MemoryLimit      string `yaml:"memory_limit"`
 }
 
 // LoadConfig loads configuration from a reader with environment variable expansion
@@ -180,6 +200,23 @@ func DefaultConfig() *Config {
 				"*.swp",
 				".DS_Store",
 			},
+		},
+		Plugins: PluginConfig{
+			Enabled: false,
+			SearchPaths: []string{
+				"~/.mdnotes/plugins",
+				"./plugins",
+			},
+			Plugins: make(map[string]interface{}),
+		},
+		Performance: PerformanceConfig{
+			MaxWorkers:       0, // 0 means use runtime.NumCPU()
+			EnableRipgrep:    true,
+			EnableCaching:    true,
+			CacheSize:        1000,
+			CacheTTL:         "1h",
+			ParallelAnalysis: true,
+			MemoryLimit:      "200MB",
 		},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/eoinhurrell/mdnotes/cmd/headings"
 	"github.com/eoinhurrell/mdnotes/cmd/linkding"
 	"github.com/eoinhurrell/mdnotes/cmd/links"
+	"github.com/eoinhurrell/mdnotes/cmd/plugins"
 	"github.com/eoinhurrell/mdnotes/cmd/profile"
 	"github.com/eoinhurrell/mdnotes/cmd/rename"
 	"github.com/eoinhurrell/mdnotes/cmd/watch"
@@ -43,6 +44,7 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.AddCommand(headings.NewHeadingsCommand())
 	cmd.AddCommand(links.NewLinksCommand())
 	cmd.AddCommand(linkding.NewLinkdingCommand())
+	cmd.AddCommand(plugins.NewPluginsCommand())
 	cmd.AddCommand(profile.NewProfileCommand())
 	cmd.AddCommand(rename.NewRenameCommand())
 	cmd.AddCommand(watch.Cmd)

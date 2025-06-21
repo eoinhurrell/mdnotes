@@ -414,9 +414,9 @@ _Goal: Zettelkasten-aware analysis with content scoring and inbox triage_
   4. **Atomicity** (>1 H2 -0.2, >500 words -0.2)
   5. **Recency** (max(0, 1 - age_days/365))
 - [ ] Score calculation: (sum of factors) × 100 → 0-100 scale
-- [ ] Per-note breakdown with suggestions
+- [ ] Per-note breakdown with scores and suggestions
 - [ ] Summary showing worst N notes
-- [ ] Performance optimized for large vaults
+- [ ] Performance optimized for large vaults, using worker config from mdnotes.yaml config
 
 **Implementation Notes:**
 

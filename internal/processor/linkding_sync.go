@@ -350,6 +350,9 @@ func (ls *LinkdingSync) buildCreateRequest(file *vault.VaultFile) linkding.Creat
 		}
 	}
 
+	// Set bookmarks as archived by default when syncing from mdnotes
+	req.IsArchived = true
+
 	return req
 }
 
@@ -380,6 +383,9 @@ func (ls *LinkdingSync) buildUpdateRequest(file *vault.VaultFile) linkding.Updat
 			req.Notes = notes
 		}
 	}
+
+	// Ensure bookmarks remain archived when updating
+	req.IsArchived = true
 
 	return req
 }

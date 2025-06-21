@@ -3,6 +3,8 @@ package vault
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -318,4 +320,30 @@ func (vf *VaultFile) normalizeFieldTypes() {
 			vf.Frontmatter[field] = Date{Time: timeValue}
 		}
 	}
+}
+
+// LoadVaultFile loads a single vault file from a path
+func LoadVaultFile(path string) (*VaultFile, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading file: %w", err)
+	}
+
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("getting file info: %w", err)
+	}
+
+	vf := &VaultFile{
+		Path:         path,
+		RelativePath: filepath.Base(path),
+		Modified:     fileInfo.ModTime(),
+		Frontmatter:  make(map[string]interface{}),
+	}
+
+	if err := vf.Parse(content); err != nil {
+		return nil, fmt.Errorf("parsing file: %w", err)
+	}
+
+	return vf, nil
 }

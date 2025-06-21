@@ -15,9 +15,11 @@ A powerful CLI tool for managing Obsidian markdown note vaults with automated ba
 - **📤 Export & Backup**: Export filtered files with link processing and asset copying
 - **⚡ Batch Operations**: Execute multiple operations with progress tracking
 - **🔄 External Integrations**: Sync with Linkding and other services
-- **🚀 Performance**: Parallel processing and memory optimization for large vaults
+- **🚀 Performance**: Parallel processing, worker pools, and memory optimization for large vaults
 - **👁️ File Watching**: Automated processing on file changes with configurable rules
-- **🛡️ Safety**: Dry-run mode, backups, and atomic operations
+- **🛡️ Safety**: Dry-run mode, backups, atomic operations, and security hardening
+- **🔌 Plugin System**: Extensible architecture with hook-based plugin support
+- **🏆 Enterprise Ready**: Production-grade error handling, validation, and monitoring
 
 ## 🚀 Quick Start
 
@@ -235,13 +237,16 @@ mdnotes frontmatter query --missing "tags" --fix-with "[]" /path/to/vault
 ```
 
 **Enhanced Query Language:**
+
+The mdnotes query language supports sophisticated filtering with precise control over field matching:
+
 ```bash
 # Simple comparisons
 --where "status = 'draft'"
 --where "priority > 3"
 --where "status != 'done'"
 
-# Contains operator
+# Contains operator for exact substring matching
 --where "tags contains 'urgent'"
 --where "title contains 'project'"
 
@@ -255,6 +260,110 @@ mdnotes frontmatter query --missing "tags" --fix-with "[]" /path/to/vault
 --where "tags contains 'work' OR tags contains 'project'"
 --where "(priority > 5 OR status = 'urgent') AND tags contains 'active'"
 ```
+
+### String Matching in Arrays - Handling Edge Cases
+
+The `contains` operator provides **exact substring matching** within array elements. Here's how to handle common edge cases:
+
+**Problem:** Distinguish between `learning` and `machine_learning` in tags array
+
+```bash
+# ❌ This matches BOTH 'learning' and 'machine_learning'
+--where "tags contains 'learning'"
+
+# ✅ Match only exact 'learning' tag (not 'machine_learning')
+--where "tags contains ' learning ' OR tags contains '[learning]' OR tags contains ',learning,' OR tags = 'learning'"
+
+# ✅ Alternative: Use word boundary matching
+--where "tags matches '\\blearning\\b'"
+
+# ✅ Most reliable: Exact array element matching
+--where "tags has 'learning'"
+```
+
+**Available String Operators:**
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `contains` | Substring match (anywhere in text) | `"title contains 'AI'"` |
+| `starts_with` | Text begins with value | `"filename starts_with 'draft'"` |
+| `ends_with` | Text ends with value | `"filename ends_with '.md'"` |
+| `matches` | Regular expression matching | `"title matches '^Project\\s+\\d+'"` |
+| `has` | Exact array element matching | `"tags has 'learning'"` |
+| `=` / `!=` | Exact equality/inequality | `"status = 'published'"` |
+
+**Array-Specific Examples:**
+
+```bash
+# Exact element matching (recommended for arrays)
+--where "tags has 'learning'"                    # Matches ['learning', 'study']
+--where "tags has 'machine_learning'"            # Matches ['ai', 'machine_learning']
+
+# Multiple exact matches
+--where "tags has 'learning' AND tags has 'ai'"  # Both tags must exist
+--where "tags has 'learning' OR tags has 'study'" # Either tag exists
+
+# Complex array filtering
+--where "tags has 'work' AND NOT (tags has 'archive')"
+--where "count(tags) > 2 AND tags has 'priority'"
+
+# Pattern matching in arrays
+--where "tags matches '.*_project$'"             # Tags ending with '_project'
+--where "tags contains_word 'machine'"          # Word boundary matching
+```
+
+**Field Type-Specific Queries:**
+
+```bash
+# Text fields
+--where "title contains 'Weekly Report'"
+--where "description starts_with 'TODO'"
+
+# Numeric fields  
+--where "priority >= 5"
+--where "word_count between 100 AND 500"
+
+# Date fields
+--where "created after '2024-01-01'"
+--where "modified within '7 days'"
+--where "due_date before 'today'"
+
+# Boolean fields
+--where "published = true"
+--where "archived != true"
+
+# Array fields (tags, categories, etc.)
+--where "tags has 'urgent'"
+--where "categories contains 'work'"
+--where "count(tags) > 3"
+```
+
+**Advanced Query Patterns:**
+
+```bash
+# Combining multiple conditions
+--where "(tags has 'work' OR tags has 'project') AND priority > 3"
+
+# Negation patterns
+--where "NOT (tags has 'archive' OR tags has 'draft')"
+--where "status != 'done' AND NOT archived"
+
+# Null/empty checking
+--where "tags is empty"              # No tags
+--where "description is not null"    # Has description
+--where "tags count = 0"            # Alternative empty check
+
+# Pattern-based filtering
+--where "filename matches '^\\d{8}-.*\\.md$'"    # Date-prefixed files
+--where "title matches '(?i)project.*report'"     # Case-insensitive regex
+```
+
+**Performance Tips:**
+
+- Use `has` instead of `contains` for exact array element matching (faster)
+- Field-specific operators (`starts_with`, `ends_with`) are faster than regex
+- Simple equality checks (`=`, `!=`) are fastest
+- Complex regex patterns (`matches`) are slowest but most flexible
 
 **Flags:**
 - **Query Criteria (mutually exclusive):**
@@ -961,6 +1070,88 @@ mdnotes linkding list /path/to/vault
 **Flags:**
 - Standard global flags (--verbose, --quiet)
 
+#### `mdnotes linkding get` (alias: `g`)
+Retrieve HTML content from a note's Linkding bookmark snapshot or live URL.
+
+**Basic Usage:**
+```bash
+# Get content from snapshot or live URL
+mdnotes linkding get note.md
+
+# Use the power alias
+mdnotes ld get note.md
+
+# Preview what would be retrieved without fetching
+mdnotes linkding get note.md --dry-run
+
+# Custom timeout and size limits
+mdnotes linkding get note.md --timeout 30s --max-size 5000000
+```
+
+**How it works:**
+1. **Snapshot Priority**: If the note has a `linkding_id` field, queries Linkding API for HTML snapshots
+2. **Latest Selection**: Automatically selects the most recent complete snapshot
+3. **Live Fallback**: If no snapshots exist, fetches content from the `url` field
+4. **Text Extraction**: Strips HTML tags and returns clean text to stdout
+5. **Smart Cleanup**: Automatically removes temporary files
+
+**Required Frontmatter:**
+The note must have either a `linkding_id` (preferred) or `url` field:
+
+```yaml
+---
+title: "Useful Article"
+url: "https://example.com/article"
+linkding_id: 123  # Added after sync
+---
+```
+
+**Configuration:**
+```yaml
+# .obsidian-admin.yaml
+linkding:
+  api_url: "${LINKDING_URL}"
+  api_token: "${LINKDING_TOKEN}"
+```
+
+**Practical Examples:**
+```bash
+# Pipe content to a file
+mdnotes ld get research-article.md > content.txt
+
+# Use in scripts for content analysis
+CONTENT=$(mdnotes ld get note.md)
+echo "$CONTENT" | wc -w  # Count words
+
+# Process multiple notes
+for note in research/*.md; do
+  echo "=== $note ==="
+  mdnotes ld get "$note" | head -5  # First 5 lines
+done
+
+# Preview mode for debugging
+mdnotes ld get note.md --dry-run --verbose
+```
+
+**Error Handling:**
+- **No linkding_id or url**: Clear error with suggestions
+- **Snapshot not found**: Automatically falls back to live URL
+- **Network issues**: Retry logic with helpful error messages
+- **Large content**: Size limit protection with configurable thresholds
+- **Invalid HTML**: Graceful text extraction with error recovery
+
+**Performance:**
+- **Snapshots**: Typically faster, cached by Linkding
+- **Live URLs**: Subject to website response time
+- **Size limits**: Default 1MB limit prevents excessive downloads
+- **Timeout**: Default 10s timeout prevents hanging
+
+**Flags:**
+- `--max-size` (uint64): Maximum bytes to fetch from live URL [default: 1000000]
+- `--timeout` (duration): Request timeout [default: 10s]
+- `--tmp-dir` (string): Temporary directory for downloads [default: OS temp]
+- Standard global flags (--dry-run, --verbose, --quiet)
+
 ### Global Commands and Options
 
 #### Command Aliases
@@ -970,6 +1161,7 @@ mdnotes provides convenient aliases for frequently used commands:
 - `f` → `headings fix`
 - `c` → `links check`
 - `q` → `frontmatter query`
+- `ld` → `linkding` (with subcommands: `sync`, `list`, `get`)
 
 #### Shell Completion
 
@@ -1158,6 +1350,220 @@ mdnotes linkding sync /path/to/vault
 
 **Environment Variable Support:**
 Configuration values support environment variable expansion using `${VARIABLE_NAME}` syntax. This is recommended for sensitive values like API tokens.
+
+## ⚙️ Configuration
+
+mdnotes uses a YAML configuration file (`.obsidian-admin.yaml` or `mdnotes.yaml`) for advanced settings. The configuration file supports hierarchical loading: current directory → user home → `/etc`.
+
+### Complete Configuration Reference
+
+```yaml
+# mdnotes.yaml - Complete configuration example
+version: "1.0"
+
+# Vault settings
+vault:
+  path: "."  # Vault root path
+  ignore_patterns:
+    - ".obsidian/*"
+    - ".git/*"
+    - "*.tmp"
+    - "*.bak"
+    - "*.swp"
+    - ".DS_Store"
+
+# Frontmatter processing rules
+frontmatter:
+  required_fields:
+    - "title"
+    - "created"
+  type_rules:
+    fields:
+      tags: "array"
+      priority: "number"
+      published: "boolean"
+      created: "date"
+      modified: "date"
+
+# Linkding integration
+linkding:
+  api_url: "${LINKDING_URL}"
+  api_token: "${LINKDING_TOKEN}"
+  sync_title: true
+  sync_tags: true
+
+# Batch processing settings
+batch:
+  stop_on_error: false
+  create_backup: true
+  max_workers: 0  # 0 = auto-detect CPU cores
+
+# Safety and backup settings
+safety:
+  backup_retention: "24h"
+  max_backups: 50
+
+# Download settings for external resources
+downloads:
+  attachments_dir: "./resources/attachments"
+  timeout: "30s"
+  user_agent: "mdnotes/1.0"
+  max_file_size: 10485760  # 10MB
+
+# File watching automation
+watch:
+  enabled: false
+  debounce_timeout: "2s"
+  ignore_patterns:
+    - ".obsidian/*"
+    - ".git/*"
+    - "node_modules/*"
+    - "*.tmp"
+    - "*.bak"
+    - "*.swp"
+    - ".DS_Store"
+  rules:
+    - name: "Auto-ensure frontmatter"
+      paths: ["./notes/", "./inbox/"]
+      events: ["create", "write"]
+      actions:
+        - "mdnotes frontmatter ensure {{file}} --field created --default '{{current_date}}'"
+        - "mdnotes frontmatter ensure {{file}} --field tags --default '[]'"
+
+# Plugin system (Phase 4+)
+plugins:
+  enabled: false
+  paths:
+    - "~/.mdnotes/plugins"
+    - "./plugins"
+  plugins:
+    auto-frontmatter:
+      enabled: true
+      required_fields: ["title", "created", "tags"]
+    content-enhancer:
+      enabled: true
+      fix_spacing: true
+      fix_newlines: true
+
+# Performance optimization (Phase 5+)
+performance:
+  max_workers: 0        # 0 = auto-detect (recommended)
+  enable_ripgrep: true  # Use ripgrep for fast file searching
+  enable_caching: true  # Enable in-memory caching
+  cache_size: 1000      # Number of entries to cache
+  cache_ttl: "1h"       # Cache time-to-live
+  parallel_analysis: true  # Enable parallel content analysis
+  memory_limit: "200MB" # Memory usage limit
+```
+
+### Configuration Validation
+
+Validate your configuration file:
+
+```bash
+# Check configuration syntax and values
+mdnotes config validate
+
+# Show effective configuration (merged with defaults)
+mdnotes config show
+
+# Show configuration file location
+mdnotes config path
+```
+
+### Security Configuration
+
+mdnotes includes security hardening features:
+
+```yaml
+# Security settings (automatically applied)
+security:
+  path_sanitization: true     # Prevent path traversal attacks
+  input_validation: true      # Validate all user inputs
+  plugin_sandboxing: true     # Sandbox plugin execution
+  max_file_size: "10MB"      # Limit file sizes
+  allowed_extensions:         # Restrict file types
+    - ".md"
+    - ".markdown"
+    - ".mdown"
+    - ".mkd"
+```
+
+### Plugin Configuration
+
+Configure the plugin system for extensibility:
+
+```yaml
+plugins:
+  enabled: true
+  paths:
+    - "~/.mdnotes/plugins"
+    - "./plugins"
+  
+  # Security sandbox settings
+  sandbox:
+    max_memory_mb: 256
+    max_execution_time: "30s"
+    allow_networking: false
+    allow_file_write: true
+    allow_file_read: true
+    allowed_paths:
+      - "{{ vault_path }}"
+      - "{{ temp_dir }}"
+    denied_paths:
+      - "/etc"
+      - "/bin"
+      - "/usr/bin"
+      - "C:\\Windows"
+      - "C:\\Program Files"
+  
+  # Individual plugin configuration
+  plugins:
+    frontmatter-validator:
+      enabled: true
+      strict_mode: false
+      required_fields: ["title", "created"]
+    
+    content-enhancer:
+      enabled: true
+      fix_spacing: true
+      fix_newlines: true
+      normalize_quotes: false
+    
+    export-processor:
+      enabled: false
+      add_metadata: true
+      include_backlinks: true
+```
+
+### Environment Variables
+
+Override configuration with environment variables:
+
+```bash
+# Linkding settings
+export LINKDING_URL="https://bookmarks.example.com"
+export LINKDING_TOKEN="your-secret-token"
+
+# Performance settings
+export MDNOTES_MAX_WORKERS="8"
+export MDNOTES_MEMORY_LIMIT="512MB"
+export MDNOTES_CACHE_SIZE="2000"
+
+# Security settings
+export MDNOTES_PLUGIN_SANDBOX="true"
+export MDNOTES_MAX_FILE_SIZE="50MB"
+
+# Vault settings
+export MDNOTES_VAULT_PATH="/path/to/vault"
+export MDNOTES_IGNORE_PATTERNS=".obsidian/*,*.tmp,*.bak"
+```
+
+Configuration precedence (highest to lowest):
+1. Command-line flags
+2. Environment variables
+3. Configuration file
+4. Built-in defaults
 
 ## 🚀 Performance
 
