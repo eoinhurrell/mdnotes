@@ -64,13 +64,22 @@ func TestLinkUpdater_UpdateReferences(t *testing.T) {
 			want: "See [[new/note|Custom Text]] for more",
 		},
 		{
-			name:    "relative path handling",
-			content: "See [[../parent/note]] and [[./child/note]]",
+			name:    "vault-relative path handling",
+			content: "See [[folder/note]] and [link](resources/test.md)",
 			moves: []FileMove{
-				{From: "../parent/note.md", To: "moved/note.md"},
-				{From: "./child/note.md", To: "child/moved.md"},
+				{From: "folder/note.md", To: "new-folder/note.md"},
+				{From: "resources/test.md", To: "resources/renamed-test.md"},
 			},
-			want: "See [[moved/note]] and [[child/moved]]",
+			want: "See [[new-folder/note]] and [link](resources/renamed-test.md)",
+		},
+		{
+			name:    "subdirectory markdown links",
+			content: "Reference [file](resources/docs/readme.md) and [other](utils/helper.md)",
+			moves: []FileMove{
+				{From: "resources/docs/readme.md", To: "documentation/readme.md"},
+				{From: "utils/helper.md", To: "lib/utils.md"},
+			},
+			want: "Reference [file](documentation/readme.md) and [other](lib/utils.md)",
 		},
 	}
 

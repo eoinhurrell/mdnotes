@@ -227,11 +227,16 @@ func GetDefaultConfigPaths() []string {
 	currentDir, _ := os.Getwd()
 
 	return []string{
-		filepath.Join(currentDir, ".obsidian-admin.yaml"),
-		filepath.Join(currentDir, "obsidian-admin.yaml"),
-		filepath.Join(homeDir, ".config", "obsidian-admin", "config.yaml"),
-		filepath.Join(homeDir, ".obsidian-admin.yaml"),
-		"/etc/obsidian-admin/config.yaml",
+		filepath.Join(currentDir, "mdnotes.yaml"),
+		filepath.Join(currentDir, ".mdnotes.yaml"),
+		filepath.Join(currentDir, ".obsidian-admin.yaml"),  // Legacy support
+		filepath.Join(currentDir, "obsidian-admin.yaml"),   // Legacy support
+		filepath.Join(homeDir, ".config", "mdnotes", "config.yaml"),
+		filepath.Join(homeDir, ".mdnotes.yaml"),
+		filepath.Join(homeDir, ".config", "obsidian-admin", "config.yaml"), // Legacy support
+		filepath.Join(homeDir, ".obsidian-admin.yaml"),  // Legacy support
+		"/etc/mdnotes/config.yaml",
+		"/etc/obsidian-admin/config.yaml", // Legacy support
 	}
 }
 

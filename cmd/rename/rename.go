@@ -152,6 +152,11 @@ func runRename(cmd *cobra.Command, args []string) error {
 	}
 
 	renameProcessor := processor.NewRenameProcessor(options)
+	defer func() {
+		if cleanupErr := renameProcessor.Cleanup(); cleanupErr != nil && verbose {
+			fmt.Printf("Warning: error during cleanup: %v\n", cleanupErr)
+		}
+	}()
 
 	// Perform the rename operation
 	result, err := renameProcessor.ProcessRename(ctx, sourceAbs, targetAbs, options)

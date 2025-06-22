@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/eoinhurrell/mdnotes/internal/rgsearch"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/eoinhurrell/mdnotes/internal/workerpool"
 	"github.com/eoinhurrell/mdnotes/pkg/template"
 )
 
@@ -21,6 +21,8 @@ type RenameProcessor struct {
 	scanner     *vault.Scanner
 	linkParser  *LinkParser
 	linkUpdater *LinkUpdater
+	searcher    *rgsearch.Searcher
+	pool        *workerpool.WorkerPool
 	workers     int
 	verbose     bool
 }
@@ -62,11 +64,23 @@ func NewRenameProcessor(options RenameOptions) *RenameProcessor {
 	}
 
 	scanner := vault.NewScanner(vault.WithIgnorePatterns(options.IgnorePatterns))
+	searcher := rgsearch.NewSearcher()
+	
+	// Create worker pool for parallel processing
+	poolConfig := workerpool.Config{
+		MaxWorkers:  workers,
+		QueueSize:   workers * 10,
+		TaskTimeout: 30 * time.Second,
+		EnableStats: options.Verbose,
+	}
+	pool := workerpool.NewWorkerPool(poolConfig)
 
 	return &RenameProcessor{
 		scanner:     scanner,
 		linkParser:  NewLinkParser(),
 		linkUpdater: NewLinkUpdater(),
+		searcher:    searcher,
+		pool:        pool,
 		workers:     workers,
 		verbose:     options.Verbose,
 	}
@@ -96,8 +110,8 @@ func (rp *RenameProcessor) ProcessRename(ctx context.Context, sourcePath, target
 	// Create file move record
 	move := FileMove{From: sourceRel, To: targetRel}
 
-	// Use ripgrep for all rename operations
-	modifiedFiles, errors := rp.processRenameWithRipgrep(ctx, move, options, result)
+	// Use optimized search and processing
+	modifiedFiles, errors := rp.processRenameWithOptimizedSearch(ctx, move, options, result)
 
 	// Check for context cancellation
 	if ctx.Err() != nil {
@@ -125,27 +139,12 @@ func (rp *RenameProcessor) ProcessRename(ctx context.Context, sourcePath, target
 	return result, nil
 }
 
-// processFileWorker processes files from the stream
-func (rp *RenameProcessor) processFileWorker(ctx context.Context, fileStream <-chan *vault.VaultFile, results chan<- FileProcessResult, move FileMove, linkRegex *regexp.Regexp, dryRun bool) {
-	for {
-		select {
-		case file, ok := <-fileStream:
-			if !ok {
-				return // Channel closed
-			}
-
-			result := rp.processFile(file, move, linkRegex, dryRun)
-			
-			select {
-			case results <- result:
-			case <-ctx.Done():
-				return
-			}
-
-		case <-ctx.Done():
-			return
-		}
+// Cleanup properly shuts down the worker pool
+func (rp *RenameProcessor) Cleanup() error {
+	if rp.pool != nil {
+		return rp.pool.Shutdown(10 * time.Second)
 	}
+	return nil
 }
 
 // processFile processes a single file for link updates
@@ -208,8 +207,13 @@ func (rp *RenameProcessor) compileOptimizedLinkRegex(sourceFile string) *regexp.
 // linkMatchesMove checks if a link matches the file move
 func (rp *RenameProcessor) linkMatchesMove(link vault.Link, move FileMove) bool {
 	target := link.Target
+	
+	// Remove any fragment identifiers (e.g., file.md#heading)
+	if idx := strings.Index(target, "#"); idx != -1 {
+		target = target[:idx]
+	}
 
-	// Normalize paths for comparison
+	// Normalize paths for comparison - all paths should be vault-relative
 	moveFrom := filepath.ToSlash(move.From)
 	target = filepath.ToSlash(target)
 
@@ -221,8 +225,8 @@ func (rp *RenameProcessor) linkMatchesMove(link vault.Link, move FileMove) bool 
 	switch link.Type {
 	case vault.WikiLink:
 		// Wiki links can reference files by:
-		// 1. Full path: "folder/file" or "folder/file.md"
-		// 2. Basename: "file" or "file.md"
+		// 1. Full vault-relative path: "folder/file" or "folder/file.md"
+		// 2. Basename only: "file" or "file.md" (Obsidian behavior)
 		if target == moveFromWithoutExt || target == moveFrom {
 			return true
 		}
@@ -236,8 +240,21 @@ func (rp *RenameProcessor) linkMatchesMove(link vault.Link, move FileMove) bool 
 		return false
 
 	case vault.MarkdownLink, vault.EmbedLink:
-		// Markdown links can be full path or basename
-		return target == moveFrom || target == moveFromBasename
+		// Markdown links should be vault-relative paths
+		// This is the key fix - we compare the full vault-relative path
+		if target == moveFrom {
+			return true
+		}
+		// Check if target without extension matches moveFrom without extension
+		targetWithoutExt := strings.TrimSuffix(target, ".md")
+		if targetWithoutExt == moveFromWithoutExt {
+			return true
+		}
+		// Also check if adding .md to target matches the move path
+		if !strings.HasSuffix(target, ".md") && target+".md" == moveFrom {
+			return true
+		}
+		return false
 
 	default:
 		return false
@@ -294,13 +311,13 @@ func (rp *RenameProcessor) performFileRename(sourcePath, targetPath string) erro
 }
 
 
-// processRenameWithRipgrep uses ripgrep to find candidate files and process them
-func (rp *RenameProcessor) processRenameWithRipgrep(ctx context.Context, move FileMove, options RenameOptions, result *RenameResult) ([]*vault.VaultFile, []error) {
+// processRenameWithOptimizedSearch uses rgsearch and workerpool for efficient processing
+func (rp *RenameProcessor) processRenameWithOptimizedSearch(ctx context.Context, move FileMove, options RenameOptions, result *RenameResult) ([]*vault.VaultFile, []error) {
 	var modifiedFiles []*vault.VaultFile
 	var errors []error
 
-	// Try to use ripgrep for faster file discovery
-	candidateFiles, rgErr := rp.findCandidateFilesWithRipgrep(ctx, move, options)
+	// Try to use rgsearch for faster file discovery
+	candidateFiles, rgErr := rp.findCandidateFilesWithRgsearch(ctx, move, options)
 	
 	if rgErr != nil {
 		if options.Verbose {
@@ -311,92 +328,132 @@ func (rp *RenameProcessor) processRenameWithRipgrep(ctx context.Context, move Fi
 	}
 
 	if options.Verbose {
-		fmt.Printf("Ripgrep found %d candidate files to examine\n", len(candidateFiles))
+		fmt.Printf("Found %d candidate files to examine\n", len(candidateFiles))
 	}
 
-	// Process only files that ripgrep found containing potential matches
-	for _, filePath := range candidateFiles {
-		vaultFile := &vault.VaultFile{Path: filePath}
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("reading %s: %w", filePath, err))
-			continue
+	if len(candidateFiles) == 0 {
+		return modifiedFiles, errors
+	}
+
+	// Create tasks for parallel processing
+	tasks := make([]workerpool.Task, len(candidateFiles))
+	taskResults := make([]*FileProcessResult, len(candidateFiles))
+	
+	for i, filePath := range candidateFiles {
+		i, filePath := i, filePath // Capture loop variables
+		tasks[i] = func(ctx context.Context) error {
+			vaultFile := &vault.VaultFile{Path: filePath}
+			content, err := os.ReadFile(filePath)
+			if err != nil {
+				return fmt.Errorf("reading %s: %w", filePath, err)
+			}
+			
+			if err := vaultFile.Parse(content); err != nil {
+				return fmt.Errorf("parsing %s: %w", filePath, err)
+			}
+			
+			// Set relative path
+			if rel, err := filepath.Rel(options.VaultRoot, filePath); err == nil {
+				vaultFile.RelativePath = rel
+			}
+			
+			processResult := rp.processFile(vaultFile, move, nil, options.DryRun)
+			processResult.File = vaultFile
+			taskResults[i] = &processResult
+			
+			return processResult.Error
 		}
-		
-		if err := vaultFile.Parse(content); err != nil {
-			errors = append(errors, fmt.Errorf("parsing %s: %w", filePath, err))
-			continue
-		}
-		
-		// Set relative path
-		if rel, err := filepath.Rel(options.VaultRoot, filePath); err == nil {
-			vaultFile.RelativePath = rel
-		}
-		
-		processResult := rp.processFile(vaultFile, move, nil, options.DryRun)
+	}
+
+	// Process all tasks in parallel
+	results := rp.pool.ProcessBatch(tasks)
+	
+	// Collect results
+	for i, taskResult := range results {
 		result.FilesScanned++
 		
-		if processResult.Error != nil {
-			errors = append(errors, processResult.Error)
+		if taskResult.Error != nil {
+			errors = append(errors, taskResult.Error)
+			if options.Verbose {
+				fmt.Printf("Error processing file: %v\n", taskResult.Error)
+			}
 			continue
 		}
 		
-		if processResult.Modified {
+		processResult := taskResults[i]
+		if processResult != nil && processResult.Modified {
 			result.FilesModified++
 			result.LinksUpdated += processResult.LinksUpdated
-			result.ModifiedFiles = append(result.ModifiedFiles, vaultFile.RelativePath)
-			modifiedFiles = append(modifiedFiles, vaultFile)
+			result.ModifiedFiles = append(result.ModifiedFiles, processResult.File.RelativePath)
+			modifiedFiles = append(modifiedFiles, processResult.File)
 			
 			if options.Verbose {
-				fmt.Printf("Examining: %s - updated %d links\n", vaultFile.RelativePath, processResult.LinksUpdated)
+				fmt.Printf("Examining: %s - updated %d links\n", processResult.File.RelativePath, processResult.LinksUpdated)
 			}
-		} else if options.Verbose {
-			fmt.Printf("Examining: %s - no changes needed\n", vaultFile.RelativePath)
+		} else if options.Verbose && processResult != nil {
+			fmt.Printf("Examining: %s - no changes needed\n", processResult.File.RelativePath)
 		}
 	}
 
 	return modifiedFiles, errors
 }
 
-// findCandidateFilesWithRipgrep uses ripgrep to quickly find files that might contain references
-func (rp *RenameProcessor) findCandidateFilesWithRipgrep(ctx context.Context, move FileMove, options RenameOptions) ([]string, error) {
+// findCandidateFilesWithRgsearch uses rgsearch to quickly find files that might contain references
+func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, move FileMove, options RenameOptions) ([]string, error) {
+	if !rp.searcher.IsAvailable() {
+		return nil, fmt.Errorf("ripgrep not available")
+	}
+
 	// Create search patterns for the file being renamed
 	sourceFile := filepath.Base(move.From)
 	sourceWithoutExt := strings.TrimSuffix(sourceFile, ".md")
+	moveFromWithoutExt := strings.TrimSuffix(move.From, ".md")
 	
-	// Build ripgrep pattern that matches potential links
-	// This is a broad pattern to catch wiki links, markdown links, and embeds
-	pattern := fmt.Sprintf(`(\[\[%s(\]\]|\|)|\]?\(%s\)|!\[\[%s)`, 
-		regexp.QuoteMeta(sourceWithoutExt),
-		regexp.QuoteMeta(sourceFile), 
-		regexp.QuoteMeta(sourceWithoutExt))
+	// Build pattern that matches potential links - include full path patterns
+	var patterns []string
 	
-	// Use ripgrep to find files containing potential references
-	cmd := exec.CommandContext(ctx, "rg", 
-		"--files-with-matches",  // Only return filenames, not content
-		"--type", "md",          // Only markdown files
-		"--case-insensitive",    // Case insensitive search
-		pattern, 
-		options.VaultRoot)
-	
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("ripgrep execution failed: %w", err)
+	// Wiki links: [[basename]] or [[path/basename]]
+	patterns = append(patterns, fmt.Sprintf(`\[\[%s(\]\]|\|)`, regexp.QuoteMeta(sourceWithoutExt)))
+	if move.From != sourceFile {
+		patterns = append(patterns, fmt.Sprintf(`\[\[%s(\]\]|\|)`, regexp.QuoteMeta(moveFromWithoutExt)))
 	}
 	
-	// Parse ripgrep output (one filename per line)
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	var files []string
-	for _, line := range lines {
-		if line != "" {
-			files = append(files, strings.TrimSpace(line))
-		}
+	// Markdown links: [text](basename.md) or [text](path/basename.md)
+	patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(sourceFile)))
+	if move.From != sourceFile {
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(move.From)))
+	}
+	
+	// Embed links: ![[basename]] or ![[path/basename]]
+	patterns = append(patterns, fmt.Sprintf(`!\[\[%s\]\]`, regexp.QuoteMeta(sourceWithoutExt)))
+	if move.From != sourceFile {
+		patterns = append(patterns, fmt.Sprintf(`!\[\[%s\]\]`, regexp.QuoteMeta(moveFromWithoutExt)))
+	}
+	
+	// Combine all patterns
+	pattern := "(" + strings.Join(patterns, "|") + ")"
+	
+	// Configure search options
+	searchOptions := rgsearch.SearchOptions{
+		Pattern:         pattern,
+		Path:            options.VaultRoot,
+		CaseSensitive:   false,
+		Regex:           true,
+		IncludePatterns: []string{"*.md"},
+		MaxMatches:      1000,
+		Timeout:         30 * time.Second,
+	}
+	
+	// Use rgsearch to find files containing potential references
+	files, err := rp.searcher.SearchFiles(ctx, searchOptions)
+	if err != nil {
+		return nil, fmt.Errorf("rgsearch execution failed: %w", err)
 	}
 	
 	return files, nil
 }
 
-// processFullRenameFallback is the original comprehensive approach
+// processFullRenameFallback is the original comprehensive approach using workerpool
 func (rp *RenameProcessor) processFullRenameFallback(ctx context.Context, move FileMove, options RenameOptions, result *RenameResult) ([]*vault.VaultFile, []error) {
 	var modifiedFiles []*vault.VaultFile
 	var errors []error
@@ -404,64 +461,62 @@ func (rp *RenameProcessor) processFullRenameFallback(ctx context.Context, move F
 	// Pre-compile regex patterns for performance
 	linkRegex := rp.compileOptimizedLinkRegex(move.From)
 
-	// Scan vault for files - stream processing instead of loading all at once
-	fileStream := make(chan *vault.VaultFile, 100)
-	go func() {
-		defer close(fileStream)
-		err := rp.scanner.WalkWithCallback(options.VaultRoot, func(file *vault.VaultFile) error {
-			select {
-			case fileStream <- file:
-				return nil
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		})
-		if err != nil && options.Verbose {
-			fmt.Printf("Warning: error during vault scan: %v\n", err)
-		}
-	}()
-
-	// Process files in parallel with worker pool
-	processResults := make(chan FileProcessResult, rp.workers)
-	var wg sync.WaitGroup
-
-	// Start workers
-	for i := 0; i < rp.workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			rp.processFileWorker(ctx, fileStream, processResults, move, linkRegex, options.DryRun)
-		}()
+	// Collect all files first
+	var allFiles []*vault.VaultFile
+	err := rp.scanner.WalkWithCallback(options.VaultRoot, func(file *vault.VaultFile) error {
+		allFiles = append(allFiles, file)
+		return nil
+	})
+	
+	if err != nil {
+		return modifiedFiles, []error{fmt.Errorf("scanning vault: %w", err)}
 	}
 
-	// Close results channel when all workers are done
-	go func() {
-		wg.Wait()
-		close(processResults)
-	}()
+	if len(allFiles) == 0 {
+		return modifiedFiles, errors
+	}
 
+	// Create tasks for parallel processing
+	tasks := make([]workerpool.Task, len(allFiles))
+	taskResults := make([]*FileProcessResult, len(allFiles))
+	
+	for i, file := range allFiles {
+		i, file := i, file // Capture loop variables
+		tasks[i] = func(ctx context.Context) error {
+			processResult := rp.processFile(file, move, linkRegex, options.DryRun)
+			processResult.File = file
+			taskResults[i] = &processResult
+			
+			return processResult.Error
+		}
+	}
+
+	// Process all tasks in parallel
+	results := rp.pool.ProcessBatch(tasks)
+	
 	// Collect results
-	for processResult := range processResults {
+	for i, taskResult := range results {
 		result.FilesScanned++
-
-		if processResult.Error != nil {
-			errors = append(errors, processResult.Error)
+		
+		if taskResult.Error != nil {
+			errors = append(errors, taskResult.Error)
 			if options.Verbose {
-				fmt.Printf("Error processing %s: %v\n", processResult.File.RelativePath, processResult.Error)
+				fmt.Printf("Error processing file: %v\n", taskResult.Error)
 			}
 			continue
 		}
-
-		if processResult.Modified {
+		
+		processResult := taskResults[i]
+		if processResult != nil && processResult.Modified {
 			result.FilesModified++
 			result.LinksUpdated += processResult.LinksUpdated
 			result.ModifiedFiles = append(result.ModifiedFiles, processResult.File.RelativePath)
 			modifiedFiles = append(modifiedFiles, processResult.File)
-
+			
 			if options.Verbose {
 				fmt.Printf("Examining: %s - updated %d links\n", processResult.File.RelativePath, processResult.LinksUpdated)
 			}
-		} else if options.Verbose {
+		} else if options.Verbose && processResult != nil {
 			fmt.Printf("Examining: %s - no changes needed\n", processResult.File.RelativePath)
 		}
 	}

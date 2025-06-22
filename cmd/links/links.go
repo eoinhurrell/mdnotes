@@ -90,16 +90,18 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	existingFiles := make(map[string]bool)           // vault-relative paths
 	baseNameFiles := make(map[string][]string)       // basename -> list of full paths
 	for _, file := range files {
-		existingFiles[file.RelativePath] = true
+		// Normalize path separators for consistent lookup
+		normalizedPath := filepath.ToSlash(file.RelativePath)
+		existingFiles[normalizedPath] = true
 		
 		// Also add without .md extension for exact matches
-		if strings.HasSuffix(file.RelativePath, ".md") {
-			withoutExt := strings.TrimSuffix(file.RelativePath, ".md")
+		if strings.HasSuffix(normalizedPath, ".md") {
+			withoutExt := strings.TrimSuffix(normalizedPath, ".md")
 			existingFiles[withoutExt] = true
 			
 			// For wiki links: map basename to full paths (Obsidian behavior)
 			baseName := filepath.Base(withoutExt)
-			baseNameFiles[baseName] = append(baseNameFiles[baseName], file.RelativePath)
+			baseNameFiles[baseName] = append(baseNameFiles[baseName], normalizedPath)
 		}
 	}
 
@@ -280,26 +282,37 @@ func runConvert(cmd *cobra.Command, args []string) error {
 
 // resolveTargetPath determines the actual path to check based on link type and settings
 func resolveTargetPath(link vault.Link, file *vault.VaultFile, vaultRoot string, fileRelative bool) string {
+	target := link.Target
+	
+	// Remove any fragment identifiers (e.g., file.md#heading)
+	if idx := strings.Index(target, "#"); idx != -1 {
+		target = target[:idx]
+	}
+	
+	// Normalize path separators
+	target = filepath.ToSlash(target)
+	
 	switch link.Type {
 	case vault.WikiLink, vault.EmbedLink:
 		// Wiki links and embeds are always relative to vault root in Obsidian
-		return link.Target
+		return target
 		
 	case vault.MarkdownLink:
 		if fileRelative {
 			// Check relative to the file's directory
 			fileDir := filepath.Dir(file.RelativePath)
 			if fileDir == "." {
-				return link.Target
+				return target
 			}
-			return filepath.ToSlash(filepath.Join(fileDir, link.Target))
+			return filepath.ToSlash(filepath.Join(fileDir, target))
 		} else {
 			// Default: check relative to vault root (Obsidian behavior)
-			return link.Target
+			// This is the key fix - markdown links should be vault-relative by default
+			return target
 		}
 		
 	default:
-		return link.Target
+		return target
 	}
 }
 
