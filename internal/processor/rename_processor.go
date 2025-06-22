@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -216,6 +217,13 @@ func (rp *RenameProcessor) linkMatchesMove(link vault.Link, move FileMove) bool 
 	// Normalize paths for comparison - all paths should be vault-relative
 	moveFrom := filepath.ToSlash(move.From)
 	target = filepath.ToSlash(target)
+	
+	// URL decode the target for proper comparison (handles %20, etc.)
+	decodedTarget, err := url.QueryUnescape(target)
+	if err != nil {
+		// If decoding fails, use original target
+		decodedTarget = target
+	}
 
 	// Get basename for comparison (for wiki links that might use just filename)
 	moveFromBasename := filepath.Base(moveFrom)
@@ -227,31 +235,35 @@ func (rp *RenameProcessor) linkMatchesMove(link vault.Link, move FileMove) bool 
 		// Wiki links can reference files by:
 		// 1. Full vault-relative path: "folder/file" or "folder/file.md"
 		// 2. Basename only: "file" or "file.md" (Obsidian behavior)
-		if target == moveFromWithoutExt || target == moveFrom {
+		if decodedTarget == moveFromWithoutExt || decodedTarget == moveFrom {
 			return true
 		}
-		if target == moveFromBasenameWithoutExt || target == moveFromBasename {
+		if decodedTarget == moveFromBasenameWithoutExt || decodedTarget == moveFromBasename {
 			return true
 		}
 		// Also check if target with .md extension matches
-		if !strings.HasSuffix(target, ".md") {
-			return target+".md" == moveFrom || target+".md" == moveFromBasename
+		if !strings.HasSuffix(decodedTarget, ".md") {
+			return decodedTarget+".md" == moveFrom || decodedTarget+".md" == moveFromBasename
 		}
 		return false
 
 	case vault.MarkdownLink, vault.EmbedLink:
 		// Markdown links should be vault-relative paths
-		// This is the key fix - we compare the full vault-relative path
-		if target == moveFrom {
+		// Compare both original and decoded target
+		if target == moveFrom || decodedTarget == moveFrom {
 			return true
 		}
 		// Check if target without extension matches moveFrom without extension
 		targetWithoutExt := strings.TrimSuffix(target, ".md")
-		if targetWithoutExt == moveFromWithoutExt {
+		decodedTargetWithoutExt := strings.TrimSuffix(decodedTarget, ".md")
+		if targetWithoutExt == moveFromWithoutExt || decodedTargetWithoutExt == moveFromWithoutExt {
 			return true
 		}
 		// Also check if adding .md to target matches the move path
 		if !strings.HasSuffix(target, ".md") && target+".md" == moveFrom {
+			return true
+		}
+		if !strings.HasSuffix(decodedTarget, ".md") && decodedTarget+".md" == moveFrom {
 			return true
 		}
 		return false
@@ -409,6 +421,10 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 	sourceWithoutExt := strings.TrimSuffix(sourceFile, ".md")
 	moveFromWithoutExt := strings.TrimSuffix(move.From, ".md")
 	
+	// URL encode versions for matching encoded links (Obsidian-style)
+	sourceFileEncoded := rp.obsidianURLEncode(sourceFile)
+	moveFromEncoded := rp.obsidianURLEncode(move.From)
+	
 	// Build pattern that matches potential links - include full path patterns
 	var patterns []string
 	
@@ -422,6 +438,14 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 	patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(sourceFile)))
 	if move.From != sourceFile {
 		patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(move.From)))
+	}
+	
+	// URL-encoded markdown links (handle %20, etc.)
+	if sourceFileEncoded != sourceFile {
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(sourceFileEncoded)))
+	}
+	if moveFromEncoded != move.From && move.From != sourceFile {
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(moveFromEncoded)))
 	}
 	
 	// Embed links: ![[basename]] or ![[path/basename]]
@@ -451,6 +475,22 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 	}
 	
 	return files, nil
+}
+
+// obsidianURLEncode encodes a path the way Obsidian does for markdown links
+func (rp *RenameProcessor) obsidianURLEncode(path string) string {
+	// Replace specific characters that Obsidian encodes
+	result := strings.ReplaceAll(path, " ", "%20")
+	result = strings.ReplaceAll(result, "'", "%27")
+	result = strings.ReplaceAll(result, "\"", "%22")
+	result = strings.ReplaceAll(result, "(", "%28")
+	result = strings.ReplaceAll(result, ")", "%29")
+	result = strings.ReplaceAll(result, "[", "%5B")
+	result = strings.ReplaceAll(result, "]", "%5D")
+	result = strings.ReplaceAll(result, "{", "%7B")
+	result = strings.ReplaceAll(result, "}", "%7D")
+	result = strings.ReplaceAll(result, "#", "%23")
+	return result
 }
 
 // processFullRenameFallback is the original comprehensive approach using workerpool

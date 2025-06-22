@@ -86,6 +86,19 @@ func TestRenameProcessor_LinkMatchesMove(t *testing.T) {
 			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: false,
 		},
+		// URL encoding tests
+		{
+			name: "markdown link with URL encoding matches",
+			link: vault.Link{Type: vault.MarkdownLink, Target: "resources/books/20250527111132-Blood's%20Hiding.md"},
+			move: FileMove{From: "resources/books/20250527111132-Blood's Hiding.md", To: "resources/books/20250527111132-renamed.md"},
+			expect: true,
+		},
+		{
+			name: "markdown link with spaces matches URL encoded",
+			link: vault.Link{Type: vault.MarkdownLink, Target: "resources/books/file%20with%20spaces.md"},
+			move: FileMove{From: "resources/books/file with spaces.md", To: "resources/books/renamed.md"},
+			expect: true,
+		},
 	}
 	
 	for _, tt := range tests {

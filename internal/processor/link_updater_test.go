@@ -81,6 +81,22 @@ func TestLinkUpdater_UpdateReferences(t *testing.T) {
 			},
 			want: "Reference [file](documentation/readme.md) and [other](lib/utils.md)",
 		},
+		{
+			name:    "URL encoded links",
+			content: "- [Blood's Hiding](resources/books/20250527111132-Blood's%20Hiding.md), Ken Baumann",
+			moves: []FileMove{
+				{From: "resources/books/20250527111132-Blood's Hiding.md", To: "resources/books/20250527111132-renamed.md"},
+			},
+			want: "- [Blood's Hiding](resources/books/20250527111132-renamed.md), Ken Baumann",
+		},
+		{
+			name:    "URL encoded links with spaces",
+			content: "See [file with spaces](folder/file%20with%20spaces.md) here",
+			moves: []FileMove{
+				{From: "folder/file with spaces.md", To: "folder/renamed file.md"},
+			},
+			want: "See [file with spaces](folder/renamed%20file.md) here",
+		},
 	}
 
 	for _, tt := range tests {

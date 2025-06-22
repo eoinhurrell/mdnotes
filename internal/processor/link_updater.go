@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -94,6 +95,21 @@ func (u *LinkUpdater) createMoveMap(moves []FileMove) map[string]string {
 			toWithoutExt := strings.TrimSuffix(move.To, ".md")
 			moveMap[fromWithoutExt] = toWithoutExt
 		}
+		
+		// Add URL-encoded versions for matching encoded links (Obsidian-style)
+		encodedFrom := u.obsidianURLEncode(move.From)
+		if encodedFrom != move.From {
+			moveMap[encodedFrom] = move.To
+		}
+		
+		if strings.HasSuffix(move.From, ".md") {
+			fromWithoutExt := strings.TrimSuffix(move.From, ".md")
+			encodedFromWithoutExt := u.obsidianURLEncode(fromWithoutExt)
+			if encodedFromWithoutExt != fromWithoutExt {
+				toWithoutExt := strings.TrimSuffix(move.To, ".md")
+				moveMap[encodedFromWithoutExt] = toWithoutExt
+			}
+		}
 	}
 
 	return moveMap
@@ -101,16 +117,24 @@ func (u *LinkUpdater) createMoveMap(moves []FileMove) map[string]string {
 
 // normalizeLinkTarget converts a link target to the format used in move maps
 func (u *LinkUpdater) normalizeLinkTarget(target string, linkType LinkType) string {
+	// URL decode the target first to handle %20, etc.
+	decodedTarget, err := url.QueryUnescape(target)
+	if err != nil {
+		// If decoding fails, use original target
+		decodedTarget = target
+	}
+	
 	switch linkType {
 	case WikiLink:
 		// Wiki links might not have .md extension
-		if !strings.HasSuffix(target, ".md") && !strings.Contains(filepath.Base(target), ".") {
-			return target + ".md"
+		if !strings.HasSuffix(decodedTarget, ".md") && !strings.Contains(filepath.Base(decodedTarget), ".") {
+			return decodedTarget + ".md"
 		}
-		return target
+		return decodedTarget
 	case MarkdownLink, EmbedLink:
 		// Markdown and embed links should have their extension preserved
-		return target
+		// Return the decoded version for proper matching
+		return decodedTarget
 	default:
 		return target
 	}
@@ -123,7 +147,14 @@ func (u *LinkUpdater) createUpdatedLink(link Link, newPath string) string {
 		// Remove .md extension for wiki links
 		newTarget := strings.TrimSuffix(newPath, ".md")
 
-		if link.Text == link.Target {
+		// Check if the original link text matches the target (simple link)
+		originalTarget := link.Target
+		decodedOriginal, err := url.QueryUnescape(originalTarget)
+		if err != nil {
+			decodedOriginal = originalTarget
+		}
+
+		if link.Text == originalTarget || link.Text == decodedOriginal {
 			// Simple wiki link [[target]]
 			return "[[" + newTarget + "]]"
 		} else {
@@ -133,7 +164,12 @@ func (u *LinkUpdater) createUpdatedLink(link Link, newPath string) string {
 
 	case MarkdownLink:
 		// Markdown link [text](target)
-		return "[" + link.Text + "](" + newPath + ")"
+		// Obsidian always URL-encodes paths with spaces or special characters
+		outputPath := newPath
+		if u.needsURLEncoding(newPath) {
+			outputPath = u.obsidianURLEncode(newPath)
+		}
+		return "[" + link.Text + "](" + outputPath + ")"
 
 	case EmbedLink:
 		// Embed link ![[target]]
@@ -142,6 +178,30 @@ func (u *LinkUpdater) createUpdatedLink(link Link, newPath string) string {
 	default:
 		return ""
 	}
+}
+
+// needsURLEncoding checks if a path needs URL encoding for markdown links
+func (u *LinkUpdater) needsURLEncoding(path string) bool {
+	// Check for characters that typically need encoding in markdown links
+	needsEncoding := strings.ContainsAny(path, " '\"()[]{}#%&+,;=?@")
+	return needsEncoding
+}
+
+// obsidianURLEncode encodes a path the way Obsidian does for markdown links
+// Obsidian only encodes specific characters and leaves paths mostly intact
+func (u *LinkUpdater) obsidianURLEncode(path string) string {
+	// Replace specific characters that Obsidian encodes
+	result := strings.ReplaceAll(path, " ", "%20")
+	result = strings.ReplaceAll(result, "'", "%27")
+	result = strings.ReplaceAll(result, "\"", "%22")
+	result = strings.ReplaceAll(result, "(", "%28")
+	result = strings.ReplaceAll(result, ")", "%29")
+	result = strings.ReplaceAll(result, "[", "%5B")
+	result = strings.ReplaceAll(result, "]", "%5D")
+	result = strings.ReplaceAll(result, "{", "%7B")
+	result = strings.ReplaceAll(result, "}", "%7D")
+	result = strings.ReplaceAll(result, "#", "%23")
+	return result
 }
 
 // TrackMoves creates a log of file moves for later reference
