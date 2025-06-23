@@ -87,7 +87,7 @@ type DateExpression struct {
 	Value    interface{}
 }
 
-// Parser handles parsing query expressions with enhanced lexical analysis
+// Parser handles parsing query expressions with lexical analysis
 type Parser struct {
 	input  string
 	tokens []Token
@@ -424,7 +424,7 @@ func (p *Parser) parseComparisonExpression() (Expression, error) {
 			}
 
 			if fieldExpr, ok := left.(*FieldExpression); ok {
-				// Use the enhanced comparison expression for all operators
+				// Use the comparison expression for all operators
 				return &ComparisonExpression{
 					Field:    fieldExpr.Name,
 					Operator: keyword,
@@ -722,7 +722,7 @@ func (e *DateExpression) Evaluate(file *vault.VaultFile) bool {
 	}
 }
 
-// Enhanced helper evaluation functions
+// Helper evaluation functions
 
 func evaluateContains(haystack, needle interface{}) bool {
 	switch h := haystack.(type) {
@@ -958,7 +958,7 @@ func parseDuration(s string) (time.Duration, error) {
 	return time.ParseDuration(s)
 }
 
-// Enhanced operator evaluation functions
+// Operator evaluation functions
 
 // evaluateHas provides exact array element matching (solves learning vs machine_learning edge case)
 func evaluateHas(haystack, needle interface{}) bool {

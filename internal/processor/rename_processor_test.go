@@ -69,7 +69,7 @@ func TestRenameProcessor_LinkMatchesMove(t *testing.T) {
 		// Fragment handling
 		{
 			name: "link with fragment matches",
-			link: vault.Link{Type: vault.MarkdownLink, Target: "resources/test.md#section"},
+			link: vault.Link{Type: vault.MarkdownLink, Target: "resources/test.md", Fragment: "section"},
 			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: true,
 		},

@@ -1,332 +1,421 @@
-# 📄 Product Requirements Document
+# Product Requirements Document: Smart Link Updating for mdnotes Rename Command
 
-## Revamp of **mdnotes** CLI (vNext)
+## Document Information
 
----
-
-## 1. Vision & Objectives
-
-**Vision**
-Create a rock‑solid, high‑performance CLI for managing, analyzing, and publishing Obsidian‑style Zettelkasten vaults—empowering researchers, writers, and power users to automate metadata, evaluate content quality, and extract or share focused subgraphs with ease.
-
-**Objectives**
-
-1. **Streamline UX**: Intuitive commands, consistent aliases, and sensible defaults
-2. **Unified Configuration**: Single YAML config that covers vault, ignore rules, templates, integrations
-3. **Elevated Performance**: Ripgrep‑powered indexing, parallel worker pools, in‑memory caching
-4. **Deep Zettelkasten Awareness**: Atomicity & content‑quality scoring, subgraph exports, backlink‑driven queries
-5. **Seamless Linkding Sync**: Robust two‑way bookmark integration—list, sync, status tracking
-6. **Modular & Extensible**: Clean package boundaries, plugin hooks, clear extension APIs
+- **Product**: mdnotes CLI
+- **Feature**: Smart Link Updating for Rename Command
+- **Version**: 1.0
+- **Date**: June 22, 2025
+- **Author**: Product Team
 
 ---
 
-## 2. Target Users & Needs
+## Executive Summary
 
-| Persona              | Needs & Goals                                                                          |
-| -------------------- | -------------------------------------------------------------------------------------- |
-| **Researcher**       | Extract thematic clusters, triage raw notes, monitor note quality over time            |
-| **Writer / Blogger** | Export clean subgraphs for publication, rewrite external links to URLs, include assets |
-| **Power User**       | Craft complex queries, automate pipelines with watch mode, customize via plugins       |
-| **Developer**        | Well‑structured codebase, easy testing & profiling, clear extension points             |
+The mdnotes rename command currently only renames files without updating links that reference those files, leading to broken links and vault inconsistency. This PRD defines a comprehensive solution to automatically update all link references when renaming files, ensuring vault integrity and user productivity.
 
 ---
 
-## 3. Key Changes & Detailed Descriptions
+## Problem Statement
 
-### 3.1 CLI Usability & Structure
+### Current State
 
-- **Domain‑Grouped Commands**
+- Users rename files using `mdnotes rename old-name.md new-name.md`
+- All existing links to the renamed file become broken
+- Users must manually find and update references across potentially hundreds of files
+- This creates friction and discourages file organization
 
-  - `fm` (frontmatter), `analyze`, `links`, `export`, `watch`, `rename`, `linkding`
+### Pain Points
 
-- **Power Aliases**
-
-  - `mdnotes u` → `fm upsert`
-  - `mdnotes q` → `fm query`
-  - `mdnotes a c` → `analyze content`
-  - `mdnotes a i` → `analyze inbox`
-  - `mdnotes r` → `rename`
-  - `mdnotes x` → `export`
-  - `mdnotes ld sync` → `linkding sync`
-
-- **Flag Hygiene & Smart Defaults**
-
-  - Global flags: `--dry-run`, `--verbose`, `--quiet`, `--config`
-  - Default `--recursive=true` on file‑targeting commands
-  - Built‑in ignore patterns: `.obsidian/*`, `*.tmp`, `.git/*`
-  - Implicit vault root detection (walk upward until vault marker)
+1. **Broken link ecosystem**: Renaming destroys the knowledge graph connections
+2. **Manual link hunting**: Time-consuming and error-prone process to find all references
+3. **Incomplete updates**: Users often miss obscure link formats or embedded references
+4. **Vault inconsistency**: Broken links degrade the vault's reliability over time
+5. **Workflow disruption**: Fear of breaking links prevents necessary reorganization
 
 ---
 
-### 3.2 Unified Configuration
+## Goals and Objectives
 
-- **Single YAML config** (`mdnotes.yaml`), loaded in order: CWD → user home → `/etc`
-- Sections:
+### Primary Goals
 
-  ```yaml
-  vault:
-    path: "."
-    ignore_patterns: [".obsidian/*", "*.tmp"]
-  frontmatter:
-    # upsert defaults, type rules, download settings
-  linkding:
-    api_url: "https://…"
-    api_token: "…"
-    sync_title: true
-    sync_tags: true
-    auto_download_favicons: true
-  export:
-    default_strategy: "remove"
-    include_assets: true
-  watch:
-    debounce: "2s"
-    rules: […]
-  performance:
-    max_workers: 0 # 0 = auto-detect
-  plugins:
-    enabled: true
-    paths: ["~/.mdnotes/plugins"]
-  ```
+- **Zero broken links**: Ensure no links are broken after renaming operations
+- **Comprehensive coverage**: Update all link types that Obsidian supports
+- **Performance**: Complete updates efficiently even in large vaults (10,000+ files)
+- **Reliability**: Provide bulletproof link detection and updating
+
+### Success Metrics
+
+- 100% of referenceable links updated correctly
+- Sub-5-second execution time for vaults with 1,000+ files
+- Zero false positives (incorrect updates)
+- Zero false negatives (missed updates)
 
 ---
 
-### 3.3 Frontmatter & Linkding Integration
+## User Stories
 
-1. **`fm upsert`** (new; power‑alias `u`)
+### Primary User Stories
 
-   - **Replaces**: `fm ensure` + `fm set`
-   - **Usage**:
+**As a knowledge worker**, I want to rename files without worrying about breaking links, so that I can organize my vault freely.
 
-     ```bash
-     mdnotes u [path] \
-       --field name --default <value> \
-       [--overwrite]  # only overwrite existing if this flag present
-     ```
+**As a content creator**, I want to refactor my note structure confidently, so that I can improve my knowledge organization over time.
 
-   - **Behavior**:
+**As a team member**, I want to standardize file naming in shared vaults, so that our collective knowledge remains accessible.
 
-     - If `<field>` **absent**, set to `<value>`.
-     - If `<field>` **present** and `--overwrite` **not** given, leave as is.
-     - If `--overwrite` given, replace existing with `<value>`.
+### Edge Case User Stories
 
-   - **Templates**: same engine as `rename` & `export` (supporting `{{current_date}}`, `{{filename|slug}}`, etc.)
+**As a power user**, I want complex link formats (blocks, headings, embeds) to be updated correctly, so that my advanced workflows continue functioning.
 
-2. **`fm download`**
-
-   - Scan frontmatter for any HTTP(S) URLs
-   - Download to `attachments/` (configurable) with subfolders for date
-   - Add fields:
-
-     - `url_original` (string)
-     - `url_local` (relative path)
-     - `downloaded_at` (ISO datetime)
-
-3. **`fm sync`**
-
-   - Map file metadata sources to frontmatter:
-
-     - `--source file-mtime`
-     - `--source filename`
-     - `--source path:dir`
-
-   - Can extract via regex from filename (e.g. dates)
-
-4. **`linkding sync`** & **`linkding list`**
-
-   - **Sync**:
-
-     1. Query vault for notes with `url:` frontmatter
-     2. POST new bookmarks, PATCH existing (idempotent)
-     3. Write back `linkding_id`, update tags/title if configured
-     4. Retry on 429 with exponential backoff
-
-   - **List**:
-
-     - Show notes with `url`, status (`synced #123`, `unsynced`, `error`)
-     - Output in table or JSON
+**As a vault maintainer**, I want to rename files with special characters or complex paths, so that I can clean up legacy naming issues.
 
 ---
 
-### 3.4 Zettelkasten‑Aware Analysis
+## Functional Requirements
 
-1. **Content Scoring** (`analyze content`)
+### Core Functionality
 
-   - **Factors** (each weighted 0.2):
+#### FR-1: Comprehensive Link Detection
 
-     1. **Readability** (Flesch–Kincaid Reading Ease, normalized to 0–1)
-     2. **Link Density** = (outbound links ÷ word count), ideal 0.02–0.04
-     3. **Completeness**:
+The system MUST detect and update all of the following link types:
 
-        - +0.2 if H1 matches `title`
-        - +0.2 if ≥100 words
-        - +0.2 if summary paragraph detected
+**Wikilinks:**
 
-     4. **Atomicity Heuristic**:
+- Basic: `[[old-name]]` → `[[new-name]]`
+- With extension: `[[old-name.md]]` → `[[new-name.md]]`
+- With path: `[[folder/old-name]]` → `[[folder/new-name]]`
+- With alias: `[[old-name|Display Text]]` → `[[new-name|Display Text]]`
+- With heading: `[[old-name#heading]]` → `[[new-name#heading]]`
+- With block: `[[old-name#^blockid]]` → `[[new-name#^blockid]]`
 
-        - −0.2 if >1 `<h2>` heading
-        - −0.2 if >500 words
+**Embedded Wikilinks:**
 
-     5. **Recency Decay** = max(0, 1 − age_days/365)
+- File embed: `![[old-name]]` → `![[new-name]]`
+- Section embed: `![[old-name#heading]]` → `![[new-name#heading]]`
+- Block embed: `![[old-name#^blockid]]` → `![[new-name#^blockid]]`
 
-   - **Score** = (sum of factors) × 100 → 0–100 scale
-   - **Output**:
+**Markdown Links:**
 
-     - Summary: worst N notes
-     - Per-note breakdown: factor scores + suggestions (“Split note”, “Add links”, “Shorten”, etc.)
+- Basic: `[text](old-name.md)` → `[text](new-name.md)`
+- With path: `[text](folder/old-name.md)` → `[text](folder/new-name.md)`
+- With fragment: `[text](old-name.md#heading)` → `[text](new-name.md#heading)`
+- URL encoded: `[text](old%20name.md)` → `[text](new%20name.md)`
 
-2. **Inbox Triage** (`analyze inbox`)
+**Markdown Images:**
 
-   - Detect files:
+- `![alt](old-image.png)` → `![alt](new-image.png)`
 
-     - Containing top-level `# INBOX`
-     - Missing required frontmatter (`created`, `tags`)
-     - Word count anomalies (<20 or >200)
+#### FR-2: Path Format Handling
 
-   - **Output**:
+The system MUST handle all path reference formats:
 
-     | File           | Issues                          | Snippet    | Suggested Action |
-     | -------------- | ------------------------------- | ---------- | ---------------- |
-     | `inbox/foo.md` | missing tags, short (<20 words) | “Today I…” | Add tags; expand |
+- **Filename only**: `[[old-name]]` (when file is uniquely named)
+- **Relative to vault root**: `[[folder/subfolder/old-name]]`
+- **With/without extensions**: Both `.md` explicit and implicit
+- **URL encoding**: Handle `%20` for spaces and other encoded characters
+- **Angle bracket escaping**: `[text](<old name.md>)`
 
-3. **Link Graph & Health**
+#### FR-3: Special Character Support
 
-   - `analyze links`: graph statistics, orphan detection, hub scores
-   - `analyze health`: composite index from frontmatter coverage, link integrity, content score
+The system MUST correctly handle filenames containing:
 
----
+- Spaces: `My Note.md`
+- Unicode characters: `測試.md`
+- Special characters: `Note (v2).md`, `Note-2024.md`
+- Parentheses, brackets, hyphens, underscores
+- Reserved characters in different encoding contexts
 
-### 3.5 Subgraph Exports & Publishing
+#### FR-4: Vault Scanning
 
-- **Command**: `mdnotes x [output] --query "<expr>" [flags]`
-- **Features**:
+The system MUST:
 
-  - **Filtering** via full `fm query` syntax
-  - `--with-backlinks`: include inbound neighbors
-  - **Link‑rewrite strategies**:
+- Scan all `.md` files in the vault recursively
+- Process files in all subdirectories
+- Handle large vaults (10,000+ files) efficiently
+- Provide progress indication for long operations
+- Skip non-text files and respect `.gitignore` patterns
 
-    - `remove`: strip unexported links, leave plain text
-    - `url`: replace with frontmatter `url:` if present, else remove
-    - `stub` (future): generate minimal stub note
+### Advanced Functionality
 
-  - `--include-assets`: copy images/media under `assets/`
-  - `--slugify`, `--flatten` filename options
-  - Parallel export, in‑memory link adjustments
+#### FR-5: Disambiguation Handling
 
-- **Output**: mirror directory structure (or flat), plus `export-metadata.yaml` with query and stats
+When multiple files have the same name:
 
----
+- Update only exact path matches for fully-qualified links
+- Prompt user for ambiguous filename-only links
+- Provide clear resolution options
+- Allow batch decisions for multiple ambiguous cases
 
-### 3.6 Automation & Watch Mode
+#### FR-6: Backup and Safety
 
-- **Command**: `mdnotes watch [--config mdnotes.yaml] [--daemon]`
-- **YAML Rules**:
+The system MUST:
 
-  ```yaml
-  watch:
-    debounce: "2s"
-    ignore: [".obsidian/*", "*.tmp"]
-    rules:
-      - name: "Inbox processing"
-        paths: ["inbox/**/*.md"]
-        events: ["create", "write"]
-        actions:
-          - "mdnotes u {{file}} --field created --default '{{current_date}}'"
-          - "mdnotes ld sync {{file}}"
-      - name: "Daily cleanup"
-        cron: "0 2 * * *"
-        actions:
-          - "mdnotes analyze health"
-          - 'mdnotes export daily-archive --query "created = ''{{current_date}}''"'
-  ```
+- Create automatic backups before making changes
+- Provide dry-run mode to preview changes
+- Allow rollback of rename operations
+- Validate changes before committing
 
-- **Features**: file events, optional cron rules, templated commands, dry‑run preview, integrated logging
+#### FR-7: Reporting
 
----
+The system MUST provide:
 
-### 3.7 Plugin System
-
-- **Hook Points**:
-
-  - Pre‑command, per‑file, post‑command, export‑complete
-
-- **Discovery**: `~/.mdnotes/plugins/*.so` or Go modules declared in config
-- **API**: register new commands, flags, query predicates, template funcs
+- Summary of files scanned
+- Count of links updated by type
+- List of files modified
+- Any warnings or errors encountered
+- Performance timing information
 
 ---
 
-## 4. Architecture & Package Layout
+## Technical Requirements
 
-```
-cmd/mdnotes/
-pkg/config/
-pkg/vault/
-pkg/frontmatter/
-pkg/linkding/
-pkg/analyze/
-pkg/links/
-pkg/export/
-pkg/watch/
-pkg/plugins/
-internal/rgsearch/
-internal/workerpool/
-internal/templates/
+### TR-1: Link Detection Algorithm
+
+- Use comprehensive regex patterns for each link type
+- Handle nested markdown structures correctly
+- Avoid false positives in code blocks and comments
+- Process frontmatter and metadata sections
+
+### TR-2: File Processing
+
+- Read files with proper encoding detection (UTF-8, etc.)
+- Preserve file formatting and whitespace
+- Handle large files efficiently (streaming when needed)
+- Maintain file permissions and timestamps
+
+### TR-3: Path Resolution
+
+- Implement vault-relative path resolution
+- Handle case sensitivity per filesystem
+- Normalize path separators across platforms
+- Resolve symbolic links appropriately
+
+### TR-4: Performance Requirements
+
+- Process 1,000 files in under 5 seconds
+- Use memory efficiently for large vaults
+- Implement parallel processing where safe
+- Cache file system operations
+
+### TR-5: Error Handling
+
+- Graceful failure with detailed error messages
+- Continue processing after non-critical errors
+- Validate rename target doesn't conflict
+- Handle permission errors appropriately
+
+---
+
+## Detailed Behavior Specifications
+
+### Link Update Logic
+
+#### Exact Match Priority
+
+1. **Full path matches**: Update `[[folder/old-name]]` first
+2. **Filename matches**: Update `[[old-name]]` if unambiguous
+3. **Extension variants**: Handle both `[[old-name]]` and `[[old-name.md]]`
+
+#### Fragment Preservation
+
+- Maintain heading references: `[[old#heading]]` → `[[new#heading]]`
+- Preserve block references: `[[old#^block]]` → `[[new#^block]]`
+- Keep custom display text: `[[old|Custom]]` → `[[new|Custom]]`
+
+#### Encoding Consistency
+
+- Preserve original encoding style in markdown links
+- Convert between encoding styles only when necessary
+- Maintain URL encoding for special characters
+
+### Edge Cases
+
+#### EC-1: Circular References
+
+- Detect when renaming would create circular embeds
+- Warn user but allow operation to proceed
+- Document behavior in help text
+
+#### EC-2: Missing Files
+
+- Handle links to non-existent files (future references)
+- Update these "stub" links appropriately
+- Don't break intentional dead links
+
+#### EC-3: Binary Files
+
+- Update links to images, PDFs, and other assets
+- Handle different file extensions correctly
+- Preserve MIME type associations
+
+#### EC-4: Case Sensitivity
+
+- Respect filesystem case sensitivity rules
+- Handle case-only renames correctly
+- Warn about potential case conflicts
+
+### Command Interface
+
+#### Basic Usage
+
+```bash
+mdnotes rename old-file.md  # renames using default template
 ```
 
----
+```bash
+mdnotes rename old-file.md new-file.md
+```
 
-## 5. Non‑Functional Requirements
+#### Advanced Options
 
-| Aspect            | Target                                  |
-| ----------------- | --------------------------------------- |
-| **Performance**   | <500 ms for 10 k‑note rename/export     |
-| **Memory**        | <200 MB peak on 10 k vault              |
-| **Reliability**   | 99.9% success; clear, actionable errors |
-| **Test Coverage** | ≥ 90% unit + integration                |
-| **Security**      | Sanitize paths; sandbox plugins         |
+```bash
+mdnotes rename old-file.md new-file.md [options]
 
----
+Options:
+  --dry-run, -n          Show what would be changed without making changes
+  --verbose, -v          Show detailed progress and file list
+  --no-backup           Skip creating backup files
+  --force               Skip confirmation prompts
+  --include=PATTERN     Only process files matching pattern
+  --exclude=PATTERN     Skip files matching pattern
+  --parallel=N          Use N parallel workers (default: auto)
+```
 
-## 6. Migration & Backward Compatibility
+#### Interactive Mode
 
-- **Flag Deprecation**: warn on use of removed commands (`fm ensure`, `fm set`); suggest `fm upsert`.
-- **Config Auto‑Upgrade**: import legacy `obsidian-admin.yaml` into new schema.
-- **Alias Shims**: legacy aliases map to new commands until v2.0.
+For ambiguous cases:
 
----
+```
+Found multiple files named "note.md":
+1. projects/note.md
+2. archive/note.md
+3. templates/note.md
 
-## 7. Roadmap & Milestones
-
-| Week | Deliverables                                          |
-| ---- | ----------------------------------------------------- |
-| 1    | Code restructuring, config loader, CLI skeleton       |
-| 2    | `fm upsert` + template engine + Linkding sync/list    |
-| 3    | Analysis engine & content‑scoring implementation      |
-| 4    | Export subgraph with link strategies & asset handling |
-| 5    | Watch mode, plugin hooks, comprehensive docs & tests  |
-
----
-
-## 8. Success Metrics
-
-- **Continuous Integration**: ≥ 95% green CI on tests & benchmarks
-- **Performance**: 90th‑percentile CLI ops < 1 s
-- **Adoption**: ↑ GitHub stars, forks, community plugins
-- **UX Feedback**: Positive user survey results on CLI ergonomics
+Update links for:
+[a] All files
+[1] projects/note.md only
+[2] archive/note.md only
+[3] templates/note.md only
+[s] Skip this ambiguity
+Choice:
+```
 
 ---
 
-## 📝 Change Summary
+## Success Criteria
 
-1. **Combine** `fm ensure` & `fm set` → **`fm upsert`** (alias `u`) with optional `--overwrite`
-2. **Unified config** (`mdnotes.yaml`) covering vault, frontmatter, linkding, export, watch, performance, plugins
-3. **Template engine** centralized for upsert, rename, export, watch
-4. **Deep Linkding integration**: sync & list commands, two‑way idempotent sync, retry/backoff
-5. **Zettelkasten scoring**: five weighted factors → 0–100 content score + actionable suggestions
-6. **Subgraph export**: query & backlinks, three link‑rewrite strategies, asset copying, slug/flatten
-7. **Watch automation**: YAML‑driven rules, debounce, cron support, templated actions
-8. **Plugin framework**: hook points, discovery, extension API
-9. **Performance improvements**: Ripgrep back‑end, worker pool, in‑memory index
+### Functional Success
+
+- [ ] All supported link types are detected and updated
+- [ ] No broken links result from rename operations
+- [ ] Complex paths and special characters handled correctly
+- [ ] Ambiguous cases are resolved appropriately
+
+### Performance Success
+
+- [ ] 1,000 file vault processed in <5 seconds
+- [ ] 10,000 file vault processed in <30 seconds
+- [ ] Memory usage scales reasonably with vault size
+- [ ] Progress indication for operations >2 seconds
+
+### Reliability Success
+
+- [ ] Zero data loss in 1,000 test operations
+- [ ] Backup and rollback functions work correctly
+- [ ] Error handling prevents vault corruption
+- [ ] Edge cases handled gracefully
+
+### User Experience Success
+
+- [ ] Clear, actionable error messages
+- [ ] Intuitive command interface
+- [ ] Helpful dry-run and preview modes
+- [ ] Comprehensive documentation
 
 ---
 
-_Ready for development hand‑off._
+## Implementation Considerations
+
+### Phase 1: Core Implementation
+
+1. Basic wikilink detection and updating
+2. Simple markdown link handling
+3. File system operations and safety
+4. Basic command interface
+
+### Phase 2: Advanced Features
+
+1. Complex link formats (blocks, headings)
+2. Embedded content handling
+3. Special character support
+4. Performance optimization
+
+### Phase 3: Polish and Edge Cases
+
+1. Disambiguation interface
+2. Advanced command options
+3. Comprehensive testing
+4. Documentation and examples
+
+### Dependencies
+
+- File system watching capabilities
+- Regex engine with Unicode support
+- Progress indication libraries
+- Backup/restore functionality
+
+### Risks and Mitigations
+
+- **Risk**: Performance on very large vaults
+  - **Mitigation**: Implement streaming and parallel processing
+- **Risk**: Complex regex causing false positives
+  - **Mitigation**: Extensive test suite with edge cases
+- **Risk**: Data loss during rename operations
+  - **Mitigation**: Automatic backups and dry-run mode
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+
+- Link detection regex patterns
+- Path resolution logic
+- File encoding handling
+- Error condition handling
+
+### Integration Tests
+
+- End-to-end rename workflows
+- Large vault performance tests
+- Cross-platform compatibility
+- Backup and restore functionality
+
+### Edge Case Tests
+
+- Special character filenames
+- Complex vault structures
+- Ambiguous link scenarios
+- Corrupted or unusual files
+
+---
+
+## Documentation Requirements
+
+### User Documentation
+
+- Command reference with examples
+- Common use cases and workflows
+- Troubleshooting guide
+- Best practices for vault organization
+
+### Technical Documentation
+
+- Algorithm explanation
+- Performance characteristics
+- Extension points for future features
+- Contribution guidelines
+
+---
+
+This PRD ensures that the mdnotes rename command becomes a robust, reliable tool that maintains vault integrity while enabling fearless file organization.

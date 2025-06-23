@@ -3,7 +3,6 @@ package processor
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -133,8 +132,15 @@ func (rp *RenameProcessor) ProcessRename(ctx context.Context, sourcePath, target
 	result.Duration = time.Since(startTime)
 
 	// Report any errors collected
-	if len(errors) > 0 && options.Verbose {
-		fmt.Printf("Encountered %d errors during processing\n", len(errors))
+	if len(errors) > 0 {
+		if options.Verbose {
+			fmt.Printf("Encountered %d errors during processing:\n", len(errors))
+			for i, err := range errors {
+				fmt.Printf("  %d: %v\n", i+1, err)
+			}
+		} else {
+			fmt.Printf("Encountered %d errors during processing (use --verbose for details)\n", len(errors))
+		}
 	}
 
 	return result, nil
@@ -149,27 +155,45 @@ func (rp *RenameProcessor) Cleanup() error {
 }
 
 // processFile processes a single file for link updates
-func (rp *RenameProcessor) processFile(file *vault.VaultFile, move FileMove, linkRegex *regexp.Regexp, dryRun bool) FileProcessResult {
+func (rp *RenameProcessor) processFile(file *vault.VaultFile, move FileMove, linkRegex *regexp.Regexp, dryRun bool, verbose bool) FileProcessResult {
 	result := FileProcessResult{File: file}
 
-	// Quick check if file body contains any potential links using regex
-	if !linkRegex.MatchString(file.Body) {
+	// Quick check if file body contains any potential links using regex (if provided)
+	if linkRegex != nil && !linkRegex.MatchString(file.Body) {
+		if verbose {
+			fmt.Printf("Examining: %s - no potential links found by regex\n", file.RelativePath)
+		}
 		return result // No potential links found, skip expensive parsing
 	}
 
-	// Parse links only if quick check passed
+	// Parse links 
 	rp.linkParser.UpdateFile(file)
 
-	// Count matching links before processing
+	if verbose && len(file.Links) > 0 {
+		fmt.Printf("Examining: %s - found %d links total\n", file.RelativePath, len(file.Links))
+	}
+
+	// Count matching links and collect details for verbose output
 	matchingLinks := 0
+	var matchedTargets []string
 	for _, link := range file.Links {
 		if rp.linkMatchesMove(link, move) {
 			matchingLinks++
+			if verbose {
+				matchedTargets = append(matchedTargets, link.Target)
+			}
 		}
 	}
 
 	if matchingLinks == 0 {
+		if verbose && len(file.Links) > 0 {
+			fmt.Printf("Examining: %s - no links match the moved file\n", file.RelativePath)
+		}
 		return result // No matching links found
+	}
+
+	if verbose {
+		fmt.Printf("Examining: %s - found %d matching links: %v\n", file.RelativePath, matchingLinks, matchedTargets)
 	}
 
 	// Update links if not dry run
@@ -207,70 +231,9 @@ func (rp *RenameProcessor) compileOptimizedLinkRegex(sourceFile string) *regexp.
 
 // linkMatchesMove checks if a link matches the file move
 func (rp *RenameProcessor) linkMatchesMove(link vault.Link, move FileMove) bool {
-	target := link.Target
-	
-	// Remove any fragment identifiers (e.g., file.md#heading)
-	if idx := strings.Index(target, "#"); idx != -1 {
-		target = target[:idx]
-	}
-
-	// Normalize paths for comparison - all paths should be vault-relative
-	moveFrom := filepath.ToSlash(move.From)
-	target = filepath.ToSlash(target)
-	
-	// URL decode the target for proper comparison (handles %20, etc.)
-	decodedTarget, err := url.QueryUnescape(target)
-	if err != nil {
-		// If decoding fails, use original target
-		decodedTarget = target
-	}
-
-	// Get basename for comparison (for wiki links that might use just filename)
-	moveFromBasename := filepath.Base(moveFrom)
-	moveFromBasenameWithoutExt := strings.TrimSuffix(moveFromBasename, ".md")
-	moveFromWithoutExt := strings.TrimSuffix(moveFrom, ".md")
-
-	switch link.Type {
-	case vault.WikiLink:
-		// Wiki links can reference files by:
-		// 1. Full vault-relative path: "folder/file" or "folder/file.md"
-		// 2. Basename only: "file" or "file.md" (Obsidian behavior)
-		if decodedTarget == moveFromWithoutExt || decodedTarget == moveFrom {
-			return true
-		}
-		if decodedTarget == moveFromBasenameWithoutExt || decodedTarget == moveFromBasename {
-			return true
-		}
-		// Also check if target with .md extension matches
-		if !strings.HasSuffix(decodedTarget, ".md") {
-			return decodedTarget+".md" == moveFrom || decodedTarget+".md" == moveFromBasename
-		}
-		return false
-
-	case vault.MarkdownLink, vault.EmbedLink:
-		// Markdown links should be vault-relative paths
-		// Compare both original and decoded target
-		if target == moveFrom || decodedTarget == moveFrom {
-			return true
-		}
-		// Check if target without extension matches moveFrom without extension
-		targetWithoutExt := strings.TrimSuffix(target, ".md")
-		decodedTargetWithoutExt := strings.TrimSuffix(decodedTarget, ".md")
-		if targetWithoutExt == moveFromWithoutExt || decodedTargetWithoutExt == moveFromWithoutExt {
-			return true
-		}
-		// Also check if adding .md to target matches the move path
-		if !strings.HasSuffix(target, ".md") && target+".md" == moveFrom {
-			return true
-		}
-		if !strings.HasSuffix(decodedTarget, ".md") && decodedTarget+".md" == moveFrom {
-			return true
-		}
-		return false
-
-	default:
-		return false
-	}
+	// Use the Link.ShouldUpdate method which handles all the complex matching logic
+	// including case-insensitive matching and underscore/space conversion
+	return link.ShouldUpdate(move.From, move.To)
 }
 
 // saveModifiedFiles saves all modified files atomically
@@ -369,7 +332,7 @@ func (rp *RenameProcessor) processRenameWithOptimizedSearch(ctx context.Context,
 				vaultFile.RelativePath = rel
 			}
 			
-			processResult := rp.processFile(vaultFile, move, nil, options.DryRun)
+			processResult := rp.processFile(vaultFile, move, nil, options.DryRun, options.Verbose)
 			processResult.File = vaultFile
 			taskResults[i] = &processResult
 			
@@ -398,12 +361,6 @@ func (rp *RenameProcessor) processRenameWithOptimizedSearch(ctx context.Context,
 			result.LinksUpdated += processResult.LinksUpdated
 			result.ModifiedFiles = append(result.ModifiedFiles, processResult.File.RelativePath)
 			modifiedFiles = append(modifiedFiles, processResult.File)
-			
-			if options.Verbose {
-				fmt.Printf("Examining: %s - updated %d links\n", processResult.File.RelativePath, processResult.LinksUpdated)
-			}
-		} else if options.Verbose && processResult != nil {
-			fmt.Printf("Examining: %s - no changes needed\n", processResult.File.RelativePath)
 		}
 	}
 
@@ -425,37 +382,58 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 	sourceFileEncoded := rp.obsidianURLEncode(sourceFile)
 	moveFromEncoded := rp.obsidianURLEncode(move.From)
 	
+	// Also try with spaces instead of underscores (common mismatch)
+	sourceFileWithSpaces := strings.ReplaceAll(sourceFile, "_", " ")
+	sourceFileWithSpacesEncoded := rp.obsidianURLEncode(sourceFileWithSpaces)
+	moveFromWithSpaces := strings.ReplaceAll(move.From, "_", " ")
+	moveFromWithSpacesEncoded := rp.obsidianURLEncode(moveFromWithSpaces)
+	
 	// Build pattern that matches potential links - include full path patterns
 	var patterns []string
 	
-	// Wiki links: [[basename]] or [[path/basename]]
-	patterns = append(patterns, fmt.Sprintf(`\[\[%s(\]\]|\|)`, regexp.QuoteMeta(sourceWithoutExt)))
+	// Wiki links: [[basename]] or [[path/basename]] with optional fragments
+	patterns = append(patterns, fmt.Sprintf(`\[\[%s(#[^|\]]*)?(\]\]|\|)`, rp.regexQuoteWithURLPreserve(sourceWithoutExt)))
 	if move.From != sourceFile {
-		patterns = append(patterns, fmt.Sprintf(`\[\[%s(\]\]|\|)`, regexp.QuoteMeta(moveFromWithoutExt)))
+		patterns = append(patterns, fmt.Sprintf(`\[\[%s(#[^|\]]*)?(\]\]|\|)`, rp.regexQuoteWithURLPreserve(moveFromWithoutExt)))
 	}
 	
-	// Markdown links: [text](basename.md) or [text](path/basename.md)
-	patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(sourceFile)))
+	// Markdown links: [text](basename.md) or [text](path/basename.md) with optional fragments  
+	patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(sourceFile)))
 	if move.From != sourceFile {
-		patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(move.From)))
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(move.From)))
 	}
 	
-	// URL-encoded markdown links (handle %20, etc.)
+	// URL-encoded markdown links (handle %20, etc.) with optional fragments
 	if sourceFileEncoded != sourceFile {
-		patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(sourceFileEncoded)))
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(sourceFileEncoded)))
 	}
 	if moveFromEncoded != move.From && move.From != sourceFile {
-		patterns = append(patterns, fmt.Sprintf(`\]\(%s\)`, regexp.QuoteMeta(moveFromEncoded)))
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(moveFromEncoded)))
 	}
 	
-	// Embed links: ![[basename]] or ![[path/basename]]
-	patterns = append(patterns, fmt.Sprintf(`!\[\[%s\]\]`, regexp.QuoteMeta(sourceWithoutExt)))
+	// Space-based variants (common mismatch: file uses underscore, link uses space) with optional fragments
+	if sourceFileWithSpaces != sourceFile {
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(sourceFileWithSpaces)))
+	}
+	if sourceFileWithSpacesEncoded != sourceFileWithSpaces && sourceFileWithSpacesEncoded != sourceFileEncoded {
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(sourceFileWithSpacesEncoded)))
+	}
+	if moveFromWithSpaces != move.From && move.From != sourceFile {
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(moveFromWithSpaces)))
+	}
+	if moveFromWithSpacesEncoded != moveFromWithSpaces && moveFromWithSpacesEncoded != moveFromEncoded {
+		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(moveFromWithSpacesEncoded)))
+	}
+	
+	// Embed links: ![[basename]] or ![[path/basename]] with optional fragments
+	patterns = append(patterns, fmt.Sprintf(`!\[\[%s(#[^|\]]*)?`, rp.regexQuoteWithURLPreserve(sourceWithoutExt)))
 	if move.From != sourceFile {
-		patterns = append(patterns, fmt.Sprintf(`!\[\[%s\]\]`, regexp.QuoteMeta(moveFromWithoutExt)))
+		patterns = append(patterns, fmt.Sprintf(`!\[\[%s(#[^|\]]*)?`, rp.regexQuoteWithURLPreserve(moveFromWithoutExt)))
 	}
 	
 	// Combine all patterns
 	pattern := "(" + strings.Join(patterns, "|") + ")"
+	
 	
 	// Configure search options
 	searchOptions := rgsearch.SearchOptions{
@@ -479,18 +457,38 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 
 // obsidianURLEncode encodes a path the way Obsidian does for markdown links
 func (rp *RenameProcessor) obsidianURLEncode(path string) string {
-	// Replace specific characters that Obsidian encodes
+	// Based on actual observation, Obsidian only encodes spaces to %20
+	// Other characters like () are left as-is in the links
 	result := strings.ReplaceAll(path, " ", "%20")
-	result = strings.ReplaceAll(result, "'", "%27")
-	result = strings.ReplaceAll(result, "\"", "%22")
-	result = strings.ReplaceAll(result, "(", "%28")
-	result = strings.ReplaceAll(result, ")", "%29")
-	result = strings.ReplaceAll(result, "[", "%5B")
-	result = strings.ReplaceAll(result, "]", "%5D")
-	result = strings.ReplaceAll(result, "{", "%7B")
-	result = strings.ReplaceAll(result, "}", "%7D")
-	result = strings.ReplaceAll(result, "#", "%23")
 	return result
+}
+
+// regexQuoteWithURLPreserve escapes regex special characters but preserves URL encoding
+func (rp *RenameProcessor) regexQuoteWithURLPreserve(path string) string {
+	// First check if this looks like a URL-encoded path
+	if strings.Contains(path, "%") {
+		// For URL-encoded paths, we need to be more careful about escaping
+		// Split by % and handle each part separately
+		parts := strings.Split(path, "%")
+		result := regexp.QuoteMeta(parts[0])
+		
+		for i := 1; i < len(parts); i++ {
+			// Add back the % character (it was removed by split)
+			result += "%"
+			// For the hex part after %, don't escape if it's a valid hex sequence
+			if len(parts[i]) >= 2 {
+				hexPart := parts[i][:2]
+				remainder := parts[i][2:]
+				result += hexPart + regexp.QuoteMeta(remainder)
+			} else {
+				result += regexp.QuoteMeta(parts[i])
+			}
+		}
+		return result
+	}
+	
+	// For non-URL-encoded paths, use normal escaping
+	return regexp.QuoteMeta(path)
 }
 
 // processFullRenameFallback is the original comprehensive approach using workerpool
@@ -523,7 +521,7 @@ func (rp *RenameProcessor) processFullRenameFallback(ctx context.Context, move F
 	for i, file := range allFiles {
 		i, file := i, file // Capture loop variables
 		tasks[i] = func(ctx context.Context) error {
-			processResult := rp.processFile(file, move, linkRegex, options.DryRun)
+			processResult := rp.processFile(file, move, linkRegex, options.DryRun, options.Verbose)
 			processResult.File = file
 			taskResults[i] = &processResult
 			
@@ -552,12 +550,6 @@ func (rp *RenameProcessor) processFullRenameFallback(ctx context.Context, move F
 			result.LinksUpdated += processResult.LinksUpdated
 			result.ModifiedFiles = append(result.ModifiedFiles, processResult.File.RelativePath)
 			modifiedFiles = append(modifiedFiles, processResult.File)
-			
-			if options.Verbose {
-				fmt.Printf("Examining: %s - updated %d links\n", processResult.File.RelativePath, processResult.LinksUpdated)
-			}
-		} else if options.Verbose && processResult != nil {
-			fmt.Printf("Examining: %s - no changes needed\n", processResult.File.RelativePath)
 		}
 	}
 

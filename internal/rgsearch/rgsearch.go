@@ -332,9 +332,9 @@ func (s *Searcher) buildArgs(options SearchOptions) []string {
 	// Pattern type
 	if options.FixedStrings {
 		args = append(args, "--fixed-strings")
-	} else if options.Regex {
-		args = append(args, "--regexp")
 	}
+	// Note: --regex is the default for ripgrep, so we don't need to specify it
+	// Using --regexp incorrectly treats the pattern as a file path
 
 	// Case sensitivity
 	if options.CaseSensitive {

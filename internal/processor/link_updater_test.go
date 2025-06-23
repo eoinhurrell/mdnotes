@@ -159,64 +159,8 @@ func TestLinkUpdater_UpdateFile(t *testing.T) {
 	}
 }
 
-func TestLinkUpdater_NormalizePaths(t *testing.T) {
-	tests := []struct {
-		name     string
-		target   string
-		linkType LinkType
-		want     string
-	}{
-		{"wiki link without extension", "note", WikiLink, "note.md"},
-		{"wiki link with extension", "note.md", WikiLink, "note.md"},
-		{"markdown link", "note.md", MarkdownLink, "note.md"},
-		{"embed link", "image.png", EmbedLink, "image.png"},
-		{"path with folder", "folder/note", WikiLink, "folder/note.md"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			updater := NewLinkUpdater()
-			got := updater.normalizeLinkTarget(tt.target, tt.linkType)
-			if got != tt.want {
-				t.Errorf("normalizeLinkTarget(%q, %v) = %q, want %q", tt.target, tt.linkType, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestLinkUpdater_CreateMoveMap(t *testing.T) {
-	moves := []FileMove{
-		{From: "note.md", To: "folder/note.md"},
-		{From: "other.md", To: "different.md"},
-		{From: "image.png", To: "assets/image.png"},
-	}
-
-	updater := NewLinkUpdater()
-	moveMap := updater.createMoveMap(moves)
-
-	tests := []struct {
-		from string
-		want string
-		ok   bool
-	}{
-		{"note.md", "folder/note.md", true},
-		{"other.md", "different.md", true},
-		{"image.png", "assets/image.png", true},
-		{"nonexistent.md", "", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.from, func(t *testing.T) {
-			got, ok := moveMap[tt.from]
-			if ok != tt.ok {
-				t.Errorf("moveMap[%q] ok = %v, want %v", tt.from, ok, tt.ok)
-			}
-			if ok && got != tt.want {
-				t.Errorf("moveMap[%q] = %q, want %q", tt.from, got, tt.want)
-			}
-		})
-	}
-}
+// Note: Removed legacy tests for normalizeLinkTarget and createMoveMap
+// These methods have been replaced by the Link.ShouldUpdate and Link.GenerateUpdatedLink methods
 
 func TestLinkUpdater_UpdateBatch(t *testing.T) {
 	files := []*vault.VaultFile{

@@ -12,7 +12,7 @@ import (
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
-// ExportProgressReporter implements enhanced progress reporting for export operations
+// ExportProgressReporter implements progress reporting for export operations
 type ExportProgressReporter struct {
 	reporter ProgressReporter
 	quiet    bool

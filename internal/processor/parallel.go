@@ -106,14 +106,14 @@ func (p *ParallelProcessor) isParallelizable(params map[string]interface{}) bool
 	return true
 }
 
-// BatchProcessorV2 is an enhanced version with parallel processing support
+// BatchProcessorV2 provides parallel processing support
 type BatchProcessorV2 struct {
 	*BatchProcessor
 	enableParallel bool
 	maxWorkers     int
 }
 
-// NewBatchProcessorV2 creates an enhanced batch processor with parallel processing
+// NewBatchProcessorV2 creates a batch processor with parallel processing
 func NewBatchProcessorV2(maxWorkers int, enableParallel bool) *BatchProcessorV2 {
 	if maxWorkers <= 0 {
 		maxWorkers = runtime.NumCPU()

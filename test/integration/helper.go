@@ -154,3 +154,9 @@ Project reference: [[project%d]]
 	return fmt.Sprintf(template, index, index, day, priority, index, index, relatedIndex, relatedIndex+1, relatedIndex+2, index, relatedIndex, index+1)
 }
 
+// fileExists checks if a file exists
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return !os.IsNotExist(err)
+}
+

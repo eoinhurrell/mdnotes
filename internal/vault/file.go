@@ -3,6 +3,7 @@ package vault
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -69,12 +70,188 @@ const (
 	EmbedLink
 )
 
-// Link represents a link in markdown content
+// Link represents a link in markdown content with comprehensive metadata
 type Link struct {
 	Type     LinkType
-	Target   string
-	Text     string
+	Target   string   // The target file/path without fragments
+	Text     string   // Display text or alias
+	Fragment string   // Fragment identifier (#heading or #^blockid)
+	Alias    string   // Explicit alias for wiki links
+	Encoding string   // Original encoding style (url, angle, none)
+	RawText  string   // Original link text as found in document
 	Position Position
+}
+
+// HasFragment returns true if the link has a fragment identifier
+func (l Link) HasFragment() bool {
+	return l.Fragment != ""
+}
+
+// IsHeadingFragment returns true if the fragment is a heading reference
+func (l Link) IsHeadingFragment() bool {
+	return l.Fragment != "" && !strings.HasPrefix(l.Fragment, "^")
+}
+
+// IsBlockFragment returns true if the fragment is a block reference
+func (l Link) IsBlockFragment() bool {
+	return l.Fragment != "" && strings.HasPrefix(l.Fragment, "^")
+}
+
+// FullTarget returns the target with fragment if present
+func (l Link) FullTarget() string {
+	if l.Fragment == "" {
+		return l.Target
+	}
+	return l.Target + "#" + l.Fragment
+}
+
+// ShouldUpdate determines if this link should be updated for a file move
+// This method should only return true if the link actually points to the file being moved
+func (l Link) ShouldUpdate(oldPath, newPath string) bool {
+	// Get the base target (without fragment) for comparison
+	linkTarget := l.Target
+	if l.Fragment != "" {
+		// If link has fragment, we need to compare against the target without fragment
+		linkTarget = l.Target // Target already excludes fragment in our parsing
+	}
+	
+	// Remove extensions for comparison
+	oldBase := strings.TrimSuffix(oldPath, ".md")
+	targetBase := strings.TrimSuffix(linkTarget, ".md")
+	
+	// For exact path matching, check both original and URL-decoded versions
+	if linkTarget == oldPath || targetBase == oldBase {
+		return true
+	}
+	
+	// Also check URL-decoded version of the link target against the old path
+	if decodedTarget, err := url.QueryUnescape(linkTarget); err == nil {
+		decodedBase := strings.TrimSuffix(decodedTarget, ".md")
+		if decodedTarget == oldPath || decodedBase == oldBase {
+			return true
+		}
+	}
+	
+	// Check if oldPath URL-encoded matches the link target
+	encodedOldPath := obsidianURLEncode(oldPath)
+	encodedOldBase := strings.TrimSuffix(encodedOldPath, ".md")
+	if linkTarget == encodedOldPath || targetBase == encodedOldBase {
+		return true
+	}
+	
+	// For wiki links, allow basename-only matches but only exact matches
+	if l.Type == WikiLink {
+		oldBasename := filepath.Base(oldBase)
+		targetBasename := filepath.Base(targetBase)
+		
+		// Exact basename match (case-sensitive for file system accuracy)
+		if targetBasename == oldBasename || linkTarget == filepath.Base(oldPath) {
+			return true
+		}
+		
+		// Also check URL-decoded basename matching
+		if decodedTarget, err := url.QueryUnescape(linkTarget); err == nil {
+			decodedBasename := filepath.Base(strings.TrimSuffix(decodedTarget, ".md"))
+			if decodedBasename == oldBasename {
+				return true
+			}
+		}
+	}
+	
+	return false
+}
+
+// GenerateUpdatedLink creates the new link text for a moved file
+func (l Link) GenerateUpdatedLink(newPath string) string {
+	newTarget := newPath
+	
+	switch l.Type {
+	case WikiLink:
+		// Remove .md extension for wiki links
+		newTarget = strings.TrimSuffix(newPath, ".md")
+		
+		// Add fragment if present
+		if l.Fragment != "" {
+			newTarget += "#" + l.Fragment
+		}
+		
+		// Check if we need an alias
+		if l.Alias != "" {
+			return "[[" + newTarget + "|" + l.Alias + "]]"
+		} else {
+			return "[[" + newTarget + "]]"
+		}
+		
+	case MarkdownLink:
+		// Apply encoding to the path part only, then add fragment
+		encodedPath := newTarget
+		if l.Encoding == "url" || needsURLEncoding(newTarget) {
+			encodedPath = obsidianURLEncode(newTarget)
+		}
+		
+		// Add fragment after encoding (encode fragment if it contains special characters)
+		if l.Fragment != "" {
+			if needsURLEncoding(l.Fragment) {
+				encodedFragment := obsidianURLEncode(l.Fragment)
+				encodedPath += "#" + encodedFragment
+			} else {
+				encodedPath += "#" + l.Fragment
+			}
+		}
+		
+		// Apply angle bracket wrapping if needed
+		if l.Encoding == "angle" {
+			encodedPath = "<" + encodedPath + ">"
+		}
+		
+		return "[" + l.Text + "](" + encodedPath + ")"
+		
+	case EmbedLink:
+		// Remove .md extension for embed links
+		newTarget = strings.TrimSuffix(newPath, ".md")
+		
+		// Add fragment if present
+		if l.Fragment != "" {
+			newTarget += "#" + l.Fragment
+		}
+		
+		return "![[" + newTarget + "]]"
+		
+	default:
+		return l.RawText
+	}
+}
+
+// Helper functions for encoding
+func needsURLEncoding(path string) bool {
+	return strings.ContainsAny(path, " '\"()[]{}#%&+,;=?@<>|\\:*")
+}
+
+func obsidianURLEncode(path string) string {
+	result := strings.ReplaceAll(path, " ", "%20")
+	result = strings.ReplaceAll(result, "'", "%27")
+	result = strings.ReplaceAll(result, "\"", "%22")
+	result = strings.ReplaceAll(result, "(", "%28")
+	result = strings.ReplaceAll(result, ")", "%29")
+	result = strings.ReplaceAll(result, "[", "%5B")
+	result = strings.ReplaceAll(result, "]", "%5D")
+	result = strings.ReplaceAll(result, "{", "%7B")
+	result = strings.ReplaceAll(result, "}", "%7D")
+	result = strings.ReplaceAll(result, "#", "%23")
+	result = strings.ReplaceAll(result, "&", "%26")
+	result = strings.ReplaceAll(result, "+", "%2B")
+	result = strings.ReplaceAll(result, ",", "%2C")
+	result = strings.ReplaceAll(result, ";", "%3B")
+	result = strings.ReplaceAll(result, "=", "%3D")
+	result = strings.ReplaceAll(result, "?", "%3F")
+	result = strings.ReplaceAll(result, "@", "%40")
+	result = strings.ReplaceAll(result, "<", "%3C")
+	result = strings.ReplaceAll(result, ">", "%3E")
+	result = strings.ReplaceAll(result, "|", "%7C")
+	result = strings.ReplaceAll(result, "\\", "%5C")
+	result = strings.ReplaceAll(result, ":", "%3A")
+	result = strings.ReplaceAll(result, "*", "%2A")
+	return result
 }
 
 // Position represents a position in text

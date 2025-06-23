@@ -746,8 +746,8 @@ func TestBuiltInFunctions(t *testing.T) {
 	}
 }
 
-// Test enhanced duration parsing
-func TestEnhancedDurationParsing(t *testing.T) {
+// Test duration parsing
+func TestDurationParsing(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
