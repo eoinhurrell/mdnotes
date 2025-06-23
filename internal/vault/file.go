@@ -228,30 +228,8 @@ func needsURLEncoding(path string) bool {
 }
 
 func obsidianURLEncode(path string) string {
-	result := strings.ReplaceAll(path, " ", "%20")
-	result = strings.ReplaceAll(result, "'", "%27")
-	result = strings.ReplaceAll(result, "\"", "%22")
-	result = strings.ReplaceAll(result, "(", "%28")
-	result = strings.ReplaceAll(result, ")", "%29")
-	result = strings.ReplaceAll(result, "[", "%5B")
-	result = strings.ReplaceAll(result, "]", "%5D")
-	result = strings.ReplaceAll(result, "{", "%7B")
-	result = strings.ReplaceAll(result, "}", "%7D")
-	result = strings.ReplaceAll(result, "#", "%23")
-	result = strings.ReplaceAll(result, "&", "%26")
-	result = strings.ReplaceAll(result, "+", "%2B")
-	result = strings.ReplaceAll(result, ",", "%2C")
-	result = strings.ReplaceAll(result, ";", "%3B")
-	result = strings.ReplaceAll(result, "=", "%3D")
-	result = strings.ReplaceAll(result, "?", "%3F")
-	result = strings.ReplaceAll(result, "@", "%40")
-	result = strings.ReplaceAll(result, "<", "%3C")
-	result = strings.ReplaceAll(result, ">", "%3E")
-	result = strings.ReplaceAll(result, "|", "%7C")
-	result = strings.ReplaceAll(result, "\\", "%5C")
-	result = strings.ReplaceAll(result, ":", "%3A")
-	result = strings.ReplaceAll(result, "*", "%2A")
-	return result
+	// Obsidian only URL-encodes spaces in practice
+	return strings.ReplaceAll(path, " ", "%20")
 }
 
 // Position represents a position in text

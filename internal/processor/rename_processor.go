@@ -391,6 +391,7 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 	// Build pattern that matches potential links - include full path patterns
 	var patterns []string
 	
+	
 	// Wiki links: [[basename]] or [[path/basename]] with optional fragments
 	patterns = append(patterns, fmt.Sprintf(`\[\[%s(#[^|\]]*)?(\]\]|\|)`, rp.regexQuoteWithURLPreserve(sourceWithoutExt)))
 	if move.From != sourceFile {
@@ -435,6 +436,7 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 	pattern := "(" + strings.Join(patterns, "|") + ")"
 	
 	
+	
 	// Configure search options
 	searchOptions := rgsearch.SearchOptions{
 		Pattern:         pattern,
@@ -444,6 +446,7 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 		IncludePatterns: []string{"*.md"},
 		MaxMatches:      1000,
 		Timeout:         30 * time.Second,
+		AdditionalArgs:  []string{"--no-ignore"}, // Disable gitignore to search test-vault
 	}
 	
 	// Use rgsearch to find files containing potential references
