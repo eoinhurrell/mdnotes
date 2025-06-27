@@ -31,11 +31,12 @@ func NewLinkdingCommand() *cobra.Command {
 
 func newSyncCommand() *cobra.Command {
 	var (
-		urlField   string
-		titleField string
-		tagsField  string
-		syncTitle  bool
-		syncTags   bool
+		urlField         string
+		titleField       string
+		tagsField        string
+		syncTitle        bool
+		syncTags         bool
+		skipVerification bool
 	)
 
 	cmd := &cobra.Command{
@@ -97,13 +98,14 @@ Configuration:
 
 			// Create sync configuration
 			syncConfig := processor.LinkdingSyncConfig{
-				URLField:   urlField,
-				IDField:    "linkding_id", // Default ID field
-				TitleField: titleField,
-				TagsField:  tagsField,
-				SyncTitle:  syncTitle || cfg.Linkding.SyncTitle,
-				SyncTags:   syncTags || cfg.Linkding.SyncTags,
-				DryRun:     dryRun,
+				URLField:         urlField,
+				IDField:          "linkding_id", // Default ID field
+				TitleField:       titleField,
+				TagsField:        tagsField,
+				SyncTitle:        syncTitle || cfg.Linkding.SyncTitle,
+				SyncTags:         syncTags || cfg.Linkding.SyncTags,
+				DryRun:           dryRun,
+				SkipVerification: skipVerification,
 			}
 
 			// Add progress callback for verbose mode
@@ -240,6 +242,7 @@ Configuration:
 	cmd.Flags().StringVar(&tagsField, "tags-field", "tags", "Frontmatter field containing tags")
 	cmd.Flags().BoolVar(&syncTitle, "sync-title", false, "Sync title to Linkding")
 	cmd.Flags().BoolVar(&syncTags, "sync-tags", false, "Sync tags to Linkding")
+	cmd.Flags().BoolVar(&skipVerification, "skip-verification", false, "Only sync new items, skip verification of existing bookmarks")
 
 	return cmd
 }

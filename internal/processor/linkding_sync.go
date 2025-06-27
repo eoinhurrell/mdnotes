@@ -35,6 +35,7 @@ type LinkdingSyncConfig struct {
 	SyncDescription  bool             // Whether to sync description to Linkding
 	SyncNotes        bool             // Whether to sync notes to Linkding
 	DryRun           bool             // Whether to perform a dry run
+	SkipVerification bool             // Whether to skip verification of existing bookmarks
 	ProgressCallback ProgressCallback // Optional callback for real-time progress
 }
 
@@ -123,7 +124,7 @@ func (ls *LinkdingSync) SyncFile(ctx context.Context, file *vault.VaultFile) err
 
 	url := file.Frontmatter[ls.config.URLField].(string)
 
-	// If file has linkding_id, verify it's still valid
+	// If file has linkding_id, handle based on skip verification setting
 	if ls.hasLinkdingID(file) {
 		linkdingID, ok := file.Frontmatter[ls.config.IDField].(int)
 		if !ok {
@@ -135,6 +136,11 @@ func (ls *LinkdingSync) SyncFile(ctx context.Context, file *vault.VaultFile) err
 				delete(file.Frontmatter, ls.config.IDField)
 				return ls.SyncFile(ctx, file)
 			}
+		}
+
+		// If skip verification is enabled, assume existing bookmarks are valid
+		if ls.config.SkipVerification {
+			return nil
 		}
 
 		// Verify bookmark still exists
