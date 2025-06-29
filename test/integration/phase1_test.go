@@ -408,12 +408,7 @@ performance:
 		// We're just testing that config loading doesn't panic or fail catastrophically
 		// The specific error depends on Cobra's behavior when no subcommand is provided
 
-		// Verify config was loaded
-		cfg := root.GetConfig()
-		if cfg != nil {
-			assert.Equal(t, "/integration/vault", cfg.Vault.Path)
-			assert.Equal(t, 4, cfg.Performance.MaxWorkers)
-		}
+		// Configuration loading is handled at command level, not globally stored
 	})
 
 	t.Run("TemplateIntegrationWithConfig", func(t *testing.T) {

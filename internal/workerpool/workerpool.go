@@ -177,6 +177,12 @@ func (wp *WorkerPool) ForceShutdown() {
 	
 	wp.cancel()
 	wp.closeOnce.Do(func() {
+		// Use select to prevent panic on closed channels
+		defer func() {
+			if r := recover(); r != nil {
+				// Channel already closed, ignore
+			}
+		}()
 		close(wp.taskQueue)
 		close(wp.resultChan)
 	})

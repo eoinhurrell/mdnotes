@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestResolveTargetPath(t *testing.T) {
@@ -174,4 +175,29 @@ func TestCheckLinkExists(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewLinksCommand(t *testing.T) {
+	cmd := NewLinksCommand()
+	
+	assert.Equal(t, "links", cmd.Use)
+	assert.Equal(t, "Manage links in markdown files", cmd.Short)
+	assert.Contains(t, cmd.Long, "Commands for checking")
+	
+	// Should have subcommands
+	subcommands := cmd.Commands()
+	assert.Len(t, subcommands, 2)
+}
+
+func TestNewCheckCommand(t *testing.T) {
+	cmd := NewCheckCommand()
+	
+	assert.Equal(t, "check [path]", cmd.Use)
+	assert.Contains(t, cmd.Aliases, "c")
+	assert.Equal(t, "Check for broken internal links", cmd.Short)
+	assert.Contains(t, cmd.Long, "Check for broken internal links")
+	
+	// Should have flags
+	assert.NotNil(t, cmd.Flags().Lookup("ignore"))
+	assert.NotNil(t, cmd.Flags().Lookup("file-relative"))
 }

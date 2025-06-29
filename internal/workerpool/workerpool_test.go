@@ -79,11 +79,11 @@ func TestWorkerPoolSubmitWithTimeout(t *testing.T) {
 	err := pool.Submit(slowTask)
 	assert.NoError(t, err)
 
-	// Give worker time to start
-	time.Sleep(10 * time.Millisecond)
+	// Give worker time to start and be busy
+	time.Sleep(50 * time.Millisecond)
 
 	// This should timeout since worker is busy and no queue
-	err = pool.SubmitWithTimeout(slowTask, 1*time.Millisecond)
+	err = pool.SubmitWithTimeout(slowTask, 5*time.Millisecond)
 	assert.Error(t, err)
 	// Could be timeout or queue full error
 }
