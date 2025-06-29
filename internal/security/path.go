@@ -21,7 +21,7 @@ func NewPathSanitizer(allowedRoots []string, maxDepth int) *PathSanitizer {
 	if maxDepth <= 0 {
 		maxDepth = 32 // Default maximum depth
 	}
-	
+
 	return &PathSanitizer{
 		allowedRoots: allowedRoots,
 		maxDepth:     maxDepth,
@@ -32,7 +32,7 @@ func NewPathSanitizer(allowedRoots []string, maxDepth int) *PathSanitizer {
 func (ps *PathSanitizer) SanitizePath(inputPath string) (string, error) {
 	// Clean the path first
 	cleaned := filepath.Clean(inputPath)
-	
+
 	// Convert to absolute path
 	abs, err := filepath.Abs(cleaned)
 	if err != nil {
@@ -43,24 +43,24 @@ func (ps *PathSanitizer) SanitizePath(inputPath string) (string, error) {
 			WithSuggestion("Ensure the path is valid and accessible").
 			Build()
 	}
-	
+
 	// Check for path traversal attempts
 	if err := ps.checkTraversal(abs); err != nil {
 		return "", err
 	}
-	
+
 	// Check depth limits
 	if err := ps.checkDepth(abs); err != nil {
 		return "", err
 	}
-	
+
 	// Check against allowed roots if specified
 	if len(ps.allowedRoots) > 0 {
 		if err := ps.checkAllowedRoots(abs); err != nil {
 			return "", err
 		}
 	}
-	
+
 	return abs, nil
 }
 
@@ -69,20 +69,20 @@ func SanitizeFilename(filename string) string {
 	// Remove or replace dangerous characters
 	dangerous := regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f\x7f]`)
 	sanitized := dangerous.ReplaceAllString(filename, "_")
-	
+
 	// Remove leading/trailing dots and spaces
 	sanitized = strings.Trim(sanitized, ". ")
-	
+
 	// Remove multiple consecutive underscores and clean up
 	underscoreRegex := regexp.MustCompile(`_+`)
 	sanitized = underscoreRegex.ReplaceAllString(sanitized, "_")
 	sanitized = strings.Trim(sanitized, "_")
-	
+
 	// Check for reserved names (Windows)
 	reserved := []string{"CON", "PRN", "AUX", "NUL",
 		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
 		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"}
-	
+
 	upper := strings.ToUpper(sanitized)
 	for _, res := range reserved {
 		if upper == res || strings.HasPrefix(upper, res+".") {
@@ -90,19 +90,19 @@ func SanitizeFilename(filename string) string {
 			break
 		}
 	}
-	
+
 	// Ensure filename is not empty
 	if sanitized == "" {
 		sanitized = "untitled"
 	}
-	
+
 	// Limit length (most filesystems support 255 bytes)
 	if len(sanitized) > 255 {
 		ext := filepath.Ext(sanitized)
 		base := sanitized[:255-len(ext)]
 		sanitized = base + ext
 	}
-	
+
 	return sanitized
 }
 
@@ -117,29 +117,29 @@ func (ps *PathSanitizer) IsWithinAllowedRoots(path string) bool {
 	if len(ps.allowedRoots) == 0 {
 		return true // No restrictions
 	}
-	
+
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return false
 	}
-	
+
 	for _, root := range ps.allowedRoots {
 		rootAbs, err := filepath.Abs(root)
 		if err != nil {
 			continue
 		}
-		
+
 		rel, err := filepath.Rel(rootAbs, abs)
 		if err != nil {
 			continue
 		}
-		
+
 		// Check if the path is within this root (doesn't start with ..)
 		if !strings.HasPrefix(rel, "..") {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -154,7 +154,7 @@ func (ps *PathSanitizer) checkTraversal(path string) error {
 			WithSuggestion("Remove '..' sequences from the path").
 			Build()
 	}
-	
+
 	// Check for encoded traversal attempts
 	encoded := []string{
 		"%2e%2e",     // ..
@@ -164,7 +164,7 @@ func (ps *PathSanitizer) checkTraversal(path string) error {
 		"..%2f",      // ../
 		"..%5c",      // ..\
 	}
-	
+
 	lowerPath := strings.ToLower(path)
 	for _, pattern := range encoded {
 		if strings.Contains(lowerPath, pattern) {
@@ -176,7 +176,7 @@ func (ps *PathSanitizer) checkTraversal(path string) error {
 				Build()
 		}
 	}
-	
+
 	return nil
 }
 
@@ -191,7 +191,7 @@ func (ps *PathSanitizer) checkDepth(path string) error {
 			WithSuggestion(fmt.Sprintf("Reduce path depth to %d or less", ps.maxDepth)).
 			Build()
 	}
-	
+
 	return nil
 }
 
@@ -205,45 +205,45 @@ func (ps *PathSanitizer) checkAllowedRoots(path string) error {
 			WithSuggestion("Ensure the path is within allowed directories").
 			Build()
 	}
-	
+
 	return nil
 }
 
 // SecureJoin safely joins path components
 func SecureJoin(base string, elem ...string) (string, error) {
 	ps := NewPathSanitizer([]string{base}, 32)
-	
+
 	// Start with base path
 	result := base
-	
+
 	// Join each element
 	for _, e := range elem {
 		// Sanitize each element first
 		sanitized := SanitizeFilename(e)
-		
+
 		// Join with base
 		candidate := filepath.Join(result, sanitized)
-		
+
 		// Validate the result
 		if err := ps.ValidatePath(candidate); err != nil {
 			return "", err
 		}
-		
+
 		result = candidate
 	}
-	
+
 	return result, nil
 }
 
 // IsHiddenFile checks if a file or directory is hidden
 func IsHiddenFile(name string) bool {
 	base := filepath.Base(name)
-	
+
 	// Unix-style hidden files (start with .)
 	if strings.HasPrefix(base, ".") {
 		return true
 	}
-	
+
 	// Windows-style hidden files (check attributes on Windows)
 	// This is a simplified check - would need platform-specific code for full Windows support
 	return false
@@ -254,15 +254,15 @@ func IsSafeExtension(filename string, allowedExtensions []string) bool {
 	if len(allowedExtensions) == 0 {
 		return true // No restrictions
 	}
-	
+
 	ext := strings.ToLower(filepath.Ext(filename))
-	
+
 	for _, allowed := range allowedExtensions {
 		if strings.ToLower(allowed) == ext {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -271,16 +271,16 @@ func DangerousExtensions() []string {
 	return []string{
 		// Executable files
 		".exe", ".bat", ".cmd", ".com", ".scr", ".msi", ".app",
-		
+
 		// Script files
 		".js", ".vbs", ".ps1", ".sh", ".py", ".pl", ".rb",
-		
+
 		// Document macros
 		".docm", ".xlsm", ".pptm",
-		
+
 		// Archives (can contain executables)
 		".zip", ".rar", ".7z", ".tar", ".gz",
-		
+
 		// System files
 		".dll", ".sys", ".drv",
 	}
@@ -290,25 +290,25 @@ func DangerousExtensions() []string {
 func IsDangerousExtension(filename string) bool {
 	ext := strings.ToLower(filepath.Ext(filename))
 	dangerous := DangerousExtensions()
-	
+
 	for _, danger := range dangerous {
 		if ext == danger {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 // ValidateMarkdownPath ensures a path is safe for markdown files
 func ValidateMarkdownPath(path string) error {
 	ps := NewPathSanitizer(nil, 32)
-	
+
 	// Basic path validation
 	if err := ps.ValidatePath(path); err != nil {
 		return err
 	}
-	
+
 	// Check extension
 	if !IsSafeExtension(path, []string{".md", ".markdown", ".mdown", ".mkd"}) {
 		return errors.NewErrorBuilder().
@@ -318,7 +318,7 @@ func ValidateMarkdownPath(path string) error {
 			WithSuggestion("Use .md, .markdown, .mdown, or .mkd extension").
 			Build()
 	}
-	
+
 	// Check for dangerous patterns in content
 	if IsDangerousExtension(path) {
 		return errors.NewErrorBuilder().
@@ -328,20 +328,20 @@ func ValidateMarkdownPath(path string) error {
 			WithSuggestion("Avoid using executable file extensions").
 			Build()
 	}
-	
+
 	return nil
 }
 
 // CreateSecureDir creates a directory with secure permissions
 func CreateSecureDir(path string) error {
 	ps := NewPathSanitizer(nil, 32)
-	
+
 	// Validate path first
 	sanitized, err := ps.SanitizePath(path)
 	if err != nil {
 		return err
 	}
-	
+
 	// Create directory with restrictive permissions (rwx for owner only)
 	if err := os.MkdirAll(sanitized, 0700); err != nil {
 		return errors.NewErrorBuilder().
@@ -351,26 +351,26 @@ func CreateSecureDir(path string) error {
 			WithSuggestion("Check parent directory permissions and disk space").
 			Build()
 	}
-	
+
 	return nil
 }
 
 // WriteSecureFile writes content to a file with secure permissions
 func WriteSecureFile(path string, content []byte) error {
 	ps := NewPathSanitizer(nil, 32)
-	
+
 	// Validate path first
 	sanitized, err := ps.SanitizePath(path)
 	if err != nil {
 		return err
 	}
-	
+
 	// Ensure parent directory exists
 	dir := filepath.Dir(sanitized)
 	if err := CreateSecureDir(dir); err != nil {
 		return err
 	}
-	
+
 	// Write file with restrictive permissions (rw for owner only)
 	if err := os.WriteFile(sanitized, content, 0600); err != nil {
 		return errors.NewErrorBuilder().
@@ -380,6 +380,6 @@ func WriteSecureFile(path string, content []byte) error {
 			WithSuggestion("Check directory permissions and disk space").
 			Build()
 	}
-	
+
 	return nil
 }

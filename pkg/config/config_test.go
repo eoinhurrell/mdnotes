@@ -11,23 +11,23 @@ import (
 
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
-	
+
 	assert.Equal(t, ".", config.Vault.Path)
 	assert.Contains(t, config.Vault.IgnorePatterns, ".obsidian/*")
 	assert.Contains(t, config.Vault.IgnorePatterns, "*.tmp")
 	assert.Contains(t, config.Vault.IgnorePatterns, ".git/*")
-	
+
 	assert.True(t, config.Linkding.SyncTitle)
 	assert.True(t, config.Linkding.SyncTags)
-	
+
 	assert.Equal(t, "remove", config.Export.DefaultStrategy)
 	assert.True(t, config.Export.IncludeAssets)
-	
+
 	assert.Equal(t, "2s", config.Watch.Debounce)
 	assert.Empty(t, config.Watch.Rules)
-	
+
 	assert.Equal(t, 0, config.Performance.MaxWorkers)
-	
+
 	assert.True(t, config.Plugins.Enabled)
 	assert.Contains(t, config.Plugins.Paths, "~/.mdnotes/plugins")
 }
@@ -38,13 +38,13 @@ func TestLoader_Load_NoConfigFile(t *testing.T) {
 	oldDir, _ := os.Getwd()
 	defer os.Chdir(oldDir)
 	os.Chdir(tempDir)
-	
+
 	loader := NewLoader()
 	config, err := loader.Load()
-	
+
 	require.NoError(t, err)
 	require.NotNil(t, config)
-	
+
 	// Should return defaults
 	assert.Equal(t, ".", config.Vault.Path)
 	assert.Equal(t, "remove", config.Export.DefaultStrategy)
@@ -53,7 +53,7 @@ func TestLoader_Load_NoConfigFile(t *testing.T) {
 func TestLoader_Load_ValidConfigFile(t *testing.T) {
 	tempDir := t.TempDir()
 	configFile := filepath.Join(tempDir, "mdnotes.yaml")
-	
+
 	configContent := `
 vault:
   path: "/custom/vault"
@@ -67,20 +67,20 @@ export:
 performance:
   max_workers: 4
 `
-	
+
 	err := os.WriteFile(configFile, []byte(configContent), 0644)
 	require.NoError(t, err)
-	
+
 	oldDir, _ := os.Getwd()
 	defer os.Chdir(oldDir)
 	os.Chdir(tempDir)
-	
+
 	loader := NewLoader()
 	config, err := loader.Load()
-	
+
 	require.NoError(t, err)
 	require.NotNil(t, config)
-	
+
 	assert.Equal(t, "/custom/vault", config.Vault.Path)
 	assert.Equal(t, []string{".custom/*", "*.bak"}, config.Vault.IgnorePatterns)
 	assert.Equal(t, "https://example.com", config.Linkding.APIURL)
@@ -93,30 +93,30 @@ performance:
 func TestLoader_Load_InvalidYAML(t *testing.T) {
 	tempDir := t.TempDir()
 	configFile := filepath.Join(tempDir, "mdnotes.yaml")
-	
+
 	invalidYAML := `
 vault:
   path: "/vault"
   invalid_yaml: [unclosed list
 `
-	
+
 	err := os.WriteFile(configFile, []byte(invalidYAML), 0644)
 	require.NoError(t, err)
-	
+
 	oldDir, _ := os.Getwd()
 	defer os.Chdir(oldDir)
 	os.Chdir(tempDir)
-	
+
 	loader := NewLoader()
 	_, err = loader.Load()
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error reading config file")
 }
 
 func TestLoader_Validate(t *testing.T) {
 	loader := NewLoader()
-	
+
 	tests := []struct {
 		name        string
 		config      *Config
@@ -164,11 +164,11 @@ func TestLoader_Validate(t *testing.T) {
 			errorMsg:    "performance.max_workers cannot be negative",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := loader.Validate(tt.config)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -181,7 +181,7 @@ func TestLoader_Validate(t *testing.T) {
 
 func TestLoader_ExpandPath(t *testing.T) {
 	loader := NewLoader()
-	
+
 	tests := []struct {
 		name     string
 		input    string
@@ -226,7 +226,7 @@ func TestLoader_ExpandPath(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := loader.expandPath(tt.input)
@@ -238,7 +238,7 @@ func TestLoader_ExpandPath(t *testing.T) {
 func TestLoader_MigrateLegacy(t *testing.T) {
 	tempDir := t.TempDir()
 	legacyConfigFile := filepath.Join(tempDir, ".obsidian-admin.yaml")
-	
+
 	legacyContent := `
 vault:
   path: "/legacy/vault"
@@ -249,20 +249,20 @@ linkding:
   sync_title: false
   sync_tags: true
 `
-	
+
 	err := os.WriteFile(legacyConfigFile, []byte(legacyContent), 0644)
 	require.NoError(t, err)
-	
+
 	oldDir, _ := os.Getwd()
 	defer os.Chdir(oldDir)
 	os.Chdir(tempDir)
-	
+
 	loader := NewLoader()
 	config, err := loader.MigrateLegacy()
-	
+
 	require.NoError(t, err)
 	require.NotNil(t, config)
-	
+
 	// Check migrated values
 	assert.Equal(t, "/legacy/vault", config.Vault.Path)
 	assert.Equal(t, []string{".obsidian/*", "*.old"}, config.Vault.IgnorePatterns)
@@ -270,7 +270,7 @@ linkding:
 	assert.Equal(t, "legacy-token", config.Linkding.APIToken)
 	assert.False(t, config.Linkding.SyncTitle)
 	assert.True(t, config.Linkding.SyncTags)
-	
+
 	// Check that defaults are preserved for unmigrated fields
 	assert.Equal(t, "remove", config.Export.DefaultStrategy)
 	assert.True(t, config.Export.IncludeAssets)
@@ -281,10 +281,10 @@ func TestLoader_MigrateLegacy_NoLegacyFile(t *testing.T) {
 	oldDir, _ := os.Getwd()
 	defer os.Chdir(oldDir)
 	os.Chdir(tempDir)
-	
+
 	loader := NewLoader()
 	config, err := loader.MigrateLegacy()
-	
+
 	require.NoError(t, err)
 	assert.Nil(t, config) // No legacy config found
 }
@@ -292,23 +292,23 @@ func TestLoader_MigrateLegacy_NoLegacyFile(t *testing.T) {
 func TestLoader_MigrateLegacy_InvalidLegacyFile(t *testing.T) {
 	tempDir := t.TempDir()
 	legacyConfigFile := filepath.Join(tempDir, ".obsidian-admin.yaml")
-	
+
 	invalidContent := `
 vault:
   path: "/vault"
   invalid: [unclosed
 `
-	
+
 	err := os.WriteFile(legacyConfigFile, []byte(invalidContent), 0644)
 	require.NoError(t, err)
-	
+
 	oldDir, _ := os.Getwd()
 	defer os.Chdir(oldDir)
 	os.Chdir(tempDir)
-	
+
 	loader := NewLoader()
 	_, err = loader.MigrateLegacy()
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error reading legacy config")
 }
@@ -324,18 +324,18 @@ func TestLoader_EnvironmentVariableOverrides(t *testing.T) {
 		os.Unsetenv("MDNOTES_LINKDING_API_URL")
 		os.Unsetenv("MDNOTES_PERFORMANCE_MAX_WORKERS")
 	}()
-	
+
 	tempDir := t.TempDir()
 	oldDir, _ := os.Getwd()
 	defer os.Chdir(oldDir)
 	os.Chdir(tempDir)
-	
+
 	loader := NewLoader()
 	config, err := loader.Load()
-	
+
 	require.NoError(t, err)
 	require.NotNil(t, config)
-	
+
 	// Environment variables should override defaults
 	assert.Equal(t, "/env/vault", config.Vault.Path)
 	assert.Equal(t, "https://env.example.com", config.Linkding.APIURL)

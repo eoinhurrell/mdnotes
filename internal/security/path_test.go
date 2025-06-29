@@ -238,7 +238,7 @@ func TestPathSanitizerWithRealPaths(t *testing.T) {
 	currentDir, err := os.Getwd()
 	require.NoError(t, err)
 	ps2 := NewPathSanitizer([]string{currentDir}, 32)
-	
+
 	relPath := filepath.Join("subdir", "test.md")
 	sanitized, err = ps2.SanitizePath(relPath)
 	assert.NoError(t, err)

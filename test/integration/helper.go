@@ -11,7 +11,7 @@ import (
 func runMdnotesCommand(args ...string) ([]byte, error) {
 	// Get the binary path relative to the test directory
 	binaryPath := filepath.Join("..", "..", "mdnotes")
-	
+
 	// Check if binary exists, if not try to build it
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		// Try to build the binary
@@ -21,7 +21,7 @@ func runMdnotesCommand(args ...string) ([]byte, error) {
 			return nil, buildErr
 		}
 	}
-	
+
 	cmd := exec.Command(binaryPath, args...)
 	return cmd.CombinedOutput()
 }
@@ -32,21 +32,21 @@ func createTestVault(files map[string]string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	for filename, content := range files {
 		filePath := filepath.Join(tmpDir, filename)
-		
+
 		// Create directory if needed
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return "", err
 		}
-		
+
 		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 			return "", err
 		}
 	}
-	
+
 	return tmpDir, nil
 }
 
@@ -56,7 +56,7 @@ func createLargeTestVault(numFiles int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Create subdirectories
 	dirs := []string{"notes", "projects", "archive", "templates", "inbox"}
 	for _, dir := range dirs {
@@ -64,18 +64,18 @@ func createLargeTestVault(numFiles int) (string, error) {
 			return "", err
 		}
 	}
-	
+
 	// Create files distributed across directories
 	for i := 0; i < numFiles; i++ {
 		dir := dirs[i%len(dirs)]
 		filename := filepath.Join(tmpDir, dir, "note"+string(rune(i%26+'a'))+string(rune((i/26)%26+'a'))+".md")
-		
+
 		content := generateTestContent(i)
 		if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
 			return "", err
 		}
 	}
-	
+
 	return tmpDir, nil
 }
 
@@ -145,12 +145,12 @@ See also: [[note%d]] for related information.
 Project reference: [[project%d]]
 `,
 	}
-	
+
 	template := templates[index%len(templates)]
 	day := (index % 28) + 1
 	priority := (index % 3) + 1
 	relatedIndex := (index + 1) % 100
-	
+
 	return fmt.Sprintf(template, index, index, day, priority, index, index, relatedIndex, relatedIndex+1, relatedIndex+2, index, relatedIndex, index+1)
 }
 
@@ -159,4 +159,3 @@ func fileExists(filename string) bool {
 	_, err := os.Stat(filename)
 	return !os.IsNotExist(err)
 }
-

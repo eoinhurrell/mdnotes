@@ -11,10 +11,10 @@ import (
 
 // BacklinksDiscoveryResult contains information about discovered backlinks
 type BacklinksDiscoveryResult struct {
-	BacklinkFiles   []*vault.VaultFile // files that link to exported files
-	BacklinkMap     map[string][]string // target file -> list of files that link to it
-	TotalBacklinks  int                 // total number of backlink relationships found
-	ProcessedFiles  map[string]bool     // files already processed to prevent cycles
+	BacklinkFiles  []*vault.VaultFile  // files that link to exported files
+	BacklinkMap    map[string][]string // target file -> list of files that link to it
+	TotalBacklinks int                 // total number of backlink relationships found
+	ProcessedFiles map[string]bool     // files already processed to prevent cycles
 }
 
 // ExportBacklinksHandler handles backlink discovery for export
@@ -65,14 +65,14 @@ func (bh *ExportBacklinksHandler) DiscoverBacklinks(ctx context.Context, exporte
 		filesToProcess = make([]*vault.VaultFile, 0)
 
 		backlinksFound := bh.findBacklinksToFiles(currentBatch, result.ProcessedFiles)
-		
+
 		// Add newly found backlinks to result
 		for _, backlinkFile := range backlinksFound {
 			if !result.ProcessedFiles[backlinkFile.RelativePath] {
 				result.BacklinkFiles = append(result.BacklinkFiles, backlinkFile)
 				result.ProcessedFiles[backlinkFile.RelativePath] = true
 				filesToProcess = append(filesToProcess, backlinkFile)
-				
+
 				if bh.verbose {
 					fmt.Printf("Found backlink: %s\n", backlinkFile.RelativePath)
 				}
@@ -93,7 +93,7 @@ func (bh *ExportBacklinksHandler) DiscoverBacklinks(ctx context.Context, exporte
 // findBacklinksToFiles finds all files that link to any of the target files
 func (bh *ExportBacklinksHandler) findBacklinksToFiles(targetFiles []*vault.VaultFile, processedFiles map[string]bool) []*vault.VaultFile {
 	var backlinks []*vault.VaultFile
-	
+
 	// Create set of target file paths for quick lookup
 	targetPaths := make(map[string]bool)
 	for _, file := range targetFiles {
@@ -102,7 +102,7 @@ func (bh *ExportBacklinksHandler) findBacklinksToFiles(targetFiles []*vault.Vaul
 
 	// Scan all vault files for links to target files
 	parser := NewLinkParser()
-	
+
 	for _, candidateFile := range bh.allVaultFiles {
 		// Skip files that are already processed
 		if processedFiles[candidateFile.RelativePath] {
@@ -111,7 +111,7 @@ func (bh *ExportBacklinksHandler) findBacklinksToFiles(targetFiles []*vault.Vaul
 
 		// Parse links in this file
 		links := parser.Extract(candidateFile.Body)
-		
+
 		// Check if any links point to target files
 		hasBacklink := false
 		for _, link := range links {
@@ -134,17 +134,17 @@ func (bh *ExportBacklinksHandler) findBacklinksToFiles(targetFiles []*vault.Vaul
 func (bh *ExportBacklinksHandler) resolveLinkPath(target, sourceRelativePath string) string {
 	// Clean the target path
 	target = strings.TrimSpace(target)
-	
+
 	// Remove any fragment identifiers (#section)
 	if hashIndex := strings.Index(target, "#"); hashIndex != -1 {
 		target = target[:hashIndex]
 	}
-	
+
 	// Skip external URLs
 	if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
 		return ""
 	}
-	
+
 	// Handle absolute paths from vault root
 	if filepath.IsAbs(target) || strings.HasPrefix(target, "/") {
 		cleanTarget := strings.TrimPrefix(target, "/")
@@ -154,7 +154,7 @@ func (bh *ExportBacklinksHandler) resolveLinkPath(target, sourceRelativePath str
 		}
 		return cleanTarget
 	}
-	
+
 	// Handle relative paths
 	if strings.Contains(target, "/") {
 		// For wiki links without extension, try adding .md
@@ -162,12 +162,12 @@ func (bh *ExportBacklinksHandler) resolveLinkPath(target, sourceRelativePath str
 		if filepath.Ext(target) == "" {
 			targetWithExt = target + ".md"
 		}
-		
+
 		// Try relative to vault root first
 		if bh.fileExists(targetWithExt) {
 			return targetWithExt
 		}
-		
+
 		// Try relative to source file directory
 		sourceDir := filepath.Dir(sourceRelativePath)
 		relativePath := filepath.Join(sourceDir, targetWithExt)
@@ -175,36 +175,36 @@ func (bh *ExportBacklinksHandler) resolveLinkPath(target, sourceRelativePath str
 		if bh.fileExists(cleanRelativePath) {
 			return cleanRelativePath
 		}
-		
+
 		// Return vault root attempt as fallback
 		return targetWithExt
 	}
-	
+
 	// Just a filename - search across vault
 	targetWithExt := target
 	if filepath.Ext(target) == "" {
 		targetWithExt = target + ".md"
 	}
-	
+
 	// Try same directory first
 	sourceDir := filepath.Dir(sourceRelativePath)
 	sameDirPath := filepath.Join(sourceDir, targetWithExt)
 	if bh.fileExists(sameDirPath) {
 		return sameDirPath
 	}
-	
+
 	// Try vault root
 	if bh.fileExists(targetWithExt) {
 		return targetWithExt
 	}
-	
+
 	// Search across entire vault for exact filename matches
 	for _, vaultFile := range bh.allVaultFiles {
 		if filepath.Base(vaultFile.RelativePath) == targetWithExt {
 			return vaultFile.RelativePath
 		}
 	}
-	
+
 	// Return same directory attempt as fallback
 	return sameDirPath
 }

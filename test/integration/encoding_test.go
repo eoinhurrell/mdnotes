@@ -60,17 +60,17 @@ title: Encoding Test Index
 - [Pre-encoded](file%20with%20spaces.md#Section%20with%20Spaces)
 - [Mixed encoding](file%20with%20spaces.md#Section & Symbols)
 `,
-		"resources/file with spaces.md": "# File with Spaces\n\nContent here.",
-		"resources/file & symbols.md":  "# File & Symbols\n\nContent here.",
+		"resources/file with spaces.md":   "# File with Spaces\n\nContent here.",
+		"resources/file & symbols.md":     "# File & Symbols\n\nContent here.",
 		"resources/file (parentheses).md": "# File (Parentheses)\n\nContent here.",
-		"resources/file [brackets].md": "# File [Brackets]\n\nContent here.",
-		"resources/file {braces}.md":   "# File {Braces}\n\nContent here.",
-		"resources/file @ symbols.md":  "# File @ Symbols\n\nContent here.",
-		"resources/file + plus.md":     "# File + Plus\n\nContent here.",
-		"resources/file = equals.md":   "# File = Equals\n\nContent here.",
-		"resources/file ? question.md": "# File ? Question\n\nContent here.",
-		"resources/file : colon.md":    "# File : Colon\n\nContent here.",
-		"resources/file * asterisk.md": "# File * Asterisk\n\nContent here.",
+		"resources/file [brackets].md":    "# File [Brackets]\n\nContent here.",
+		"resources/file {braces}.md":      "# File {Braces}\n\nContent here.",
+		"resources/file @ symbols.md":     "# File @ Symbols\n\nContent here.",
+		"resources/file + plus.md":        "# File + Plus\n\nContent here.",
+		"resources/file = equals.md":      "# File = Equals\n\nContent here.",
+		"resources/file ? question.md":    "# File ? Question\n\nContent here.",
+		"resources/file : colon.md":       "# File : Colon\n\nContent here.",
+		"resources/file * asterisk.md":    "# File * Asterisk\n\nContent here.",
 		"file.md": `# Test File
 
 ## Section with Spaces
@@ -111,25 +111,25 @@ More content. ^block & symbols
 		for _, link := range links {
 			target := strings.ToLower(link.Target)
 			fragment := strings.ToLower(link.Fragment)
-			
+
 			// Check for various special characters
 			switch {
-			case strings.Contains(target, " ") || strings.Contains(target, "&") || 
-				 strings.Contains(target, "(") || strings.Contains(target, "[") || 
-				 strings.Contains(target, "{"):
+			case strings.Contains(target, " ") || strings.Contains(target, "&") ||
+				strings.Contains(target, "(") || strings.Contains(target, "[") ||
+				strings.Contains(target, "{"):
 				basicSpecialLinks = append(basicSpecialLinks, link)
-				
+
 			case strings.Contains(target, "@") || strings.Contains(target, "+") ||
-				 strings.Contains(target, "=") || strings.Contains(target, "?") ||
-				 strings.Contains(target, ":") || strings.Contains(target, "*"):
+				strings.Contains(target, "=") || strings.Contains(target, "?") ||
+				strings.Contains(target, ":") || strings.Contains(target, "*"):
 				advancedSpecialLinks = append(advancedSpecialLinks, link)
 			}
-			
+
 			if strings.Contains(fragment, " ") || strings.Contains(fragment, "&") ||
-			   strings.Contains(fragment, "(") || strings.Contains(fragment, "^") {
+				strings.Contains(fragment, "(") || strings.Contains(fragment, "^") {
 				fragmentSpecialLinks = append(fragmentSpecialLinks, link)
 			}
-			
+
 			if link.Encoding == "url" || strings.Contains(link.RawText, "%") {
 				urlEncodedLinks = append(urlEncodedLinks, link)
 			}
@@ -207,8 +207,8 @@ Links with special character fragments:
 
 		var fragmentLinksWithSpecialChars []vault.Link
 		for _, link := range links {
-			if link.HasFragment() && (strings.Contains(link.Fragment, " ") || 
-			   strings.Contains(link.Fragment, "&") || strings.Contains(link.Fragment, "(")) {
+			if link.HasFragment() && (strings.Contains(link.Fragment, " ") ||
+				strings.Contains(link.Fragment, "&") || strings.Contains(link.Fragment, "(")) {
 				fragmentLinksWithSpecialChars = append(fragmentLinksWithSpecialChars, link)
 			}
 		}
@@ -218,21 +218,21 @@ Links with special character fragments:
 		// Test that fragments are properly decoded and targets separated
 		for _, link := range fragmentLinksWithSpecialChars {
 			assert.Equal(t, "file.md", link.Target, "Target should be properly separated from fragment")
-			
+
 			// Verify fragment content
 			switch {
 			case strings.Contains(link.Fragment, "Section with Spaces"):
 				assert.Equal(t, "Section with Spaces", link.Fragment, "Fragment should be decoded")
 				assert.True(t, link.IsHeadingFragment(), "Should be recognized as heading fragment")
-				
+
 			case strings.Contains(link.Fragment, "Section & Symbols"):
 				assert.Equal(t, "Section & Symbols", link.Fragment, "Fragment with symbols should be decoded")
 				assert.True(t, link.IsHeadingFragment(), "Should be recognized as heading fragment")
-				
+
 			case strings.Contains(link.Fragment, "block with spaces"):
 				assert.Equal(t, "^block with spaces", link.Fragment, "Block fragment should be decoded with ^")
 				assert.True(t, link.IsBlockFragment(), "Should be recognized as block fragment")
-				
+
 			case strings.Contains(link.Fragment, "block & symbols"):
 				assert.Equal(t, "^block & symbols", link.Fragment, "Block fragment with symbols should be decoded")
 				assert.True(t, link.IsBlockFragment(), "Should be recognized as block fragment")
@@ -262,11 +262,11 @@ Links with malformed encoding:
 		for _, link := range links {
 			// Links should have targets even if decoding failed
 			assert.NotEmpty(t, link.Target, "Target should not be empty even with malformed encoding")
-			
+
 			// Malformed encoding should be preserved in raw text
 			if strings.Contains(link.RawText, "%ZZ") || strings.Contains(link.RawText, "%.") {
 				// The target should contain the malformed encoding since decoding failed
-				assert.True(t, strings.Contains(link.Target, "%") || strings.Contains(link.Target, "file"), 
+				assert.True(t, strings.Contains(link.Target, "%") || strings.Contains(link.Target, "file"),
 					"Malformed encoding should be preserved in target or processed gracefully")
 			}
 		}

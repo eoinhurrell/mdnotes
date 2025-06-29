@@ -554,14 +554,14 @@ type ContentAnalysis struct {
 
 // FileQualityScore represents the quality score of an individual file
 type FileQualityScore struct {
-	Path             string  `json:"path"`
-	Score            float64 `json:"score"`
-	ReadabilityScore float64 `json:"readability_score"`
-	LinkDensityScore float64 `json:"link_density_score"`
-	CompletenessScore float64 `json:"completeness_score"`
-	AtomicityScore   float64 `json:"atomicity_score"`
-	RecencyScore     float64 `json:"recency_score"`
-	SuggestedFixes   []string `json:"suggested_fixes"`
+	Path              string   `json:"path"`
+	Score             float64  `json:"score"`
+	ReadabilityScore  float64  `json:"readability_score"`
+	LinkDensityScore  float64  `json:"link_density_score"`
+	CompletenessScore float64  `json:"completeness_score"`
+	AtomicityScore    float64  `json:"atomicity_score"`
+	RecencyScore      float64  `json:"recency_score"`
+	SuggestedFixes    []string `json:"suggested_fixes"`
 }
 
 // TrendsAnalysis represents vault growth and trend analysis
@@ -599,11 +599,11 @@ type TagTrend struct {
 
 // InboxAnalysis represents analysis of INBOX sections that need processing
 type InboxAnalysis struct {
-	TotalSections  int           `json:"total_sections"`
-	TotalItems     int           `json:"total_items"`
-	TotalSize      int           `json:"total_size"`
-	InboxSections  []InboxSection `json:"inbox_sections"`
-	Summary        string        `json:"summary"`
+	TotalSections int            `json:"total_sections"`
+	TotalItems    int            `json:"total_items"`
+	TotalSize     int            `json:"total_size"`
+	InboxSections []InboxSection `json:"inbox_sections"`
+	Summary       string         `json:"summary"`
 }
 
 // InboxSection represents a single INBOX section found in a file
@@ -748,26 +748,26 @@ func (a *Analyzer) AnalyzeContentQuality(files []*vault.VaultFile) ContentAnalys
 	for _, file := range files {
 		// Calculate file quality score with detailed breakdown
 		overallScore := a.calculateFileQualityScore(file)
-		
+
 		// Calculate individual scores for detailed breakdown
 		readabilityScore := a.calculateReadabilityScore(file)
 		linkDensityScore := a.calculateLinkDensityScore(file)
 		completenessScore := a.calculateCompletenessScore(file)
 		atomicityScore := a.calculateAtomicityScore(file)
 		recencyScore := a.calculateRecencyScore(file)
-		
+
 		// Generate suggested fixes
 		suggestedFixes := a.generateFileQualityFixes(file, readabilityScore, linkDensityScore, completenessScore, atomicityScore, recencyScore)
-		
+
 		analysis.FileScores = append(analysis.FileScores, FileQualityScore{
-			Path:             file.RelativePath,
-			Score:            overallScore * 100, // Convert to 0-100 scale
-			ReadabilityScore: readabilityScore,
-			LinkDensityScore: linkDensityScore,
+			Path:              file.RelativePath,
+			Score:             overallScore * 100, // Convert to 0-100 scale
+			ReadabilityScore:  readabilityScore,
+			LinkDensityScore:  linkDensityScore,
 			CompletenessScore: completenessScore,
-			AtomicityScore:   atomicityScore,
-			RecencyScore:     recencyScore,
-			SuggestedFixes:   suggestedFixes,
+			AtomicityScore:    atomicityScore,
+			RecencyScore:      recencyScore,
+			SuggestedFixes:    suggestedFixes,
 		})
 
 		totalScore += overallScore
@@ -886,7 +886,7 @@ func (a *Analyzer) calculateReadabilityScore(file *vault.VaultFile) float64 {
 	// ASW = Average Syllables per Word = syllables/words
 	asl := float64(words) / float64(sentences)
 	asw := float64(syllables) / float64(words)
-	
+
 	fleschScore := 206.835 - (1.015 * asl) - (84.6 * asw)
 
 	// Convert Flesch score (0-100) to 0-1 scale
@@ -948,7 +948,7 @@ func (a *Analyzer) calculateCompletenessScore(file *vault.VaultFile) float64 {
 		}
 	}
 
-	// Summary/description presence (30% weight) 
+	// Summary/description presence (30% weight)
 	summaryFields := []string{"summary", "description", "abstract", "excerpt"}
 	for _, field := range summaryFields {
 		if summary, hasSummary := file.Frontmatter[field]; hasSummary {
@@ -1048,19 +1048,19 @@ func (a *Analyzer) extractReadableText(markdown string) string {
 	// Remove code blocks
 	codeBlockRegex := regexp.MustCompile("```[\\s\\S]*?```")
 	text := codeBlockRegex.ReplaceAllString(markdown, "")
-	
+
 	// Remove inline code
 	inlineCodeRegex := regexp.MustCompile("`[^`]+`")
 	text = inlineCodeRegex.ReplaceAllString(text, "")
-	
+
 	// Remove links but keep text
 	linkRegex := regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
 	text = linkRegex.ReplaceAllString(text, "$1")
-	
+
 	// Remove wiki links but keep text
 	wikiLinkRegex := regexp.MustCompile(`\[\[([^|\]]+)(\|[^\]]+)?\]\]`)
 	text = wikiLinkRegex.ReplaceAllString(text, "$1")
-	
+
 	// Remove headings markers
 	headingRegex := regexp.MustCompile(`^#+\s*`)
 	lines := strings.Split(text, "\n")
@@ -1068,14 +1068,14 @@ func (a *Analyzer) extractReadableText(markdown string) string {
 		lines[i] = headingRegex.ReplaceAllString(line, "")
 	}
 	text = strings.Join(lines, "\n")
-	
+
 	// Remove list markers
 	listRegex := regexp.MustCompile(`^(\s*[-*+]\s*|\s*\d+\.\s*)`)
 	lines = strings.Split(text, "\n")
 	for i, line := range lines {
 		lines[i] = listRegex.ReplaceAllString(line, "")
 	}
-	
+
 	return strings.Join(lines, "\n")
 }
 
@@ -1085,12 +1085,12 @@ func (a *Analyzer) countSentences(text string) int {
 	sentenceRegex := regexp.MustCompile(`[.!?]+`)
 	matches := sentenceRegex.FindAllString(text, -1)
 	count := len(matches)
-	
+
 	// Ensure at least 1 sentence if there's text
 	if count == 0 && len(strings.TrimSpace(text)) > 0 {
 		count = 1
 	}
-	
+
 	return count
 }
 
@@ -1098,12 +1098,12 @@ func (a *Analyzer) countSentences(text string) int {
 func (a *Analyzer) countSyllables(text string) int {
 	words := strings.Fields(strings.ToLower(text))
 	totalSyllables := 0
-	
+
 	for _, word := range words {
 		syllables := a.estimateSyllables(word)
 		totalSyllables += syllables
 	}
-	
+
 	return totalSyllables
 }
 
@@ -1112,30 +1112,30 @@ func (a *Analyzer) estimateSyllables(word string) int {
 	if len(word) == 0 {
 		return 0
 	}
-	
+
 	// Remove punctuation
 	wordRegex := regexp.MustCompile(`[^a-z]`)
 	cleanWord := wordRegex.ReplaceAllString(word, "")
-	
+
 	if len(cleanWord) == 0 {
 		return 1
 	}
-	
+
 	// Count vowel groups
 	vowelRegex := regexp.MustCompile(`[aeiouy]+`)
 	vowelGroups := vowelRegex.FindAllString(cleanWord, -1)
 	syllables := len(vowelGroups)
-	
+
 	// Adjust for silent 'e' at the end
 	if strings.HasSuffix(cleanWord, "e") && syllables > 1 {
 		syllables--
 	}
-	
+
 	// Ensure at least 1 syllable
 	if syllables == 0 {
 		syllables = 1
 	}
-	
+
 	return syllables
 }
 
@@ -1145,7 +1145,7 @@ func (a *Analyzer) calculateTopicCoherence(text string) float64 {
 	if len(words) < 10 {
 		return 1.0 // Short text is assumed coherent
 	}
-	
+
 	// Count word frequencies
 	wordFreq := make(map[string]int)
 	for _, word := range words {
@@ -1154,51 +1154,51 @@ func (a *Analyzer) calculateTopicCoherence(text string) float64 {
 			wordFreq[word]++
 		}
 	}
-	
+
 	if len(wordFreq) == 0 {
 		return 0.5 // Neutral if no significant words
 	}
-	
+
 	// Calculate the proportion of total content covered by top words
 	totalSignificantWords := 0
 	for _, count := range wordFreq {
 		totalSignificantWords += count
 	}
-	
+
 	// Find top 5 most frequent words
 	type wordCount struct {
 		word  string
 		count int
 	}
-	
+
 	var wordCounts []wordCount
 	for word, count := range wordFreq {
 		wordCounts = append(wordCounts, wordCount{word, count})
 	}
-	
+
 	sort.Slice(wordCounts, func(i, j int) bool {
 		return wordCounts[i].count > wordCounts[j].count
 	})
-	
+
 	// Calculate coherence based on how much content is covered by top words
 	topWordsCount := 0
 	maxWords := 5
 	if len(wordCounts) < maxWords {
 		maxWords = len(wordCounts)
 	}
-	
+
 	for i := 0; i < maxWords; i++ {
 		topWordsCount += wordCounts[i].count
 	}
-	
+
 	coherence := float64(topWordsCount) / float64(totalSignificantWords)
-	
+
 	// Scale coherence to be more reasonable (0.5 to 1.0 range typically)
 	coherence = 0.5 + (coherence * 0.5)
 	if coherence > 1.0 {
 		coherence = 1.0
 	}
-	
+
 	return coherence
 }
 
@@ -1218,43 +1218,43 @@ func (a *Analyzer) isCommonWord(word string) bool {
 		"name": true, "need": true, "next": true, "open": true, "part": true,
 		"play": true, "said": true, "same": true, "seem": true, "show": true,
 		"side": true, "tell": true, "turn": true, "used": true, "ways": true,
-		"week": true, "went": true, "what": true, "work": true, "year": true, 
-		"years": true, "about": true, "after": true, "again": true, "before": true, 
-		"being": true, "could": true, "every": true, "first": true, "found": true, 
-		"great": true, "group": true, "might": true, "never": true, "often": true, 
-		"other": true, "place": true, "right": true, "should": true, "small": true, 
-		"still": true, "their": true, "there": true, "these": true, "think": true, 
-		"three": true, "through": true, "under": true, "until": true, "water": true, 
-		"where": true, "which": true, "while": true, "world": true, "would": true, 
+		"week": true, "went": true, "what": true, "work": true, "year": true,
+		"years": true, "about": true, "after": true, "again": true, "before": true,
+		"being": true, "could": true, "every": true, "first": true, "found": true,
+		"great": true, "group": true, "might": true, "never": true, "often": true,
+		"other": true, "place": true, "right": true, "should": true, "small": true,
+		"still": true, "their": true, "there": true, "these": true, "think": true,
+		"three": true, "through": true, "under": true, "until": true, "water": true,
+		"where": true, "which": true, "while": true, "world": true, "would": true,
 		"write": true, "young": true,
 	}
-	
+
 	return commonWords[word]
 }
 
 // generateFileQualityFixes generates specific improvement suggestions for a file
 func (a *Analyzer) generateFileQualityFixes(file *vault.VaultFile, readability, linkDensity, completeness, atomicity, recency float64) []string {
 	var fixes []string
-	
+
 	// Readability fixes
 	if readability < 0.4 {
 		fixes = append(fixes, "Simplify sentence structure for better readability")
 		fixes = append(fixes, "Use shorter sentences and common vocabulary")
 	}
-	
+
 	// Link density fixes
 	if linkDensity < 0.3 {
 		fixes = append(fixes, "Add more links to related concepts (aim for 2-4 links per 100 words)")
 	} else if linkDensity < 0.6 {
 		fixes = append(fixes, "Consider adding a few more relevant links")
 	}
-	
+
 	// Completeness fixes
 	if completeness < 0.7 {
 		if _, hasTitle := file.Frontmatter["title"]; !hasTitle {
 			fixes = append(fixes, "Add a descriptive title in frontmatter")
 		}
-		
+
 		summaryFields := []string{"summary", "description", "abstract", "excerpt"}
 		hasSummary := false
 		for _, field := range summaryFields {
@@ -1266,20 +1266,20 @@ func (a *Analyzer) generateFileQualityFixes(file *vault.VaultFile, readability, 
 		if !hasSummary {
 			fixes = append(fixes, "Add a summary or description in frontmatter")
 		}
-		
+
 		wordCount := len(strings.Fields(file.Body))
 		if wordCount < 50 {
 			fixes = append(fixes, "Expand content - add more detail and context")
 		}
 	}
-	
+
 	// Atomicity fixes
 	if atomicity < 0.6 {
 		wordCount := len(strings.Fields(file.Body))
 		if wordCount > 500 {
 			fixes = append(fixes, "Consider breaking this into smaller, more focused notes")
 		}
-		
+
 		h1Count := 0
 		for _, heading := range file.Headings {
 			if heading.Level == 1 {
@@ -1290,18 +1290,18 @@ func (a *Analyzer) generateFileQualityFixes(file *vault.VaultFile, readability, 
 			fixes = append(fixes, "Split multiple main topics into separate notes")
 		}
 	}
-	
+
 	// Recency fixes
 	if recency < 0.5 {
 		fixes = append(fixes, "Review and update this note - it hasn't been modified recently")
 		fixes = append(fixes, "Add current date to track when content was last reviewed")
 	}
-	
+
 	// General suggestions based on overall quality
 	if len(fixes) == 0 {
 		fixes = append(fixes, "This note has good quality - consider linking it to related concepts")
 	}
-	
+
 	return fixes
 }
 
@@ -1534,17 +1534,17 @@ func (a *Analyzer) FindObsidianCopies(files []*vault.VaultFile) []ObsidianCopy {
 	// First pass: identify base files and potential copies
 	for _, file := range files {
 		filename := strings.TrimSuffix(file.RelativePath, ".md")
-		
+
 		// Check if this is a copy (ends with ' 1', ' 2', etc.)
 		re := regexp.MustCompile(`^(.+) (\d+)$`)
 		matches := re.FindStringSubmatch(filename)
-		
+
 		if len(matches) == 3 {
 			// This is a copy
 			baseFilename := matches[1]
 			copyNumber, _ := strconv.Atoi(matches[2])
 			originalPath := baseFilename + ".md"
-			
+
 			// Find the original file
 			for _, originalFile := range files {
 				if originalFile.RelativePath == originalPath {
@@ -1576,7 +1576,7 @@ func (a *Analyzer) FindObsidianCopies(files []*vault.VaultFile) []ObsidianCopy {
 // FindSyncConflictFiles finds files that appear to be sync conflicts
 func (a *Analyzer) FindSyncConflictFiles(files []*vault.VaultFile) []SyncConflictFile {
 	var conflicts []SyncConflictFile
-	
+
 	// Patterns for different sync conflict types
 	patterns := []struct {
 		name    string
@@ -1594,7 +1594,7 @@ func (a *Analyzer) FindSyncConflictFiles(files []*vault.VaultFile) []SyncConflic
 			matches := pattern.pattern.FindStringSubmatch(file.RelativePath)
 			if len(matches) >= 2 {
 				originalPath := matches[1] + ".md"
-				
+
 				// Check if original file exists
 				for _, originalFile := range files {
 					if originalFile.RelativePath == originalPath {
@@ -1739,7 +1739,7 @@ func (a *Analyzer) AnalyzeInbox(files []*vault.VaultFile, inboxHeadings []string
 // findInboxSections finds INBOX-like sections within a file
 func (a *Analyzer) findInboxSections(file *vault.VaultFile, patterns []*regexp.Regexp, minItems int) []InboxSection {
 	var sections []InboxSection
-	
+
 	lines := strings.Split(file.Body, "\n")
 	var currentSection *InboxSection
 	var sectionContent strings.Builder

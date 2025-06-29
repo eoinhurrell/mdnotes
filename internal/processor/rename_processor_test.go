@@ -14,7 +14,7 @@ import (
 
 func TestRenameProcessor_LinkMatchesMove(t *testing.T) {
 	processor := NewRenameProcessor(RenameOptions{})
-	
+
 	tests := []struct {
 		name   string
 		link   vault.Link
@@ -23,89 +23,89 @@ func TestRenameProcessor_LinkMatchesMove(t *testing.T) {
 	}{
 		// Wiki link tests
 		{
-			name: "wiki link matches exact path",
-			link: vault.Link{Type: vault.WikiLink, Target: "resources/test"},
-			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
+			name:   "wiki link matches exact path",
+			link:   vault.Link{Type: vault.WikiLink, Target: "resources/test"},
+			move:   FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: true,
 		},
 		{
-			name: "wiki link matches basename",
-			link: vault.Link{Type: vault.WikiLink, Target: "test"},
-			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
+			name:   "wiki link matches basename",
+			link:   vault.Link{Type: vault.WikiLink, Target: "test"},
+			move:   FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: true,
 		},
 		{
-			name: "wiki link with extension matches",
-			link: vault.Link{Type: vault.WikiLink, Target: "resources/test.md"},
-			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
+			name:   "wiki link with extension matches",
+			link:   vault.Link{Type: vault.WikiLink, Target: "resources/test.md"},
+			move:   FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: true,
 		},
 		// Markdown link tests - key fixes
 		{
-			name: "markdown link matches vault-relative path",
-			link: vault.Link{Type: vault.MarkdownLink, Target: "resources/test.md"},
-			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
+			name:   "markdown link matches vault-relative path",
+			link:   vault.Link{Type: vault.MarkdownLink, Target: "resources/test.md"},
+			move:   FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: true,
 		},
 		{
-			name: "markdown link with subdirectory",
-			link: vault.Link{Type: vault.MarkdownLink, Target: "docs/guides/setup.md"},
-			move: FileMove{From: "docs/guides/setup.md", To: "documentation/setup.md"},
+			name:   "markdown link with subdirectory",
+			link:   vault.Link{Type: vault.MarkdownLink, Target: "docs/guides/setup.md"},
+			move:   FileMove{From: "docs/guides/setup.md", To: "documentation/setup.md"},
 			expect: true,
 		},
 		{
-			name: "markdown link without extension",
-			link: vault.Link{Type: vault.MarkdownLink, Target: "resources/test"},
-			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
+			name:   "markdown link without extension",
+			link:   vault.Link{Type: vault.MarkdownLink, Target: "resources/test"},
+			move:   FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: true,
 		},
 		// Embed link tests
 		{
-			name: "embed link matches path",
-			link: vault.Link{Type: vault.EmbedLink, Target: "images/photo.png"},
-			move: FileMove{From: "images/photo.png", To: "assets/photo.png"},
+			name:   "embed link matches path",
+			link:   vault.Link{Type: vault.EmbedLink, Target: "images/photo.png"},
+			move:   FileMove{From: "images/photo.png", To: "assets/photo.png"},
 			expect: true,
 		},
 		// Fragment handling
 		{
-			name: "link with fragment matches",
-			link: vault.Link{Type: vault.MarkdownLink, Target: "resources/test.md", Fragment: "section"},
-			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
+			name:   "link with fragment matches",
+			link:   vault.Link{Type: vault.MarkdownLink, Target: "resources/test.md", Fragment: "section"},
+			move:   FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: true,
 		},
 		// Non-matching cases
 		{
-			name: "markdown link doesn't match different path",
-			link: vault.Link{Type: vault.MarkdownLink, Target: "other/file.md"},
-			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
+			name:   "markdown link doesn't match different path",
+			link:   vault.Link{Type: vault.MarkdownLink, Target: "other/file.md"},
+			move:   FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: false,
 		},
 		{
-			name: "markdown link doesn't match basename only",
-			link: vault.Link{Type: vault.MarkdownLink, Target: "test.md"},
-			move: FileMove{From: "resources/test.md", To: "resources/renamed.md"},
+			name:   "markdown link doesn't match basename only",
+			link:   vault.Link{Type: vault.MarkdownLink, Target: "test.md"},
+			move:   FileMove{From: "resources/test.md", To: "resources/renamed.md"},
 			expect: false,
 		},
 		// URL encoding tests
 		{
-			name: "markdown link with URL encoding matches",
-			link: vault.Link{Type: vault.MarkdownLink, Target: "resources/books/20250527111132-Blood's%20Hiding.md"},
-			move: FileMove{From: "resources/books/20250527111132-Blood's Hiding.md", To: "resources/books/20250527111132-renamed.md"},
+			name:   "markdown link with URL encoding matches",
+			link:   vault.Link{Type: vault.MarkdownLink, Target: "resources/books/20250527111132-Blood's%20Hiding.md"},
+			move:   FileMove{From: "resources/books/20250527111132-Blood's Hiding.md", To: "resources/books/20250527111132-renamed.md"},
 			expect: true,
 		},
 		{
-			name: "markdown link with spaces matches URL encoded",
-			link: vault.Link{Type: vault.MarkdownLink, Target: "resources/books/file%20with%20spaces.md"},
-			move: FileMove{From: "resources/books/file with spaces.md", To: "resources/books/renamed.md"},
+			name:   "markdown link with spaces matches URL encoded",
+			link:   vault.Link{Type: vault.MarkdownLink, Target: "resources/books/file%20with%20spaces.md"},
+			move:   FileMove{From: "resources/books/file with spaces.md", To: "resources/books/renamed.md"},
 			expect: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.linkMatchesMove(tt.link, tt.move)
 			if result != tt.expect {
-				t.Errorf("linkMatchesMove() = %v, expect %v for link %q -> move %q", 
+				t.Errorf("linkMatchesMove() = %v, expect %v for link %q -> move %q",
 					result, tt.expect, tt.link.Target, tt.move.From)
 			}
 		})
@@ -311,7 +311,7 @@ created: 2024-01-01
 	for i := 0; i < numFiles; i++ {
 		fileName := fmt.Sprintf("file%d.md", i)
 		var content string
-		
+
 		// Every 3rd file has links to source
 		if i%3 == 0 {
 			content = fmt.Sprintf(`---
@@ -364,14 +364,14 @@ Some more text to pad the file size.
 
 func BenchmarkLinkMatching(b *testing.B) {
 	processor := &RenameProcessor{}
-	
+
 	// Test link
 	link := vault.Link{
 		Type:   vault.WikiLink,
 		Target: "source",
 		Text:   "Source",
 	}
-	
+
 	// Test move
 	move := FileMove{
 		From: "source.md",

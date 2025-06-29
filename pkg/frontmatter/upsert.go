@@ -13,10 +13,10 @@ import (
 
 // UpsertResult represents the result of an upsert operation
 type UpsertResult struct {
-	FilePath     string
-	FieldsAdded  []string
+	FilePath      string
+	FieldsAdded   []string
 	FieldsUpdated []string
-	Error        error
+	Error         error
 }
 
 // UpsertStats tracks operation statistics
@@ -55,7 +55,7 @@ func NewUpsertService() *UpsertService {
 	templateEngine := templates.NewEngine()
 	adapter := &TemplateEngineAdapter{engine: templateEngine}
 	processor := NewProcessor(adapter)
-	
+
 	return &UpsertService{
 		processor:      processor,
 		templateEngine: templateEngine,
@@ -114,20 +114,20 @@ func (s *UpsertService) UpsertFile(filePath string, options UpsertOptions) (*Ups
 func (s *UpsertService) UpsertDirectory(dirPath string, options UpsertOptions, ignorePatterns []string) (*UpsertStats, error) {
 	stats := &UpsertStats{}
 	var wg sync.WaitGroup
-	
+
 	// Channel for results
 	resultCh := make(chan *UpsertResult, 100)
-	
+
 	// Start result collector
 	go func() {
 		for result := range resultCh {
 			atomic.AddInt64(&stats.FilesProcessed, 1)
-			
+
 			if result.Error != nil {
 				atomic.AddInt64(&stats.Errors, 1)
 				continue
 			}
-			
+
 			if len(result.FieldsAdded) > 0 || len(result.FieldsUpdated) > 0 {
 				atomic.AddInt64(&stats.FilesModified, 1)
 				atomic.AddInt64(&stats.FieldsAdded, int64(len(result.FieldsAdded)))
@@ -181,10 +181,10 @@ func (s *UpsertService) UpsertDirectory(dirPath string, options UpsertOptions, i
 func (s *UpsertService) upsertFields(doc *Document, options UpsertOptions, ctx *templates.Context, result *UpsertResult) error {
 	for i, field := range options.Fields {
 		defaultValue := options.Defaults[i]
-		
+
 		// Check if field exists
 		_, exists := doc.Frontmatter[field]
-		
+
 		// Skip if exists and not overwriting
 		if exists && !options.Overwrite {
 			continue
@@ -198,10 +198,10 @@ func (s *UpsertService) upsertFields(doc *Document, options UpsertOptions, ctx *
 
 		// Convert value
 		convertedValue := convertValue(processedValue)
-		
+
 		// Set the field
 		doc.Frontmatter[field] = convertedValue
-		
+
 		// Track changes
 		if exists {
 			result.FieldsUpdated = append(result.FieldsUpdated, field)
@@ -244,9 +244,9 @@ func ValidateOptions(options UpsertOptions) error {
 	if len(options.Fields) == 0 {
 		return fmt.Errorf("at least one field must be specified")
 	}
-	
+
 	if len(options.Fields) != len(options.Defaults) {
-		return fmt.Errorf("number of fields (%d) must match number of defaults (%d)", 
+		return fmt.Errorf("number of fields (%d) must match number of defaults (%d)",
 			len(options.Fields), len(options.Defaults))
 	}
 

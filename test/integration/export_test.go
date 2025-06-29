@@ -226,7 +226,7 @@ Just a quick capture.
 		defer os.RemoveAll(outputDir)
 
 		// Export philosophy files that are published
-		output, err := runMdnotesCommand("export", outputDir, vaultPath, 
+		output, err := runMdnotesCommand("export", outputDir, vaultPath,
 			"--query", "tags contains 'philosophy' AND status = 'published'")
 		assert.NoError(t, err)
 		assert.Contains(t, string(output), "Exported 3 files")
@@ -245,7 +245,7 @@ Just a quick capture.
 		require.NoError(t, err)
 		defer os.RemoveAll(outputDir)
 
-		output, err := runMdnotesCommand("export", outputDir, vaultPath, 
+		output, err := runMdnotesCommand("export", outputDir, vaultPath,
 			"--query", "tags contains 'nonexistent'", "--dry-run")
 		assert.NoError(t, err)
 
@@ -349,7 +349,7 @@ func TestExportPerformance(t *testing.T) {
 		// Should export roughly half the files (those with index % 2 == 1)
 		outputStr := string(output)
 		assert.Contains(t, outputStr, "Export completed successfully")
-		
+
 		// Verify some project files exist
 		entries, err := os.ReadDir(filepath.Join(outputDir, "notes"))
 		if err == nil {
@@ -376,10 +376,10 @@ func TestExportEdgeCases(t *testing.T) {
 
 	t.Run("Files_With_Special_Characters", func(t *testing.T) {
 		vaultFiles := map[string]string{
-			"file with spaces.md":     "# File with spaces",
-			"file-with-hyphens.md":    "# File with hyphens",
+			"file with spaces.md":      "# File with spaces",
+			"file-with-hyphens.md":     "# File with hyphens",
 			"file_with_underscores.md": "# File with underscores",
-			"unicode-file-名前.md":      "# Unicode file",
+			"unicode-file-名前.md":       "# Unicode file",
 		}
 
 		vaultPath, err := createTestVault(vaultFiles)
@@ -422,5 +422,3 @@ func TestExportEdgeCases(t *testing.T) {
 		assert.FileExists(t, filepath.Join(outputDir, "a", "b", "c", "d", "e", "f", "deep.md"))
 	})
 }
-
-

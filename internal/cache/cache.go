@@ -10,13 +10,13 @@ import (
 
 // CacheEntry represents a single cache entry
 type CacheEntry struct {
-	Key        string
-	Value      interface{}
-	ExpiresAt  time.Time
-	CreatedAt  time.Time
-	AccessedAt time.Time
+	Key         string
+	Value       interface{}
+	ExpiresAt   time.Time
+	CreatedAt   time.Time
+	AccessedAt  time.Time
 	AccessCount int64
-	element    *list.Element // For LRU implementation
+	element     *list.Element // For LRU implementation
 }
 
 // IsExpired returns true if the entry has expired
@@ -37,16 +37,16 @@ type Cache struct {
 
 // Stats tracks cache performance metrics
 type Stats struct {
-	Hits          int64
-	Misses        int64
-	Evictions     int64
-	Expirations   int64
-	Sets          int64
-	Deletes       int64
-	Size          int64
-	MaxSize       int64
-	HitRatio      float64
-	MemoryUsage   int64
+	Hits        int64
+	Misses      int64
+	Evictions   int64
+	Expirations int64
+	Sets        int64
+	Deletes     int64
+	Size        int64
+	MaxSize     int64
+	HitRatio    float64
+	MemoryUsage int64
 }
 
 // Config holds cache configuration options
@@ -140,7 +140,7 @@ func (c *Cache) SetWithTTL(key string, value interface{}, ttl time.Duration) {
 		existingEntry.ExpiresAt = expiresAt
 		existingEntry.AccessedAt = now
 		existingEntry.AccessCount++
-		
+
 		// Move to front
 		c.lruList.MoveToFront(existingEntry.element)
 		return
@@ -209,7 +209,7 @@ func (c *Cache) Size() int {
 func (c *Cache) Stats() Stats {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
+
 	stats := c.stats
 	stats.Size = int64(len(c.entries))
 	return stats
@@ -436,7 +436,7 @@ func CacheMiddleware(cache *Cache, keyFunc func(args ...interface{}) string) fun
 	return func(fn func(args ...interface{}) (interface{}, error)) func(args ...interface{}) (interface{}, error) {
 		return func(args ...interface{}) (interface{}, error) {
 			key := keyFunc(args...)
-			
+
 			return cache.GetOrSet(key, func() (interface{}, error) {
 				return fn(args...)
 			})
@@ -452,7 +452,7 @@ func Hash(parts ...string) string {
 	if len(parts) == 1 {
 		return parts[0]
 	}
-	
+
 	result := parts[0]
 	for _, part := range parts[1:] {
 		result = fmt.Sprintf("%s:%s", result, part)

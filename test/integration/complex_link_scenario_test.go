@@ -22,7 +22,7 @@ func TestComplexLinkScenario(t *testing.T) {
 	// Create directory structure
 	resourcesDir := filepath.Join(tempDir, "resources", "books")
 	projectsDir := filepath.Join(tempDir, "projects")
-	
+
 	if err := os.MkdirAll(resourcesDir, 0755); err != nil {
 		t.Fatalf("Failed to create resources dir: %v", err)
 	}
@@ -60,14 +60,14 @@ Book by Michael DeForge.
 			RelativePath: "projects/reading-list.md",
 			Body:         readingListContent,
 		}
-		
+
 		linkParser := processor.NewLinkParser()
 		linkParser.UpdateFile(readingListFile)
-		
+
 		if len(readingListFile.Links) != 1 {
 			t.Errorf("Expected 1 link, got %d", len(readingListFile.Links))
 		}
-		
+
 		if len(readingListFile.Links) > 0 {
 			link := readingListFile.Links[0]
 			// The enhanced parser correctly decodes URL-encoded targets
@@ -97,7 +97,7 @@ Book by Michael DeForge.
 
 		// Rename to something else
 		newPath := filepath.Join(resourcesDir, "20250525145132-Renamed-Big-Kids.md")
-		
+
 		result, err := renameProcessor.ProcessRename(context.Background(), bigKidsPath, newPath, options)
 		if err != nil {
 			t.Fatalf("Failed to process rename: %v", err)
@@ -117,17 +117,17 @@ Book by Michael DeForge.
 		moves := []processor.FileMove{
 			{From: "resources/books/20250525145132-Big Kids.md", To: "resources/books/20250525145132-Renamed-Big-Kids.md"},
 		}
-		
+
 		testFile := &vault.VaultFile{
 			Path:         readingListPath,
 			RelativePath: "projects/reading-list.md",
 			Body:         readingListContent,
 		}
-		
+
 		linkParser := processor.NewLinkParser()
 		linkParser.UpdateFile(testFile)
 		modified := linkUpdater.UpdateFile(testFile, moves)
-		
+
 		if !modified {
 			t.Error("Expected file to be modified")
 		}
@@ -162,7 +162,7 @@ Book by Michael DeForge.
 			t.Errorf("Unexpected error: %v", err)
 		}
 
-		// Verify the operation was successful 
+		// Verify the operation was successful
 		if result.FilesModified != 1 {
 			t.Errorf("Expected 1 file to be modified, got %d", result.FilesModified)
 		}

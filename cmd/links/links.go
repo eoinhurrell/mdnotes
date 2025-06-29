@@ -72,7 +72,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("getting file selection config: %w", err)
 	}
-	
+
 	// Merge local ignore patterns with global ignore patterns
 	localIgnore := ignorePatterns
 	if len(fileSelector.IgnorePatterns) > 0 {
@@ -82,23 +82,23 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	} else {
 		fileSelector = fileSelector.WithIgnorePatterns(localIgnore)
 	}
-	
+
 	// Select files using unified architecture
 	selection, err := fileSelector.SelectFiles(path, mode)
 	if err != nil {
 		return fmt.Errorf("selecting files: %w", err)
 	}
-	
+
 	// Print selection summary if verbose
 	if verbose {
 		fmt.Printf("%s\n", selection.GetSelectionSummary())
 	}
-	
+
 	// Print parse errors if any
 	if len(selection.ParseErrors) > 0 && verbose {
 		selection.PrintParseErrors()
 	}
-	
+
 	files := selection.Files
 
 	if len(files) == 0 {
@@ -115,18 +115,18 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create maps for different types of file lookups
-	existingFiles := make(map[string]bool)           // vault-relative paths
-	baseNameFiles := make(map[string][]string)       // basename -> list of full paths
+	existingFiles := make(map[string]bool)     // vault-relative paths
+	baseNameFiles := make(map[string][]string) // basename -> list of full paths
 	for _, file := range files {
 		// Normalize path separators for consistent lookup
 		normalizedPath := filepath.ToSlash(file.RelativePath)
 		existingFiles[normalizedPath] = true
-		
+
 		// Also add without .md extension for exact matches
 		if strings.HasSuffix(normalizedPath, ".md") {
 			withoutExt := strings.TrimSuffix(normalizedPath, ".md")
 			existingFiles[withoutExt] = true
-			
+
 			// For wiki links: map basename to full paths (Obsidian behavior)
 			baseName := filepath.Base(withoutExt)
 			baseNameFiles[baseName] = append(baseNameFiles[baseName], normalizedPath)
@@ -311,20 +311,20 @@ func runConvert(cmd *cobra.Command, args []string) error {
 // resolveTargetPath determines the actual path to check based on link type and settings
 func resolveTargetPath(link vault.Link, file *vault.VaultFile, vaultRoot string, fileRelative bool) string {
 	target := link.Target
-	
+
 	// Remove any fragment identifiers (e.g., file.md#heading)
 	if idx := strings.Index(target, "#"); idx != -1 {
 		target = target[:idx]
 	}
-	
+
 	// Normalize path separators
 	target = filepath.ToSlash(target)
-	
+
 	switch link.Type {
 	case vault.WikiLink, vault.EmbedLink:
 		// Wiki links and embeds are always relative to vault root in Obsidian
 		return target
-		
+
 	case vault.MarkdownLink:
 		if fileRelative {
 			// Check relative to the file's directory
@@ -338,7 +338,7 @@ func resolveTargetPath(link vault.Link, file *vault.VaultFile, vaultRoot string,
 			// This is the key fix - markdown links should be vault-relative by default
 			return target
 		}
-		
+
 	default:
 		return target
 	}
@@ -348,17 +348,17 @@ func resolveTargetPath(link vault.Link, file *vault.VaultFile, vaultRoot string,
 func checkLinkExists(target string, existingFiles map[string]bool, baseNameFiles map[string][]string, linkType vault.LinkType) bool {
 	// Normalize path separators
 	target = filepath.ToSlash(target)
-	
+
 	// Remove any fragment identifiers (e.g., file.md#heading)
 	if idx := strings.Index(target, "#"); idx != -1 {
 		target = target[:idx]
 	}
-	
+
 	// Check direct match first
 	if existingFiles[target] {
 		return true
 	}
-	
+
 	// For wiki links and embeds, use Obsidian's basename resolution
 	if linkType == vault.WikiLink || linkType == vault.EmbedLink {
 		// Try adding .md extension if not present
@@ -367,14 +367,14 @@ func checkLinkExists(target string, existingFiles map[string]bool, baseNameFiles
 				return true
 			}
 		}
-		
+
 		// For wiki links, also check by basename (Obsidian behavior)
 		// This allows [[filename]] to match files in subdirectories
 		baseName := filepath.Base(target)
 		if paths, exists := baseNameFiles[baseName]; exists && len(paths) > 0 {
 			return true
 		}
-		
+
 		// Try basename with .md removed
 		if strings.HasSuffix(baseName, ".md") {
 			baseNameWithoutExt := strings.TrimSuffix(baseName, ".md")
@@ -383,7 +383,7 @@ func checkLinkExists(target string, existingFiles map[string]bool, baseNameFiles
 			}
 		}
 	}
-	
+
 	// For markdown links, also check without .md extension (for wiki-style references)
 	if strings.HasSuffix(target, ".md") {
 		withoutExt := strings.TrimSuffix(target, ".md")
@@ -391,7 +391,7 @@ func checkLinkExists(target string, existingFiles map[string]bool, baseNameFiles
 			return true
 		}
 	}
-	
+
 	return false
 }
 

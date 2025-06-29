@@ -70,7 +70,7 @@ func (p *Processor) ParseBytes(data []byte) (*Document, error) {
 	// Find the closing delimiter
 	reader := bytes.NewReader(data)
 	scanner := bufio.NewScanner(reader)
-	
+
 	var frontmatterLines []string
 	var bodyLines []string
 	inFrontmatter := false
@@ -78,18 +78,18 @@ func (p *Processor) ParseBytes(data []byte) (*Document, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		if !inFrontmatter && (line == "---" || line == "---\r") {
 			inFrontmatter = true
 			continue
 		}
-		
+
 		if inFrontmatter && (line == "---" || line == "---\r") {
 			frontmatterClosed = true
 			inFrontmatter = false
 			continue
 		}
-		
+
 		if inFrontmatter {
 			frontmatterLines = append(frontmatterLines, line)
 		} else if frontmatterClosed {
@@ -116,13 +116,13 @@ func (p *Processor) ParseBytes(data []byte) (*Document, error) {
 // Upsert updates or inserts frontmatter fields
 func (p *Processor) Upsert(doc *Document, options UpsertOptions, templateContext interface{}) error {
 	if len(options.Fields) != len(options.Defaults) {
-		return fmt.Errorf("number of fields (%d) must match number of defaults (%d)", 
+		return fmt.Errorf("number of fields (%d) must match number of defaults (%d)",
 			len(options.Fields), len(options.Defaults))
 	}
 
 	for i, field := range options.Fields {
 		defaultValue := options.Defaults[i]
-		
+
 		// Check if field exists and we're not overwriting
 		if _, exists := doc.Frontmatter[field]; exists && !options.Overwrite {
 			continue
@@ -158,12 +158,12 @@ func (p *Processor) Serialize(doc *Document) ([]byte, error) {
 	// Write frontmatter if it exists
 	if len(doc.Frontmatter) > 0 {
 		buf.WriteString("---\n")
-		
+
 		yamlData, err := yaml.Marshal(doc.Frontmatter)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling frontmatter: %w", err)
 		}
-		
+
 		buf.Write(yamlData)
 		buf.WriteString("---\n")
 	}
@@ -220,7 +220,7 @@ func NewFileContext(filePath string) (*FileContext, error) {
 	}
 
 	filename := strings.TrimSuffix(info.Name(), ".md")
-	
+
 	return &FileContext{
 		Filename:    filename,
 		FileModTime: info.ModTime(),

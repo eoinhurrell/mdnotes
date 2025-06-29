@@ -14,9 +14,9 @@ type FileProcessor struct {
 	Verbose        bool
 	Quiet          bool
 	IgnorePatterns []string
-	QueryFilter    string              // Query to filter files
+	QueryFilter    string                 // Query to filter files
 	SelectionMode  selector.SelectionMode // How to select files
-	SourceFile     string              // For FilesFromFile mode
+	SourceFile     string                 // For FilesFromFile mode
 
 	// Callbacks
 	ProcessFile     func(file *vault.VaultFile) (modified bool, err error)
@@ -63,9 +63,9 @@ func (fp *FileProcessor) ProcessPath(path string) (*ProcessResult, error) {
 			fmt.Printf("No markdown files selected from %s\n", selection.Source)
 		}
 		return &ProcessResult{
-			TotalFiles: 0, 
+			TotalFiles:     0,
 			ProcessedFiles: 0,
-			Selection: selection,
+			Selection:      selection,
 		}, nil
 	}
 
@@ -113,7 +113,6 @@ func (fp *FileProcessor) ProcessPath(path string) (*ProcessResult, error) {
 
 	return result, nil
 }
-
 
 // writeFile writes a vault file back to disk, preserving frontmatter order
 func (fp *FileProcessor) writeFile(file *vault.VaultFile) error {

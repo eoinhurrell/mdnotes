@@ -29,23 +29,23 @@ type RenameProcessor struct {
 
 // RenameOptions contains configuration for rename operations
 type RenameOptions struct {
-	VaultRoot       string
-	IgnorePatterns  []string
-	Template        string
-	DryRun          bool
-	Verbose         bool
-	Workers         int
+	VaultRoot      string
+	IgnorePatterns []string
+	Template       string
+	DryRun         bool
+	Verbose        bool
+	Workers        int
 }
 
 // RenameResult contains the results of a rename operation
 type RenameResult struct {
-	SourcePath      string
-	TargetPath      string
-	FilesScanned    int
-	FilesModified   int
-	LinksUpdated    int
-	ModifiedFiles   []string
-	Duration        time.Duration
+	SourcePath    string
+	TargetPath    string
+	FilesScanned  int
+	FilesModified int
+	LinksUpdated  int
+	ModifiedFiles []string
+	Duration      time.Duration
 }
 
 // FileProcessResult contains the result of processing a single file
@@ -65,7 +65,7 @@ func NewRenameProcessor(options RenameOptions) *RenameProcessor {
 
 	scanner := vault.NewScanner(vault.WithIgnorePatterns(options.IgnorePatterns))
 	searcher := rgsearch.NewSearcher()
-	
+
 	// Create worker pool for parallel processing
 	poolConfig := workerpool.Config{
 		MaxWorkers:  workers,
@@ -166,7 +166,7 @@ func (rp *RenameProcessor) processFile(file *vault.VaultFile, move FileMove, lin
 		return result // No potential links found, skip expensive parsing
 	}
 
-	// Parse links 
+	// Parse links
 	rp.linkParser.UpdateFile(file)
 
 	if verbose && len(file.Links) > 0 {
@@ -285,7 +285,6 @@ func (rp *RenameProcessor) performFileRename(sourcePath, targetPath string) erro
 	return nil
 }
 
-
 // processRenameWithOptimizedSearch uses rgsearch and workerpool for efficient processing
 func (rp *RenameProcessor) processRenameWithOptimizedSearch(ctx context.Context, move FileMove, options RenameOptions, result *RenameResult) ([]*vault.VaultFile, []error) {
 	var modifiedFiles []*vault.VaultFile
@@ -293,7 +292,7 @@ func (rp *RenameProcessor) processRenameWithOptimizedSearch(ctx context.Context,
 
 	// Try to use rgsearch for faster file discovery
 	candidateFiles, rgErr := rp.findCandidateFilesWithRgsearch(ctx, move, options)
-	
+
 	if rgErr != nil {
 		if options.Verbose {
 			fmt.Printf("Ripgrep unavailable, falling back to full scan: %v\n", rgErr)
@@ -313,7 +312,7 @@ func (rp *RenameProcessor) processRenameWithOptimizedSearch(ctx context.Context,
 	// Create tasks for parallel processing
 	tasks := make([]workerpool.Task, len(candidateFiles))
 	taskResults := make([]*FileProcessResult, len(candidateFiles))
-	
+
 	for i, filePath := range candidateFiles {
 		i, filePath := i, filePath // Capture loop variables
 		tasks[i] = func(ctx context.Context) error {
@@ -322,31 +321,31 @@ func (rp *RenameProcessor) processRenameWithOptimizedSearch(ctx context.Context,
 			if err != nil {
 				return fmt.Errorf("reading %s: %w", filePath, err)
 			}
-			
+
 			if err := vaultFile.Parse(content); err != nil {
 				return fmt.Errorf("parsing %s: %w", filePath, err)
 			}
-			
+
 			// Set relative path
 			if rel, err := filepath.Rel(options.VaultRoot, filePath); err == nil {
 				vaultFile.RelativePath = rel
 			}
-			
+
 			processResult := rp.processFile(vaultFile, move, nil, options.DryRun, options.Verbose)
 			processResult.File = vaultFile
 			taskResults[i] = &processResult
-			
+
 			return processResult.Error
 		}
 	}
 
 	// Process all tasks in parallel
 	results := rp.pool.ProcessBatch(tasks)
-	
+
 	// Collect results
 	for i, taskResult := range results {
 		result.FilesScanned++
-		
+
 		if taskResult.Error != nil {
 			errors = append(errors, taskResult.Error)
 			if options.Verbose {
@@ -354,7 +353,7 @@ func (rp *RenameProcessor) processRenameWithOptimizedSearch(ctx context.Context,
 			}
 			continue
 		}
-		
+
 		processResult := taskResults[i]
 		if processResult != nil && processResult.Modified {
 			result.FilesModified++
@@ -377,33 +376,32 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 	sourceFile := filepath.Base(move.From)
 	sourceWithoutExt := strings.TrimSuffix(sourceFile, ".md")
 	moveFromWithoutExt := strings.TrimSuffix(move.From, ".md")
-	
+
 	// URL encode versions for matching encoded links (Obsidian-style)
 	sourceFileEncoded := rp.obsidianURLEncode(sourceFile)
 	moveFromEncoded := rp.obsidianURLEncode(move.From)
-	
+
 	// Also try with spaces instead of underscores (common mismatch)
 	sourceFileWithSpaces := strings.ReplaceAll(sourceFile, "_", " ")
 	sourceFileWithSpacesEncoded := rp.obsidianURLEncode(sourceFileWithSpaces)
 	moveFromWithSpaces := strings.ReplaceAll(move.From, "_", " ")
 	moveFromWithSpacesEncoded := rp.obsidianURLEncode(moveFromWithSpaces)
-	
+
 	// Build pattern that matches potential links - include full path patterns
 	var patterns []string
-	
-	
+
 	// Wiki links: [[basename]] or [[path/basename]] with optional fragments
 	patterns = append(patterns, fmt.Sprintf(`\[\[%s(#[^|\]]*)?(\]\]|\|)`, rp.regexQuoteWithURLPreserve(sourceWithoutExt)))
 	if move.From != sourceFile {
 		patterns = append(patterns, fmt.Sprintf(`\[\[%s(#[^|\]]*)?(\]\]|\|)`, rp.regexQuoteWithURLPreserve(moveFromWithoutExt)))
 	}
-	
-	// Markdown links: [text](basename.md) or [text](path/basename.md) with optional fragments  
+
+	// Markdown links: [text](basename.md) or [text](path/basename.md) with optional fragments
 	patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(sourceFile)))
 	if move.From != sourceFile {
 		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(move.From)))
 	}
-	
+
 	// URL-encoded markdown links (handle %20, etc.) with optional fragments
 	if sourceFileEncoded != sourceFile {
 		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(sourceFileEncoded)))
@@ -411,7 +409,7 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 	if moveFromEncoded != move.From && move.From != sourceFile {
 		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(moveFromEncoded)))
 	}
-	
+
 	// Space-based variants (common mismatch: file uses underscore, link uses space) with optional fragments
 	if sourceFileWithSpaces != sourceFile {
 		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(sourceFileWithSpaces)))
@@ -425,18 +423,16 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 	if moveFromWithSpacesEncoded != moveFromWithSpaces && moveFromWithSpacesEncoded != moveFromEncoded {
 		patterns = append(patterns, fmt.Sprintf(`\]\(%s(#[^)]*)?`, rp.regexQuoteWithURLPreserve(moveFromWithSpacesEncoded)))
 	}
-	
+
 	// Embed links: ![[basename]] or ![[path/basename]] with optional fragments
 	patterns = append(patterns, fmt.Sprintf(`!\[\[%s(#[^|\]]*)?`, rp.regexQuoteWithURLPreserve(sourceWithoutExt)))
 	if move.From != sourceFile {
 		patterns = append(patterns, fmt.Sprintf(`!\[\[%s(#[^|\]]*)?`, rp.regexQuoteWithURLPreserve(moveFromWithoutExt)))
 	}
-	
+
 	// Combine all patterns
 	pattern := "(" + strings.Join(patterns, "|") + ")"
-	
-	
-	
+
 	// Configure search options
 	searchOptions := rgsearch.SearchOptions{
 		Pattern:         pattern,
@@ -448,13 +444,13 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 		Timeout:         30 * time.Second,
 		AdditionalArgs:  []string{"--no-ignore"}, // Disable gitignore to search test-vault
 	}
-	
+
 	// Use rgsearch to find files containing potential references
 	files, err := rp.searcher.SearchFiles(ctx, searchOptions)
 	if err != nil {
 		return nil, fmt.Errorf("rgsearch execution failed: %w", err)
 	}
-	
+
 	return files, nil
 }
 
@@ -474,7 +470,7 @@ func (rp *RenameProcessor) regexQuoteWithURLPreserve(path string) string {
 		// Split by % and handle each part separately
 		parts := strings.Split(path, "%")
 		result := regexp.QuoteMeta(parts[0])
-		
+
 		for i := 1; i < len(parts); i++ {
 			// Add back the % character (it was removed by split)
 			result += "%"
@@ -489,7 +485,7 @@ func (rp *RenameProcessor) regexQuoteWithURLPreserve(path string) string {
 		}
 		return result
 	}
-	
+
 	// For non-URL-encoded paths, use normal escaping
 	return regexp.QuoteMeta(path)
 }
@@ -508,7 +504,7 @@ func (rp *RenameProcessor) processFullRenameFallback(ctx context.Context, move F
 		allFiles = append(allFiles, file)
 		return nil
 	})
-	
+
 	if err != nil {
 		return modifiedFiles, []error{fmt.Errorf("scanning vault: %w", err)}
 	}
@@ -520,25 +516,25 @@ func (rp *RenameProcessor) processFullRenameFallback(ctx context.Context, move F
 	// Create tasks for parallel processing
 	tasks := make([]workerpool.Task, len(allFiles))
 	taskResults := make([]*FileProcessResult, len(allFiles))
-	
+
 	for i, file := range allFiles {
 		i, file := i, file // Capture loop variables
 		tasks[i] = func(ctx context.Context) error {
 			processResult := rp.processFile(file, move, linkRegex, options.DryRun, options.Verbose)
 			processResult.File = file
 			taskResults[i] = &processResult
-			
+
 			return processResult.Error
 		}
 	}
 
 	// Process all tasks in parallel
 	results := rp.pool.ProcessBatch(tasks)
-	
+
 	// Collect results
 	for i, taskResult := range results {
 		result.FilesScanned++
-		
+
 		if taskResult.Error != nil {
 			errors = append(errors, taskResult.Error)
 			if options.Verbose {
@@ -546,7 +542,7 @@ func (rp *RenameProcessor) processFullRenameFallback(ctx context.Context, move F
 			}
 			continue
 		}
-		
+
 		processResult := taskResults[i]
 		if processResult != nil && processResult.Modified {
 			result.FilesModified++
@@ -595,15 +591,15 @@ func GenerateNameFromTemplate(sourcePath, templateStr string) (string, error) {
 	// Check if filename already has a datestring prefix
 	engine := template.NewEngine()
 	existingDatestring := engine.ExtractDatestring(filename)
-	
+
 	// If filename already has a datestring, use it and remove it from the filename
 	if existingDatestring != "" {
 		// Use existing datestring and extract filename without it
 		filenameWithoutDatestring := engine.ExtractFilenameWithoutDatestring(filename)
-		
+
 		// Create slug with underscores
 		slugified := engine.SlugifyWithUnderscore(filenameWithoutDatestring)
-		
+
 		return fmt.Sprintf("%s-%s.md", existingDatestring, slugified), nil
 	}
 
@@ -614,21 +610,21 @@ func GenerateNameFromTemplate(sourcePath, templateStr string) (string, error) {
 		Modified:     createdTime,
 		Frontmatter:  make(map[string]interface{}),
 	}
-	
+
 	// Copy all existing frontmatter
 	for k, v := range vaultFile.Frontmatter {
 		tempFile.Frontmatter[k] = v
 	}
-	
+
 	// Add template data to frontmatter
 	tempFile.Frontmatter["filename"] = filename
 	if _, exists := tempFile.Frontmatter["created"]; !exists {
 		tempFile.Frontmatter["created"] = createdTime.Format("2006-01-02")
 	}
-	
+
 	// Use the template engine
 	result := engine.Process(templateStr, tempFile)
-	
+
 	return result, nil
 }
 
@@ -643,17 +639,17 @@ func parseTimeField(field interface{}) (time.Time, error) {
 			"2006-01-02 15:04:05",
 			"2006-01-02T15:04:05",
 		}
-		
+
 		for _, format := range formats {
 			if t, err := time.Parse(format, v); err == nil {
 				return t, nil
 			}
 		}
 		return time.Time{}, fmt.Errorf("unrecognized time format: %s", v)
-	
+
 	case time.Time:
 		return v, nil
-	
+
 	default:
 		return time.Time{}, fmt.Errorf("unsupported time field type: %T", field)
 	}

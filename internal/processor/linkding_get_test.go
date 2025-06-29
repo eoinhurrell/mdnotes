@@ -85,14 +85,14 @@ func TestPickLatestSnapshot(t *testing.T) {
 
 func TestExtractTextFromHTML(t *testing.T) {
 	tests := []struct {
-		name     string
+		name        string
 		htmlContent string
-		expected string
+		expected    string
 	}{
 		{
-			name: "simple html",
+			name:        "simple html",
 			htmlContent: `<html><body><p>Hello <b>World</b></p></body></html>`,
-			expected: "Hello World",
+			expected:    "Hello World",
 		},
 		{
 			name: "html with script and style",
@@ -115,9 +115,9 @@ func TestExtractTextFromHTML(t *testing.T) {
 			expected: "Title Content Paragraph",
 		},
 		{
-			name: "empty html",
+			name:        "empty html",
 			htmlContent: `<html><body></body></html>`,
-			expected: "",
+			expected:    "",
 		},
 		{
 			name: "text with newlines and whitespace",
@@ -225,7 +225,7 @@ func TestPickLatestSnapshot_DateParsing(t *testing.T) {
 
 	result, err := PickLatestSnapshot(assets)
 	assert.NoError(t, err)
-	
+
 	// Should pick ID 2 since it has the newer date
 	assert.Equal(t, 2, result.ID)
 }

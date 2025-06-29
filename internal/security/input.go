@@ -14,15 +14,15 @@ import (
 
 // InputSanitizer provides secure input sanitization
 type InputSanitizer struct {
-	maxLength      int
-	allowedChars   *regexp.Regexp
+	maxLength       int
+	allowedChars    *regexp.Regexp
 	blockedPatterns []*regexp.Regexp
 }
 
 // InputSanitizerConfig configures input sanitization
 type InputSanitizerConfig struct {
-	MaxLength      int
-	AllowedChars   string
+	MaxLength       int
+	AllowedChars    string
 	BlockedPatterns []string
 }
 
@@ -31,24 +31,24 @@ func NewInputSanitizer(config InputSanitizerConfig) *InputSanitizer {
 	sanitizer := &InputSanitizer{
 		maxLength: config.MaxLength,
 	}
-	
+
 	// Set default max length if not specified
 	if sanitizer.maxLength <= 0 {
 		sanitizer.maxLength = 10000 // 10KB default
 	}
-	
+
 	// Compile allowed characters regex
 	if config.AllowedChars != "" {
 		sanitizer.allowedChars = regexp.MustCompile(config.AllowedChars)
 	}
-	
+
 	// Compile blocked patterns
 	for _, pattern := range config.BlockedPatterns {
 		if compiled, err := regexp.Compile(pattern); err == nil {
 			sanitizer.blockedPatterns = append(sanitizer.blockedPatterns, compiled)
 		}
 	}
-	
+
 	return sanitizer
 }
 
@@ -63,7 +63,7 @@ func (is *InputSanitizer) SanitizeString(input string) (string, error) {
 			WithSuggestion(fmt.Sprintf("Reduce input to %d characters or less", is.maxLength)).
 			Build()
 	}
-	
+
 	// Check for valid UTF-8
 	if !utf8.ValidString(input) {
 		return "", errors.NewErrorBuilder().
@@ -73,10 +73,10 @@ func (is *InputSanitizer) SanitizeString(input string) (string, error) {
 			WithSuggestion("Ensure input is valid UTF-8 encoded text").
 			Build()
 	}
-	
+
 	// Remove control characters (except common whitespace)
 	sanitized := removeControlChars(input)
-	
+
 	// Check against allowed characters
 	if is.allowedChars != nil && !is.allowedChars.MatchString(sanitized) {
 		return "", errors.NewErrorBuilder().
@@ -86,7 +86,7 @@ func (is *InputSanitizer) SanitizeString(input string) (string, error) {
 			WithSuggestion("Remove special characters that are not allowed").
 			Build()
 	}
-	
+
 	// Check blocked patterns
 	for _, pattern := range is.blockedPatterns {
 		if pattern.MatchString(sanitized) {
@@ -98,7 +98,7 @@ func (is *InputSanitizer) SanitizeString(input string) (string, error) {
 				Build()
 		}
 	}
-	
+
 	return sanitized, nil
 }
 
@@ -117,7 +117,7 @@ func SanitizeMarkdownContent(content string) (string, error) {
 			`\[.*?\]\s*\(\s*data:`,
 		},
 	}
-	
+
 	sanitizer := NewInputSanitizer(config)
 	return sanitizer.SanitizeString(content)
 }
@@ -137,7 +137,7 @@ func SanitizeYAMLContent(content string) (string, error) {
 			`\{\{.*?\}\}`, // Template injection (be careful with legitimate templates)
 		},
 	}
-	
+
 	sanitizer := NewInputSanitizer(config)
 	return sanitizer.SanitizeString(content)
 }
@@ -154,7 +154,7 @@ func SanitizeURL(input string) (string, error) {
 			WithSuggestion("Ensure URL follows proper format (e.g., https://example.com)").
 			Build()
 	}
-	
+
 	// Check scheme whitelist
 	allowedSchemes := []string{"http", "https", "ftp", "ftps", "mailto"}
 	if !contains(allowedSchemes, parsed.Scheme) {
@@ -165,7 +165,7 @@ func SanitizeURL(input string) (string, error) {
 			WithSuggestion("Use http, https, ftp, ftps, or mailto schemes only").
 			Build()
 	}
-	
+
 	// Check for suspicious patterns in URL
 	suspicious := []string{
 		"javascript:",
@@ -174,7 +174,7 @@ func SanitizeURL(input string) (string, error) {
 		"file:",
 		"jar:",
 	}
-	
+
 	lowerURL := strings.ToLower(input)
 	for _, pattern := range suspicious {
 		if strings.Contains(lowerURL, pattern) {
@@ -186,7 +186,7 @@ func SanitizeURL(input string) (string, error) {
 				Build()
 		}
 	}
-	
+
 	// Return cleaned URL
 	return parsed.String(), nil
 }
@@ -194,18 +194,18 @@ func SanitizeURL(input string) (string, error) {
 // SanitizeFieldName sanitizes field names for frontmatter
 func SanitizeFieldName(fieldName string) (string, error) {
 	config := InputSanitizerConfig{
-		MaxLength:   100,
+		MaxLength:    100,
 		AllowedChars: `^[a-zA-Z0-9_-]+$`,
 	}
-	
+
 	sanitizer := NewInputSanitizer(config)
-	
+
 	// Additional validation for field names
 	sanitized, err := sanitizer.SanitizeString(fieldName)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Must start with letter
 	if len(sanitized) > 0 && !unicode.IsLetter(rune(sanitized[0])) {
 		return "", errors.NewErrorBuilder().
@@ -215,7 +215,7 @@ func SanitizeFieldName(fieldName string) (string, error) {
 			WithSuggestion("Start field names with a letter (a-z, A-Z)").
 			Build()
 	}
-	
+
 	// Check for reserved field names
 	reserved := []string{
 		"__proto__",
@@ -224,7 +224,7 @@ func SanitizeFieldName(fieldName string) (string, error) {
 		"toString",
 		"valueOf",
 	}
-	
+
 	for _, res := range reserved {
 		if strings.EqualFold(sanitized, res) {
 			return "", errors.NewErrorBuilder().
@@ -235,7 +235,7 @@ func SanitizeFieldName(fieldName string) (string, error) {
 				Build()
 		}
 	}
-	
+
 	return sanitized, nil
 }
 
@@ -261,7 +261,7 @@ func SanitizeCommand(command string) (string, error) {
 			`>>`,
 		},
 	}
-	
+
 	sanitizer := NewInputSanitizer(config)
 	return sanitizer.SanitizeString(command)
 }
@@ -280,7 +280,7 @@ func EscapeRegex(input string) string {
 func ValidateEmail(email string) error {
 	// Basic email regex (not RFC 5322 compliant but good enough for basic validation)
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	
+
 	if !emailRegex.MatchString(email) {
 		return errors.NewErrorBuilder().
 			WithOperation("email validation").
@@ -289,7 +289,7 @@ func ValidateEmail(email string) error {
 			WithSuggestion("Use proper email format (user@domain.com)").
 			Build()
 	}
-	
+
 	return nil
 }
 
@@ -298,22 +298,22 @@ func ValidateEmail(email string) error {
 // removeControlChars removes control characters except common whitespace
 func removeControlChars(input string) string {
 	var result strings.Builder
-	
+
 	for _, r := range input {
 		// Keep common whitespace characters
 		if r == '\t' || r == '\n' || r == '\r' || r == ' ' {
 			result.WriteRune(r)
 			continue
 		}
-		
+
 		// Remove other control characters
 		if unicode.IsControl(r) {
 			continue
 		}
-		
+
 		result.WriteRune(r)
 	}
-	
+
 	return result.String()
 }
 
@@ -332,14 +332,14 @@ func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
-	
+
 	// Find a safe truncation point (avoid breaking UTF-8)
 	for i := maxLen; i >= 0; i-- {
 		if utf8.ValidString(s[:i]) {
 			return s[:i]
 		}
 	}
-	
+
 	return ""
 }
 
@@ -348,7 +348,7 @@ func NormalizeWhitespace(input string) string {
 	// Replace multiple whitespace with single space
 	wsRegex := regexp.MustCompile(`\s+`)
 	normalized := wsRegex.ReplaceAllString(input, " ")
-	
+
 	// Trim leading/trailing whitespace
 	return strings.TrimSpace(normalized)
 }
@@ -361,7 +361,7 @@ func DetectBinaryContent(content []byte) bool {
 			return true
 		}
 	}
-	
+
 	// Check UTF-8 validity for text content
 	return !utf8.Valid(content)
 }
@@ -370,18 +370,18 @@ func DetectBinaryContent(content []byte) bool {
 func SanitizeFilenameForURL(filename string) string {
 	// Convert to lowercase
 	result := strings.ToLower(filename)
-	
+
 	// Replace spaces and special chars with hyphens
 	reg := regexp.MustCompile(`[^a-z0-9]+`)
 	result = reg.ReplaceAllString(result, "-")
-	
+
 	// Remove leading/trailing hyphens
 	result = strings.Trim(result, "-")
-	
+
 	// Ensure not empty
 	if result == "" {
 		result = "untitled"
 	}
-	
+
 	return result
 }

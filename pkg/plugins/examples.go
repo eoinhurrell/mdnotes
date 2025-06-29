@@ -124,20 +124,20 @@ func (p *ExampleContentPlugin) ExecuteHook(ctx context.Context, hookType HookTyp
 
 	content := file.Body
 	originalContent := content
-	
+
 	// Fix double spaces
 	content = regexp.MustCompile(`  +`).ReplaceAllString(content, " ")
-	
+
 	// Fix multiple newlines (more than 2)
 	content = regexp.MustCompile(`\n{3,}`).ReplaceAllString(content, "\n\n")
-	
+
 	// Fix trailing whitespace
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		lines[i] = strings.TrimRight(line, " \t")
 	}
 	content = strings.Join(lines, "\n")
-	
+
 	// Add final newline if missing
 	if !strings.HasSuffix(content, "\n") {
 		content += "\n"
@@ -146,10 +146,10 @@ func (p *ExampleContentPlugin) ExecuteHook(ctx context.Context, hookType HookTyp
 	result := &ProcessResult{
 		Modified:   content != originalContent,
 		NewContent: content,
-		Metadata:   map[string]interface{}{
+		Metadata: map[string]interface{}{
 			"content_enhancements": map[string]bool{
-				"fixed_spacing":     true,
-				"fixed_newlines":    true,
+				"fixed_spacing":      true,
+				"fixed_newlines":     true,
 				"trimmed_whitespace": true,
 			},
 		},
@@ -211,7 +211,7 @@ func (p *ExampleExportPlugin) processFile(hookCtx *HookContext, file *vault.Vaul
 	}
 
 	content := file.Body
-	
+
 	// Add export timestamp comment
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	exportComment := fmt.Sprintf("\n<!-- Exported by mdnotes on %s -->\n", timestamp)
@@ -233,7 +233,7 @@ func (p *ExampleExportPlugin) onExportComplete(hookCtx *HookContext) (*ProcessRe
 	// Log export completion (in a real plugin, this might update a database,
 	// send a notification, generate reports, etc.)
 	fmt.Printf("Export completed for vault: %s\n", hookCtx.VaultPath)
-	
+
 	return &ProcessResult{
 		Metadata: map[string]interface{}{
 			"export_completed": true,
@@ -251,15 +251,15 @@ func ValidatePlugin(p Plugin) error {
 	if p.Name() == "" {
 		return fmt.Errorf("plugin name cannot be empty")
 	}
-	
+
 	if p.Version() == "" {
 		return fmt.Errorf("plugin version cannot be empty")
 	}
-	
+
 	if len(p.SupportedHooks()) == 0 {
 		return fmt.Errorf("plugin must support at least one hook type")
 	}
-	
+
 	// Validate hook types
 	validHooks := map[HookType]bool{
 		HookPreCommand:     true,
@@ -267,12 +267,12 @@ func ValidatePlugin(p Plugin) error {
 		HookPostCommand:    true,
 		HookExportComplete: true,
 	}
-	
+
 	for _, hook := range p.SupportedHooks() {
 		if !validHooks[hook] {
 			return fmt.Errorf("unsupported hook type: %s", hook)
 		}
 	}
-	
+
 	return nil
 }

@@ -73,12 +73,12 @@ func TestProcessor_ParseBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			doc, err := processor.ParseBytes(tt.input)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
-			
+
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected.Body, doc.Body)
 			assert.Equal(t, tt.expected.Frontmatter, doc.Frontmatter)
@@ -88,12 +88,12 @@ func TestProcessor_ParseBytes(t *testing.T) {
 
 func TestProcessor_Upsert(t *testing.T) {
 	tests := []struct {
-		name           string
-		doc            *Document
-		options        UpsertOptions
-		templateFunc   func(template string, ctx interface{}) (string, error)
-		expectedFM     map[string]interface{}
-		wantErr        bool
+		name         string
+		doc          *Document
+		options      UpsertOptions
+		templateFunc func(template string, ctx interface{}) (string, error)
+		expectedFM   map[string]interface{}
+		wantErr      bool
 	}{
 		{
 			name: "add new field",
@@ -237,7 +237,7 @@ func TestProcessor_ParseAndWrite(t *testing.T) {
 	// Create temporary file
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.md")
-	
+
 	content := []byte("---\ntitle: Original Title\ntags: [original]\n---\n\n# Original Content")
 	err := os.WriteFile(testFile, content, 0644)
 	require.NoError(t, err)
@@ -264,7 +264,7 @@ func TestProcessor_ParseAndWrite(t *testing.T) {
 	// Parse again to verify
 	newDoc, err := processor.ParseBytes(newContent)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "Original Title", newDoc.Frontmatter["title"])
 	assert.Equal(t, "2024-01-15", newDoc.Frontmatter["modified"])
 	assert.Equal(t, "\n# Original Content", newDoc.Body)
@@ -288,7 +288,7 @@ func TestConvertValue(t *testing.T) {
 		t.Run(tt.input, func(t *testing.T) {
 			result := convertValue(tt.input)
 			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("convertValue(%q) = %v (%T), want %v (%T)", 
+				t.Errorf("convertValue(%q) = %v (%T), want %v (%T)",
 					tt.input, result, result, tt.expected, tt.expected)
 			}
 		})
@@ -299,7 +299,7 @@ func TestNewFileContext(t *testing.T) {
 	// Create temporary file
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test-note.md")
-	
+
 	content := []byte("# Test Note")
 	err := os.WriteFile(testFile, content, 0644)
 	require.NoError(t, err)

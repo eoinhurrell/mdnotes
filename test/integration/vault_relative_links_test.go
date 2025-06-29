@@ -22,7 +22,7 @@ func TestVaultRelativeLinks(t *testing.T) {
 	// Create directory structure
 	resourcesDir := filepath.Join(tempDir, "resources")
 	docsDir := filepath.Join(tempDir, "docs", "guides")
-	
+
 	if err := os.MkdirAll(resourcesDir, 0755); err != nil {
 		t.Fatalf("Failed to create resources dir: %v", err)
 	}

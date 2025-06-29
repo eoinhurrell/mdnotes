@@ -51,12 +51,12 @@ func (e UserError) ErrorCode() string {
 // Common error codes
 const (
 	// File system errors
-	ErrCodeInvalidFile       = "INVALID_FILE"
-	ErrCodeFileNotFound      = "FILE_NOT_FOUND"
-	ErrCodeFilePermission    = "FILE_PERMISSION"
-	ErrCodeFileCorrupted     = "FILE_CORRUPTED"
-	ErrCodeDiskSpace         = "DISK_SPACE"
-	ErrCodePathInvalid       = "PATH_INVALID"
+	ErrCodeInvalidFile    = "INVALID_FILE"
+	ErrCodeFileNotFound   = "FILE_NOT_FOUND"
+	ErrCodeFilePermission = "FILE_PERMISSION"
+	ErrCodeFileCorrupted  = "FILE_CORRUPTED"
+	ErrCodeDiskSpace      = "DISK_SPACE"
+	ErrCodePathInvalid    = "PATH_INVALID"
 
 	// Frontmatter errors
 	ErrCodeFrontmatterInvalid = "FRONTMATTER_INVALID"
@@ -66,50 +66,50 @@ const (
 	ErrCodeInvalidValue       = "INVALID_VALUE"
 
 	// Content errors
-	ErrCodeContentEmpty          = "CONTENT_EMPTY"
-	ErrCodeContentTooLarge       = "CONTENT_TOO_LARGE"
-	ErrCodeEncodingUnsupported   = "ENCODING_UNSUPPORTED"
-	ErrCodeMarkdownInvalid       = "MARKDOWN_INVALID"
+	ErrCodeContentEmpty        = "CONTENT_EMPTY"
+	ErrCodeContentTooLarge     = "CONTENT_TOO_LARGE"
+	ErrCodeEncodingUnsupported = "ENCODING_UNSUPPORTED"
+	ErrCodeMarkdownInvalid     = "MARKDOWN_INVALID"
 
 	// Link errors
-	ErrCodeLinkBroken          = "LINK_BROKEN"
-	ErrCodeLinkCyclic          = "LINK_CYCLIC"
-	ErrCodeLinkFormatInvalid   = "LINK_FORMAT_INVALID"
+	ErrCodeLinkBroken        = "LINK_BROKEN"
+	ErrCodeLinkCyclic        = "LINK_CYCLIC"
+	ErrCodeLinkFormatInvalid = "LINK_FORMAT_INVALID"
 
 	// Network errors
-	ErrCodeNetworkError        = "NETWORK_ERROR"
-	ErrCodeNetworkTimeout      = "NETWORK_TIMEOUT"
-	ErrCodeNetworkUnreachable  = "NETWORK_UNREACHABLE"
-	ErrCodeAPIUnauthorized     = "API_UNAUTHORIZED"
-	ErrCodeAPIRateLimit        = "API_RATE_LIMIT"
-	ErrCodeAPIInvalidResponse  = "API_INVALID_RESPONSE"
+	ErrCodeNetworkError       = "NETWORK_ERROR"
+	ErrCodeNetworkTimeout     = "NETWORK_TIMEOUT"
+	ErrCodeNetworkUnreachable = "NETWORK_UNREACHABLE"
+	ErrCodeAPIUnauthorized    = "API_UNAUTHORIZED"
+	ErrCodeAPIRateLimit       = "API_RATE_LIMIT"
+	ErrCodeAPIInvalidResponse = "API_INVALID_RESPONSE"
 
 	// Configuration errors
-	ErrCodeInvalidConfig       = "INVALID_CONFIG"
-	ErrCodeConfigMissing       = "CONFIG_MISSING"
-	ErrCodeConfigPermission    = "CONFIG_PERMISSION"
-	ErrCodePermissionDenied    = "PERMISSION_DENIED"
+	ErrCodeInvalidConfig    = "INVALID_CONFIG"
+	ErrCodeConfigMissing    = "CONFIG_MISSING"
+	ErrCodeConfigPermission = "CONFIG_PERMISSION"
+	ErrCodePermissionDenied = "PERMISSION_DENIED"
 
 	// Plugin errors
-	ErrCodePluginNotFound      = "PLUGIN_NOT_FOUND"
-	ErrCodePluginLoadFailed    = "PLUGIN_LOAD_FAILED"
-	ErrCodePluginIncompatible  = "PLUGIN_INCOMPATIBLE"
-	ErrCodePluginExecution     = "PLUGIN_EXECUTION"
+	ErrCodePluginNotFound     = "PLUGIN_NOT_FOUND"
+	ErrCodePluginLoadFailed   = "PLUGIN_LOAD_FAILED"
+	ErrCodePluginIncompatible = "PLUGIN_INCOMPATIBLE"
+	ErrCodePluginExecution    = "PLUGIN_EXECUTION"
 
 	// Validation errors
-	ErrCodeValidationFailed    = "VALIDATION_FAILED"
-	ErrCodeInputInvalid        = "INPUT_INVALID"
-	ErrCodeFormatUnsupported   = "FORMAT_UNSUPPORTED"
+	ErrCodeValidationFailed  = "VALIDATION_FAILED"
+	ErrCodeInputInvalid      = "INPUT_INVALID"
+	ErrCodeFormatUnsupported = "FORMAT_UNSUPPORTED"
 
 	// Operation errors
-	ErrCodeOperationCancelled  = "OPERATION_CANCELLED"
-	ErrCodeOperationTimeout    = "OPERATION_TIMEOUT"
-	ErrCodeOperationConflict   = "OPERATION_CONFLICT"
-	ErrCodeResourceExhausted   = "RESOURCE_EXHAUSTED"
-	ErrCodeQuotaExceeded       = "QUOTA_EXCEEDED"
-	ErrCodeInvalidSyntax       = "INVALID_SYNTAX"
-	ErrCodeDuplicateResource   = "DUPLICATE_RESOURCE"
-	ErrCodeResourceNotFound    = "RESOURCE_NOT_FOUND"
+	ErrCodeOperationCancelled = "OPERATION_CANCELLED"
+	ErrCodeOperationTimeout   = "OPERATION_TIMEOUT"
+	ErrCodeOperationConflict  = "OPERATION_CONFLICT"
+	ErrCodeResourceExhausted  = "RESOURCE_EXHAUSTED"
+	ErrCodeQuotaExceeded      = "QUOTA_EXCEEDED"
+	ErrCodeInvalidSyntax      = "INVALID_SYNTAX"
+	ErrCodeDuplicateResource  = "DUPLICATE_RESOURCE"
+	ErrCodeResourceNotFound   = "RESOURCE_NOT_FOUND"
 )
 
 // ErrorBuilder helps construct user-friendly errors with suggestions

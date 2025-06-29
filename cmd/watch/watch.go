@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/spf13/cobra"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
+	"github.com/spf13/cobra"
 )
 
 // Cmd represents the watch command
@@ -91,7 +91,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Starting file watcher with %d rules...\n", len(cfg.Watch.Rules))
-	
+
 	// List configured rules
 	for i, rule := range cfg.Watch.Rules {
 		fmt.Printf("  Rule %d: %s\n", i+1, rule.Name)

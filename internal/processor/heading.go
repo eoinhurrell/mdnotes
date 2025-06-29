@@ -44,16 +44,16 @@ type CleanRules struct {
 
 // CleanStats tracks the number of transformations applied
 type CleanStats struct {
-	SquareBracketsFixed int // Number of square bracket replacements
+	SquareBracketsFixed  int // Number of square bracket replacements
 	LinkHeadersConverted int // Number of link headers converted to list items
 }
 
 // HeadingProcessor handles heading analysis and fixes
 type HeadingProcessor struct {
-	headingPattern    *regexp.Regexp
+	headingPattern       *regexp.Regexp
 	squareBracketPattern *regexp.Regexp
-	wikiLinkPattern   *regexp.Regexp
-	mdLinkPattern     *regexp.Regexp
+	wikiLinkPattern      *regexp.Regexp
+	mdLinkPattern        *regexp.Regexp
 }
 
 // NewHeadingProcessor creates a new heading processor
@@ -314,46 +314,46 @@ func (p *HeadingProcessor) replaceSquareBrackets(body string) (string, int) {
 		// Check if this line is a heading
 		if matches := p.headingPattern.FindStringSubmatch(strings.TrimSpace(line)); len(matches) == 3 {
 			headingText := matches[2]
-			
+
 			// First, protect wiki links and markdown links by replacing them with placeholders
 			wikiLinkMatches := p.wikiLinkPattern.FindAllString(headingText, -1)
 			mdLinkMatches := p.mdLinkPattern.FindAllString(headingText, -1)
-			
+
 			protectedText := headingText
 			placeholders := []string{}
-			
+
 			// Replace wiki links with placeholders
 			for j, match := range wikiLinkMatches {
 				placeholder := "WIKILINK_PLACEHOLDER_" + fmt.Sprintf("%d", j)
 				protectedText = strings.Replace(protectedText, match, placeholder, 1)
 				placeholders = append(placeholders, match)
 			}
-			
-			// Replace markdown links with placeholders  
+
+			// Replace markdown links with placeholders
 			for j, match := range mdLinkMatches {
 				placeholder := "MDLINK_PLACEHOLDER_" + fmt.Sprintf("%d", j)
 				protectedText = strings.Replace(protectedText, match, placeholder, 1)
 				placeholders = append(placeholders, match)
 			}
-			
+
 			// Now replace square brackets in the protected text
 			newText := p.squareBracketPattern.ReplaceAllStringFunc(protectedText, func(match string) string {
 				content := match[1 : len(match)-1] // Remove [ and ]
 				count++
 				return "<" + content + ">"
 			})
-			
+
 			// Restore the protected links
 			for j, match := range wikiLinkMatches {
 				placeholder := "WIKILINK_PLACEHOLDER_" + fmt.Sprintf("%d", j)
 				newText = strings.Replace(newText, placeholder, match, 1)
 			}
-			
+
 			for j, match := range mdLinkMatches {
 				placeholder := "MDLINK_PLACEHOLDER_" + fmt.Sprintf("%d", j)
 				newText = strings.Replace(newText, placeholder, match, 1)
 			}
-			
+
 			if newText != headingText {
 				// Reconstruct the line with the new heading text
 				lines[i] = strings.Replace(line, headingText, newText, 1)
@@ -371,15 +371,15 @@ func (p *HeadingProcessor) convertLinkHeaders(body string) (string, int) {
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Check if this line is a heading
 		if matches := p.headingPattern.FindStringSubmatch(trimmed); len(matches) == 3 {
 			headingText := matches[2]
-			
+
 			// Check if heading contains wiki links or markdown links
 			hasWikiLink := p.wikiLinkPattern.MatchString(headingText)
 			hasMdLink := p.mdLinkPattern.MatchString(headingText)
-			
+
 			if hasWikiLink || hasMdLink {
 				// Extract the original indentation (everything before the trimmed content)
 				originalIndent := line[:len(line)-len(trimmed)]

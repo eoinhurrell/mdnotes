@@ -26,14 +26,14 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 	analyzer := NewExportLinkAnalyzer(exportedFiles, allVaultFiles)
 
 	tests := []struct {
-		name                string
-		file                *vault.VaultFile
-		content             string
-		expectedInternal    int
-		expectedExternal    int
-		expectedAssets      int
-		expectedURLs        int
-		expectedCategories  []LinkCategory
+		name               string
+		file               *vault.VaultFile
+		content            string
+		expectedInternal   int
+		expectedExternal   int
+		expectedAssets     int
+		expectedURLs       int
+		expectedCategories []LinkCategory
 	}{
 		{
 			name: "internal wikilinks",
@@ -42,10 +42,10 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 [[note1]] - self reference
 [[folder/note2]] - exported file
 `,
-			expectedInternal: 2,
-			expectedExternal: 0,
-			expectedAssets:   0,
-			expectedURLs:     0,
+			expectedInternal:   2,
+			expectedExternal:   0,
+			expectedAssets:     0,
+			expectedURLs:       0,
 			expectedCategories: []LinkCategory{InternalLink, InternalLink},
 		},
 		{
@@ -55,10 +55,10 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 [[folder/note3]] - not exported
 [[nonexistent]] - doesn't exist
 `,
-			expectedInternal: 0,
-			expectedExternal: 2,
-			expectedAssets:   0,
-			expectedURLs:     0,
+			expectedInternal:   0,
+			expectedExternal:   2,
+			expectedAssets:     0,
+			expectedURLs:       0,
 			expectedCategories: []LinkCategory{ExternalLink, ExternalLink},
 		},
 		{
@@ -68,10 +68,10 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 ![[assets/image.png]]
 ![Alt text](assets/image.png)
 `,
-			expectedInternal: 0,
-			expectedExternal: 0,
-			expectedAssets:   2,
-			expectedURLs:     0,
+			expectedInternal:   0,
+			expectedExternal:   0,
+			expectedAssets:     2,
+			expectedURLs:       0,
 			expectedCategories: []LinkCategory{AssetLink, AssetLink},
 		},
 		{
@@ -81,10 +81,10 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 [Google](https://google.com)
 [Email](mailto:test@example.com)
 `,
-			expectedInternal: 0,
-			expectedExternal: 0,
-			expectedAssets:   0,
-			expectedURLs:     2,
+			expectedInternal:   0,
+			expectedExternal:   0,
+			expectedAssets:     0,
+			expectedURLs:       2,
 			expectedCategories: []LinkCategory{URLLink, URLLink},
 		},
 		{
@@ -97,10 +97,10 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 [Google](https://google.com) - URL
 [Relative note](note1.md) - internal markdown link
 `,
-			expectedInternal: 2,
-			expectedExternal: 1,
-			expectedAssets:   1,
-			expectedURLs:     1,
+			expectedInternal:   2,
+			expectedExternal:   1,
+			expectedAssets:     1,
+			expectedURLs:       1,
 			expectedCategories: []LinkCategory{InternalLink, ExternalLink, AssetLink, URLLink, InternalLink},
 		},
 		{
@@ -111,10 +111,10 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 [Note 2](folder/note2.md) - exported file
 [Note 3](folder/note3.md) - not exported
 `,
-			expectedInternal: 2,
-			expectedExternal: 1,
-			expectedAssets:   0,
-			expectedURLs:     0,
+			expectedInternal:   2,
+			expectedExternal:   1,
+			expectedAssets:     0,
+			expectedURLs:       0,
 			expectedCategories: []LinkCategory{InternalLink, InternalLink, ExternalLink},
 		},
 		{
@@ -125,10 +125,10 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 [[note3]] - same folder (not exported)
 [Up level](../note1.md) - markdown link up
 `,
-			expectedInternal: 2,
-			expectedExternal: 1,
-			expectedAssets:   0,
-			expectedURLs:     0,
+			expectedInternal:   2,
+			expectedExternal:   1,
+			expectedAssets:     0,
+			expectedURLs:       0,
 			expectedCategories: []LinkCategory{InternalLink, ExternalLink, InternalLink},
 		},
 	}
@@ -150,7 +150,7 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 			// Check individual link categories
 			require.Len(t, analysis.Links, len(tt.expectedCategories), "Number of links mismatch")
 			for i, expectedCategory := range tt.expectedCategories {
-				assert.Equal(t, expectedCategory, analysis.Links[i].Category, 
+				assert.Equal(t, expectedCategory, analysis.Links[i].Category,
 					"Link %d category mismatch: expected %v, got %v", i, expectedCategory, analysis.Links[i].Category)
 			}
 		})
@@ -270,10 +270,10 @@ func TestLinkAnalysis_GetLinksByCategory(t *testing.T) {
 
 func TestLinkAnalysis_HasMethods(t *testing.T) {
 	tests := []struct {
-		name             string
-		analysis         *LinkAnalysis
-		hasExternal      bool
-		hasAssets        bool
+		name        string
+		analysis    *LinkAnalysis
+		hasExternal bool
+		hasAssets   bool
 	}{
 		{
 			name: "has external links",

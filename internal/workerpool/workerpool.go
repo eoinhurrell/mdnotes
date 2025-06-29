@@ -43,10 +43,10 @@ type Stats struct {
 
 // Config holds worker pool configuration
 type Config struct {
-	MaxWorkers   int
-	QueueSize    int
-	TaskTimeout  time.Duration
-	EnableStats  bool
+	MaxWorkers  int
+	QueueSize   int
+	TaskTimeout time.Duration
+	EnableStats bool
 }
 
 // DefaultConfig returns sensible defaults for worker pool configuration
@@ -131,7 +131,7 @@ func (wp *WorkerPool) Results() <-chan TaskResult {
 func (wp *WorkerPool) Stats() Stats {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
-	
+
 	stats := wp.stats
 	if stats.TasksCompleted > 0 {
 		stats.AverageDuration = time.Duration(int64(stats.TotalDuration) / stats.TasksCompleted)
@@ -204,14 +204,14 @@ func (wp *WorkerPool) worker(id int, taskTimeout time.Duration, enableStats bool
 
 			// Create task context with timeout
 			taskCtx, cancel := context.WithTimeout(wp.ctx, taskTimeout)
-			
+
 			start := time.Now()
 			var err error
-			
+
 			// Execute task
 			err = task(taskCtx)
 			duration := time.Since(start)
-			
+
 			cancel()
 
 			// Update statistics

@@ -15,14 +15,14 @@ import (
 
 // PluginSandbox provides security restrictions for plugin execution
 type PluginSandbox struct {
-	allowedPaths    []string
-	deniedPaths     []string
-	maxMemoryMB     int64
+	allowedPaths     []string
+	deniedPaths      []string
+	maxMemoryMB      int64
 	maxExecutionTime time.Duration
-	allowNetworking bool
-	allowFileWrite  bool
-	allowFileRead   bool
-	tempDir         string
+	allowNetworking  bool
+	allowFileWrite   bool
+	allowFileRead    bool
+	tempDir          string
 }
 
 // SandboxConfig configures plugin sandbox restrictions
@@ -72,7 +72,7 @@ func (ps *PluginSandbox) ExecuteWithRestrictions(ctx context.Context, fn func() 
 
 	// Channel to capture the result
 	resultChan := make(chan error, 1)
-	
+
 	// Execute in goroutine to allow monitoring
 	go func() {
 		defer func() {
@@ -224,7 +224,7 @@ func (ps *PluginSandbox) ValidateNetworkAccess(host string, port int) error {
 func (ps *PluginSandbox) GetTempDir() (string, error) {
 	// Create plugin-specific temp directory
 	pluginTempDir := filepath.Join(ps.tempDir, "mdnotes-plugin")
-	
+
 	if err := CreateSecureDir(pluginTempDir); err != nil {
 		return "", err
 	}
@@ -235,7 +235,7 @@ func (ps *PluginSandbox) GetTempDir() (string, error) {
 // CleanupTempDir removes temporary files created by plugins
 func (ps *PluginSandbox) CleanupTempDir() error {
 	pluginTempDir := filepath.Join(ps.tempDir, "mdnotes-plugin")
-	
+
 	if _, err := os.Stat(pluginTempDir); os.IsNotExist(err) {
 		return nil // Directory doesn't exist, nothing to clean
 	}
@@ -396,8 +396,8 @@ func (rfo *RestrictedFileOperations) Stat(name string) (os.FileInfo, error) {
 func DefaultSandboxConfig(vaultPath string) SandboxConfig {
 	return SandboxConfig{
 		AllowedPaths: []string{
-			vaultPath,           // Allow access to vault
-			os.TempDir(),        // Allow temp directory access
+			vaultPath,    // Allow access to vault
+			os.TempDir(), // Allow temp directory access
 		},
 		DeniedPaths: []string{
 			"/etc",              // System config
@@ -407,11 +407,11 @@ func DefaultSandboxConfig(vaultPath string) SandboxConfig {
 			"C:\\Windows",       // Windows system (if applicable)
 			"C:\\Program Files", // Windows programs (if applicable)
 		},
-		MaxMemoryMB:      256,                // 256MB limit
-		MaxExecutionTime: 30 * time.Second,  // 30 second timeout
-		AllowNetworking:  false,             // No network by default
-		AllowFileWrite:   true,              // Allow file writes in allowed paths
-		AllowFileRead:    true,              // Allow file reads in allowed paths
+		MaxMemoryMB:      256,              // 256MB limit
+		MaxExecutionTime: 30 * time.Second, // 30 second timeout
+		AllowNetworking:  false,            // No network by default
+		AllowFileWrite:   true,             // Allow file writes in allowed paths
+		AllowFileRead:    true,             // Allow file reads in allowed paths
 		TempDir:          os.TempDir(),
 	}
 }

@@ -176,7 +176,7 @@ func (p *LinkdingGetProcessor) getContentFromLiveURL(ctx context.Context, url st
 
 	// Read response body with size limit
 	limitedReader := io.LimitReader(resp.Body, int64(p.config.MaxSize))
-	
+
 	// Create temporary file
 	tmpDir := p.config.TmpDir
 	if tmpDir == "" {
@@ -226,12 +226,12 @@ func PickLatestSnapshot(assets []linkding.Asset) (*linkding.Asset, error) {
 		// Parse ISO dates and compare
 		timeI, errI := time.Parse(time.RFC3339, snapshots[i].DateCreated)
 		timeJ, errJ := time.Parse(time.RFC3339, snapshots[j].DateCreated)
-		
+
 		if errI != nil || errJ != nil {
 			// Fall back to string comparison if parsing fails
 			return snapshots[i].DateCreated > snapshots[j].DateCreated
 		}
-		
+
 		return timeI.After(timeJ)
 	})
 
@@ -252,7 +252,7 @@ func ExtractTextFromHTML(htmlPath string) (string, error) {
 
 	for {
 		tokenType := tokenizer.Next()
-		
+
 		switch tokenType {
 		case html.ErrorToken:
 			// End of document - normalize whitespace before returning
@@ -260,11 +260,11 @@ func ExtractTextFromHTML(htmlPath string) (string, error) {
 			// Replace multiple spaces with single space
 			text = strings.Join(strings.Fields(text), " ")
 			return text, nil
-			
+
 		case html.StartTagToken, html.EndTagToken:
 			token := tokenizer.Token()
 			tagName := strings.ToLower(token.Data)
-			
+
 			if tokenType == html.StartTagToken {
 				if tagName == "script" || tagName == "style" {
 					if tagName == "script" {
@@ -280,7 +280,7 @@ func ExtractTextFromHTML(htmlPath string) (string, error) {
 					inStyle = false
 				}
 			}
-			
+
 			// Add space after block elements for readability
 			if tokenType == html.EndTagToken {
 				blockElements := []string{"p", "div", "br", "h1", "h2", "h3", "h4", "h5", "h6", "li", "tr"}
@@ -291,7 +291,7 @@ func ExtractTextFromHTML(htmlPath string) (string, error) {
 					}
 				}
 			}
-			
+
 		case html.TextToken:
 			if !inScript && !inStyle {
 				text := strings.TrimSpace(tokenizer.Token().Data)

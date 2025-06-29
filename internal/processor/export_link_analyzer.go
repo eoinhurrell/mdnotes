@@ -30,19 +30,19 @@ type AnalyzedLink struct {
 
 // LinkAnalysis contains the complete analysis of links in a file
 type LinkAnalysis struct {
-	File         *vault.VaultFile
-	Links        []AnalyzedLink
+	File          *vault.VaultFile
+	Links         []AnalyzedLink
 	InternalCount int
 	ExternalCount int
-	AssetCount   int
-	URLCount     int
+	AssetCount    int
+	URLCount      int
 }
 
 // ExportLinkAnalyzer analyzes links in the context of an export operation
 type ExportLinkAnalyzer struct {
-	parser        *LinkParser
-	exportedFiles map[string]bool // Set of files being exported (relative paths)
-	vaultFiles    map[string]bool // Set of all files in vault (relative paths)
+	parser          *LinkParser
+	exportedFiles   map[string]bool // Set of files being exported (relative paths)
+	vaultFiles      map[string]bool // Set of all files in vault (relative paths)
 	assetExtensions []string
 }
 
@@ -154,7 +154,7 @@ func (la *ExportLinkAnalyzer) overlapsUsedPosition(pos vault.Position, used map[
 // extractType extracts links of a specific type using patterns from the LinkParser
 func (la *ExportLinkAnalyzer) extractType(content string, linkType vault.LinkType) []vault.Link {
 	var links []vault.Link
-	
+
 	// Define the same patterns as LinkParser
 	var pattern *regexp.Regexp
 	switch linkType {
@@ -222,8 +222,7 @@ func (la *ExportLinkAnalyzer) analyzeLink(link vault.Link, sourceFile *vault.Vau
 
 	// Resolve the target path relative to the source file's directory
 	targetPath := la.resolveTargetPath(link.Target, sourceFile.RelativePath)
-	
-	
+
 	// Check if target exists in vault
 	analyzed.Exists = la.vaultFiles[targetPath]
 
@@ -248,7 +247,7 @@ func (la *ExportLinkAnalyzer) analyzeLink(link vault.Link, sourceFile *vault.Vau
 func (la *ExportLinkAnalyzer) resolveTargetPath(target, sourceRelativePath string) string {
 	// Clean the target path
 	target = strings.TrimSpace(target)
-	
+
 	// Handle absolute paths from vault root
 	if filepath.IsAbs(target) || strings.HasPrefix(target, "/") {
 		cleanTarget := strings.TrimPrefix(target, "/")
@@ -258,8 +257,8 @@ func (la *ExportLinkAnalyzer) resolveTargetPath(target, sourceRelativePath strin
 		}
 		return cleanTarget
 	}
-	
-	// For relative paths with directories (like "assets/image.png" or "folder/note2"), 
+
+	// For relative paths with directories (like "assets/image.png" or "folder/note2"),
 	// try both relative to source file and relative to vault root
 	if strings.Contains(target, "/") {
 		// For wiki links without extension, try adding .md
@@ -267,7 +266,7 @@ func (la *ExportLinkAnalyzer) resolveTargetPath(target, sourceRelativePath strin
 		if filepath.Ext(target) == "" {
 			targetWithExt = target + ".md"
 		}
-		
+
 		// First try relative to vault root (this is common for assets and organized notes)
 		if la.vaultFiles[targetWithExt] {
 			return targetWithExt
@@ -275,44 +274,44 @@ func (la *ExportLinkAnalyzer) resolveTargetPath(target, sourceRelativePath strin
 		if la.vaultFiles[target] {
 			return target
 		}
-		
+
 		// Then try relative to source file directory
 		sourceDir := filepath.Dir(sourceRelativePath)
 		relativePath := filepath.Join(sourceDir, targetWithExt)
 		if la.vaultFiles[relativePath] {
 			return relativePath
 		}
-		
+
 		// Return the vault root attempt as fallback
 		return targetWithExt
 	}
-	
+
 	// Just a filename without directories
 	targetWithExt := target
 	// Only add .md extension if it doesn't already have an extension
 	if filepath.Ext(target) == "" {
 		targetWithExt = target + ".md"
 	}
-	
+
 	// First try in the same directory as source file
 	sourceDir := filepath.Dir(sourceRelativePath)
 	sameDirPath := filepath.Join(sourceDir, targetWithExt)
 	if la.vaultFiles[sameDirPath] {
 		return sameDirPath
 	}
-	
+
 	// If not found and it's just a filename, try vault root
 	if la.vaultFiles[targetWithExt] {
 		return targetWithExt
 	}
-	
+
 	// Search across the entire vault for exact filename matches
 	for vaultFile := range la.vaultFiles {
 		if filepath.Base(vaultFile) == targetWithExt {
 			return vaultFile
 		}
 	}
-	
+
 	// Return the same directory attempt as fallback
 	return sameDirPath
 }

@@ -17,12 +17,12 @@ const (
 
 // LinkRewriteResult contains the result of a link rewrite operation
 type LinkRewriteResult struct {
-	OriginalContent   string
-	RewrittenContent  string
-	ExternalLinksRemoved int
+	OriginalContent        string
+	RewrittenContent       string
+	ExternalLinksRemoved   int
 	ExternalLinksConverted int
-	InternalLinksUpdated int
-	ChangedLinks      []LinkChange
+	InternalLinksUpdated   int
+	ChangedLinks           []LinkChange
 }
 
 // LinkChange represents a single link change
@@ -127,7 +127,7 @@ func (lr *ExportLinkRewriter) rewriteExternalLink(link vault.Link, originalText 
 		} else {
 			plainText = link.Target
 		}
-		
+
 		return &LinkChange{
 			OriginalText: originalText,
 			NewText:      plainText,
@@ -146,7 +146,7 @@ func (lr *ExportLinkRewriter) rewriteExternalLink(link vault.Link, originalText 
 				displayText = link.Target
 			}
 			newText = fmt.Sprintf("[%s](%s)", displayText, url)
-			
+
 			return &LinkChange{
 				OriginalText: originalText,
 				NewText:      newText,
@@ -156,7 +156,7 @@ func (lr *ExportLinkRewriter) rewriteExternalLink(link vault.Link, originalText 
 				WasConverted: true,
 			}
 		}
-		
+
 		// If no URL found, fall back to remove strategy
 		// Convert to plain text - use the display text if available, otherwise the target
 		var plainText string
@@ -165,7 +165,7 @@ func (lr *ExportLinkRewriter) rewriteExternalLink(link vault.Link, originalText 
 		} else {
 			plainText = link.Target
 		}
-		
+
 		return &LinkChange{
 			OriginalText: originalText,
 			NewText:      plainText,
@@ -195,7 +195,7 @@ func (lr *ExportLinkRewriter) findURLInFrontmatter(target string, file *vault.Va
 
 	// Common URL fields to check
 	urlFields := []string{"url", "link", "source", "website"}
-	
+
 	for _, field := range urlFields {
 		if value, exists := file.Frontmatter[field]; exists {
 			if url, ok := value.(string); ok && strings.HasPrefix(url, "http") {

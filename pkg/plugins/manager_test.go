@@ -23,7 +23,7 @@ func TestNewPluginManager(t *testing.T) {
 	}
 
 	manager := NewPluginManager(config)
-	
+
 	assert.True(t, manager.enabled)
 	assert.Len(t, manager.searchPaths, 2)
 	assert.Contains(t, manager.searchPaths, "./plugins")
@@ -37,7 +37,7 @@ func TestPluginManagerDisabled(t *testing.T) {
 	}
 
 	manager := NewPluginManager(config)
-	
+
 	// LoadPlugins should succeed but do nothing when disabled
 	err := manager.LoadPlugins()
 	assert.NoError(t, err)
@@ -47,7 +47,7 @@ func TestPluginManagerDisabled(t *testing.T) {
 	ctx := context.Background()
 	hookCtx := &HookContext{Command: "test"}
 	file := &vault.VaultFile{}
-	
+
 	result, err := manager.ExecuteHook(ctx, HookPerFile, hookCtx, file)
 	assert.NoError(t, err)
 	assert.False(t, result.Modified)
@@ -57,7 +57,7 @@ func TestPluginManagerDisabled(t *testing.T) {
 func TestPluginManagerSearchPaths(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	
+
 	// Test with non-existent paths (should not error)
 	config := ManagerConfig{
 		Enabled:     true,
@@ -82,17 +82,17 @@ func TestPluginManagerGetPluginConfig(t *testing.T) {
 	}
 
 	manager := NewPluginManager(config)
-	
+
 	// Test valid plugin config
 	pluginConfig := manager.getPluginConfig("test-plugin")
 	assert.Len(t, pluginConfig, 2)
 	assert.Equal(t, "value1", pluginConfig["setting1"])
 	assert.Equal(t, 42, pluginConfig["setting2"])
-	
+
 	// Test invalid config type (should return empty map)
 	invalidConfig := manager.getPluginConfig("other-plugin")
 	assert.Empty(t, invalidConfig)
-	
+
 	// Test non-existent plugin
 	nonExistentConfig := manager.getPluginConfig("non-existent")
 	assert.Empty(t, nonExistentConfig)
@@ -101,10 +101,10 @@ func TestPluginManagerGetPluginConfig(t *testing.T) {
 func TestPluginManagerExecuteHook(t *testing.T) {
 	// Create manager with mock plugins
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Create mock plugins
@@ -136,10 +136,10 @@ func TestPluginManagerExecuteHook(t *testing.T) {
 
 func TestPluginManagerExecuteHookWithError(t *testing.T) {
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Create mock plugin that returns error
@@ -167,10 +167,10 @@ func TestPluginManagerExecuteHookWithError(t *testing.T) {
 
 func TestPluginManagerExecuteHookWithSkip(t *testing.T) {
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Create mock plugin that requests skip
@@ -210,10 +210,10 @@ func TestPluginManagerExecuteHookWithSkip(t *testing.T) {
 
 func TestPluginManagerEnableDisablePlugin(t *testing.T) {
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Add plugin info
@@ -244,10 +244,10 @@ func TestPluginManagerEnableDisablePlugin(t *testing.T) {
 
 func TestPluginManagerUnloadPlugin(t *testing.T) {
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Create mock plugin
@@ -277,10 +277,10 @@ func TestPluginManagerUnloadPlugin(t *testing.T) {
 
 func TestPluginManagerUnloadPluginWithCleanupError(t *testing.T) {
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Create mock plugin that fails cleanup
@@ -302,10 +302,10 @@ func TestPluginManagerUnloadPluginWithCleanupError(t *testing.T) {
 
 func TestPluginManagerListPlugins(t *testing.T) {
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Add some plugin infos
@@ -323,10 +323,10 @@ func TestPluginManagerListPlugins(t *testing.T) {
 
 func TestPluginManagerGetPluginInfo(t *testing.T) {
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Add plugin info
@@ -349,10 +349,10 @@ func TestPluginManagerGetPluginInfo(t *testing.T) {
 
 func TestPluginManagerHasHooksForType(t *testing.T) {
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Initially no hooks
@@ -368,10 +368,10 @@ func TestPluginManagerHasHooksForType(t *testing.T) {
 
 func TestPluginManagerCleanup(t *testing.T) {
 	manager := &PluginManager{
-		enabled: true,
-		plugins: make(map[string]Plugin),
+		enabled:     true,
+		plugins:     make(map[string]Plugin),
 		pluginInfos: make(map[string]*PluginInfo),
-		hooks: make(map[HookType][]Plugin),
+		hooks:       make(map[HookType][]Plugin),
 	}
 
 	// Add mock plugins
@@ -405,7 +405,7 @@ func TestPluginManagerHomeDirectoryExpansion(t *testing.T) {
 	}
 
 	manager := NewPluginManager(config)
-	
+
 	assert.Len(t, manager.searchPaths, 2)
 	assert.Equal(t, filepath.Join(homeDir, "plugins"), manager.searchPaths[0])
 	assert.Equal(t, "./local", manager.searchPaths[1])

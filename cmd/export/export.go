@@ -166,20 +166,20 @@ func runExport(cmd *cobra.Command, args []string) error {
 
 	// Create export processor
 	options := processor.ExportOptions{
-		VaultPath:        vaultAbs,
-		OutputPath:       outputAbs,
-		Query:            query,
-		IgnorePatterns:   ignorePatterns,
-		DryRun:           dryRun,
-		Verbose:          verbose,
-		ProcessLinks:     processLinks,
-		LinkStrategy:     linkStrategy,
-		IncludeAssets:    includeAssets,
-		WithBacklinks:    withBacklinks,
-		Slugify:          slugify,
-		Flatten:          flatten,
-		ParallelWorkers:  parallelWorkers,
-		OptimizeMemory:   optimizeMemory,
+		VaultPath:       vaultAbs,
+		OutputPath:      outputAbs,
+		Query:           query,
+		IgnorePatterns:  ignorePatterns,
+		DryRun:          dryRun,
+		Verbose:         verbose,
+		ProcessLinks:    processLinks,
+		LinkStrategy:    linkStrategy,
+		IncludeAssets:   includeAssets,
+		WithBacklinks:   withBacklinks,
+		Slugify:         slugify,
+		Flatten:         flatten,
+		ParallelWorkers: parallelWorkers,
+		OptimizeMemory:  optimizeMemory,
 	}
 
 	exportProcessor := processor.NewExportProcessor(options)
@@ -206,22 +206,22 @@ func runExport(cmd *cobra.Command, args []string) error {
 func displayDryRunSummary(result *processor.ExportResult, verbose bool) {
 	fmt.Printf("\nExport Summary (Dry Run)\n")
 	fmt.Printf("========================\n\n")
-	
+
 	// Summary statistics
 	fmt.Printf("Source:         %s\n", result.VaultPath)
 	fmt.Printf("Destination:    %s\n", result.OutputPath)
 	fmt.Printf("Files scanned:  %d\n", result.FilesScanned)
 	fmt.Printf("Files selected: %d\n", result.FilesSelected)
 	fmt.Printf("Total size:     %s\n", formatSize(result.TotalSize))
-	
+
 	if result.FilesSelected == 0 {
 		fmt.Printf("\n⚠️  No files match the criteria. Nothing would be exported.\n")
 		return
 	}
-	
-	fmt.Printf("\n✅ Would export %d files (%s)\n", 
+
+	fmt.Printf("\n✅ Would export %d files (%s)\n",
 		result.FilesSelected, formatSize(result.TotalSize))
-	
+
 	// Show link processing statistics if any
 	if result.ExternalLinksRemoved > 0 || result.ExternalLinksConverted > 0 || result.InternalLinksUpdated > 0 {
 		fmt.Printf("\nLink processing (would be performed):\n")
@@ -236,7 +236,7 @@ func displayDryRunSummary(result *processor.ExportResult, verbose bool) {
 		}
 		fmt.Printf("  • Files with links processed: %d\n", result.FilesWithLinksProcessed)
 	}
-	
+
 	// Show asset processing statistics if any
 	if result.AssetsCopied > 0 || result.AssetsMissing > 0 {
 		fmt.Printf("\nAsset processing (would be performed):\n")
@@ -247,19 +247,19 @@ func displayDryRunSummary(result *processor.ExportResult, verbose bool) {
 			fmt.Printf("  • Missing assets: %d\n", result.AssetsMissing)
 		}
 	}
-	
+
 	// Show backlinks statistics if any
 	if result.BacklinksIncluded > 0 {
 		fmt.Printf("\nBacklinks (would be included):\n")
 		fmt.Printf("  • Additional files via backlinks: %d\n", result.BacklinksIncluded)
 	}
-	
+
 	// Show filename normalization statistics if any
 	if result.FilesRenamed > 0 {
 		fmt.Printf("\nFilename normalization (would be performed):\n")
 		fmt.Printf("  • Files to rename: %d\n", result.FilesRenamed)
 	}
-	
+
 	// Show individual files if verbose
 	if verbose && len(result.SelectedFiles) > 0 {
 		fmt.Printf("\nFiles that would be exported:\n")
@@ -273,13 +273,13 @@ func displayDryRunSummary(result *processor.ExportResult, verbose bool) {
 func displayExportSummary(result *processor.ExportResult, outputPath string, verbose bool) {
 	fmt.Printf("\nExport Summary\n")
 	fmt.Printf("==============\n\n")
-	
+
 	fmt.Printf("✅ Export completed successfully\n")
-	fmt.Printf("✅ Exported %d files (%s)\n", 
+	fmt.Printf("✅ Exported %d files (%s)\n",
 		result.FilesExported, formatSize(result.TotalSize))
 	fmt.Printf("✅ Destination: %s\n", outputPath)
 	fmt.Printf("⏱️  Processing time: %v\n", result.Duration.Round(time.Millisecond))
-	
+
 	// Show link processing statistics if any
 	if result.ExternalLinksRemoved > 0 || result.ExternalLinksConverted > 0 || result.InternalLinksUpdated > 0 {
 		fmt.Printf("\nLink processing:\n")
@@ -294,7 +294,7 @@ func displayExportSummary(result *processor.ExportResult, outputPath string, ver
 		}
 		fmt.Printf("  • Files with links processed: %d\n", result.FilesWithLinksProcessed)
 	}
-	
+
 	// Show asset processing statistics if any
 	if result.AssetsCopied > 0 || result.AssetsMissing > 0 {
 		fmt.Printf("\nAsset processing:\n")
@@ -305,25 +305,25 @@ func displayExportSummary(result *processor.ExportResult, outputPath string, ver
 			fmt.Printf("  • Missing assets: %d\n", result.AssetsMissing)
 		}
 	}
-	
+
 	// Show backlinks statistics if any
 	if result.BacklinksIncluded > 0 {
 		fmt.Printf("\nBacklinks:\n")
 		fmt.Printf("  • Additional files via backlinks: %d\n", result.BacklinksIncluded)
 	}
-	
+
 	// Show filename normalization statistics if any
 	if result.FilesRenamed > 0 {
 		fmt.Printf("\nFilename normalization:\n")
 		fmt.Printf("  • Files renamed: %d\n", result.FilesRenamed)
 	}
-	
+
 	if verbose {
 		fmt.Printf("\nProcessing details:\n")
 		fmt.Printf("  Files scanned: %d\n", result.FilesScanned)
 		fmt.Printf("  Files exported: %d\n", result.FilesExported)
 		fmt.Printf("  Processing time: %v\n", result.Duration)
-		
+
 		// Show performance metrics if available
 		if result.Performance != nil {
 			fmt.Printf("\nPerformance metrics:\n")
@@ -333,7 +333,7 @@ func displayExportSummary(result *processor.ExportResult, outputPath string, ver
 				fmt.Printf("  Parallel workers: %d\n", result.Performance.ParallelWorkers)
 			}
 		}
-		
+
 		if len(result.SelectedFiles) > 0 {
 			fmt.Printf("\nExported files:\n")
 			for _, file := range result.SelectedFiles {
@@ -416,29 +416,29 @@ func validateExportInputs(outputPath, vaultPath, query, linkStrategy string, pro
 	if strings.TrimSpace(outputPath) == "" {
 		return fmt.Errorf("output path cannot be empty")
 	}
-	
+
 	// Validate vault path is not empty
 	if strings.TrimSpace(vaultPath) == "" {
 		return fmt.Errorf("vault path cannot be empty")
 	}
-	
+
 	// Validate query syntax if provided
 	if query != "" {
 		if err := validateQuerySyntax(query); err != nil {
 			return fmt.Errorf("invalid query syntax: %w", err)
 		}
 	}
-	
+
 	// Validate link strategy
 	if processLinks && !processor.IsValidStrategy(linkStrategy) {
 		return fmt.Errorf("invalid link strategy '%s' - valid options are: remove, url", linkStrategy)
 	}
-	
+
 	// Validate output path safety (prevent writing to dangerous locations)
 	if err := validateOutputPathSafety(outputPath); err != nil {
 		return fmt.Errorf("unsafe output path: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -448,18 +448,18 @@ func validateQuerySyntax(queryStr string) error {
 	if strings.Contains(queryStr, "\\") {
 		return fmt.Errorf("backslashes are not supported in queries")
 	}
-	
+
 	// Check for unmatched quotes
 	quoteCount := strings.Count(queryStr, "\"")
 	if quoteCount%2 != 0 {
 		return fmt.Errorf("unmatched quotes in query")
 	}
-	
+
 	// Check for empty query
 	if strings.TrimSpace(queryStr) == "" {
 		return fmt.Errorf("query cannot be empty")
 	}
-	
+
 	return nil
 }
 
@@ -470,20 +470,20 @@ func validateOutputPathSafety(outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("cannot resolve output path: %w", err)
 	}
-	
+
 	// Prevent writing to critical system directories
 	unsafePaths := []string{
 		"/bin", "/sbin", "/usr/bin", "/usr/sbin", "/etc", "/var/log", "/sys", "/proc",
-		"/System", "/Library/System", "/Applications/Utilities", 
+		"/System", "/Library/System", "/Applications/Utilities",
 		"/Program Files", "/Windows", "/Windows/System32",
 	}
-	
+
 	for _, unsafePath := range unsafePaths {
 		if absPath == unsafePath || strings.HasPrefix(absPath+"/", unsafePath+"/") {
 			return fmt.Errorf("cannot write to system directory: %s", absPath)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -492,37 +492,37 @@ func validateAndResolvePaths(vaultPath, outputPath string, dryRun bool) (string,
 	// Resolve vault path
 	vaultAbs, err := filepath.Abs(vaultPath)
 	if err != nil {
-		return "", "", NewExportErrorWithCause(ErrInvalidInput, 
+		return "", "", NewExportErrorWithCause(ErrInvalidInput,
 			fmt.Sprintf("Invalid vault path '%s'", vaultPath), err)
 	}
-	
+
 	// Check vault exists and is accessible
 	vaultInfo, err := os.Stat(vaultAbs)
 	if os.IsNotExist(err) {
-		return "", "", NewExportError(ErrFileSystem, 
+		return "", "", NewExportError(ErrFileSystem,
 			fmt.Sprintf("Vault path does not exist: %s", vaultAbs))
 	}
 	if err != nil {
-		return "", "", NewExportErrorWithCause(ErrPermission, 
+		return "", "", NewExportErrorWithCause(ErrPermission,
 			fmt.Sprintf("Cannot access vault path: %s", vaultAbs), err)
 	}
 	if !vaultInfo.IsDir() {
-		return "", "", NewExportError(ErrInvalidInput, 
+		return "", "", NewExportError(ErrInvalidInput,
 			fmt.Sprintf("Vault path is not a directory: %s", vaultAbs))
 	}
-	
+
 	// Resolve output path
 	outputAbs, err := filepath.Abs(outputPath)
 	if err != nil {
-		return "", "", NewExportErrorWithCause(ErrInvalidInput, 
+		return "", "", NewExportErrorWithCause(ErrInvalidInput,
 			fmt.Sprintf("Invalid output path '%s'", outputPath), err)
 	}
-	
+
 	// Check output path constraints
 	if err := validateOutputPath(outputAbs, dryRun); err != nil {
 		return "", "", err
 	}
-	
+
 	return vaultAbs, outputAbs, nil
 }
 
@@ -530,27 +530,27 @@ func validateAndResolvePaths(vaultPath, outputPath string, dryRun bool) (string,
 func validateOutputPath(outputAbs string, dryRun bool) error {
 	if info, err := os.Stat(outputAbs); err == nil {
 		if !info.IsDir() {
-			return NewExportError(ErrInvalidInput, 
+			return NewExportError(ErrInvalidInput,
 				fmt.Sprintf("Output path exists and is not a directory: %s", outputAbs))
 		}
-		
+
 		// Check if directory is empty (only for non-dry-run)
 		if !dryRun {
 			entries, err := os.ReadDir(outputAbs)
 			if err != nil {
-				return NewExportErrorWithCause(ErrPermission, 
+				return NewExportErrorWithCause(ErrPermission,
 					fmt.Sprintf("Cannot read output directory: %s", outputAbs), err)
 			}
 			if len(entries) > 0 {
-				return NewExportError(ErrInvalidInput, 
+				return NewExportError(ErrInvalidInput,
 					fmt.Sprintf("Output directory is not empty: %s\\n\\nUse --dry-run to preview or choose an empty directory", outputAbs))
 			}
 		}
 	} else if !os.IsNotExist(err) {
-		return NewExportErrorWithCause(ErrPermission, 
+		return NewExportErrorWithCause(ErrPermission,
 			fmt.Sprintf("Cannot access output path: %s", outputAbs), err)
 	}
-	
+
 	return nil
 }
 
@@ -563,33 +563,33 @@ func handleExportError(err error, options processor.ExportOptions) error {
 	if err == context.DeadlineExceeded {
 		return NewExportError(ErrCancellation, "Export operation timed out")
 	}
-	
+
 	// Handle specific error types
 	errMsg := err.Error()
-	
+
 	// Query parsing errors
 	if strings.Contains(errMsg, "parsing query") || strings.Contains(errMsg, "query") {
-		return NewExportErrorWithCause(ErrQuery, 
+		return NewExportErrorWithCause(ErrQuery,
 			fmt.Sprintf("Query error with '%s'", options.Query), err)
 	}
-	
+
 	// File system errors
 	if os.IsPermission(err) {
-		return NewExportErrorWithCause(ErrPermission, 
+		return NewExportErrorWithCause(ErrPermission,
 			"Permission denied - check file/directory permissions", err)
 	}
 	if os.IsNotExist(err) {
-		return NewExportErrorWithCause(ErrFileSystem, 
+		return NewExportErrorWithCause(ErrFileSystem,
 			"File or directory not found", err)
 	}
-	
+
 	// Processing errors
 	if strings.Contains(errMsg, "link processing") || strings.Contains(errMsg, "asset") {
-		return NewExportErrorWithCause(ErrProcessing, 
+		return NewExportErrorWithCause(ErrProcessing,
 			"Error during content processing", err)
 	}
-	
+
 	// Generic processing error
-	return NewExportErrorWithCause(ErrProcessing, 
+	return NewExportErrorWithCause(ErrProcessing,
 		"Export processing failed", err)
 }

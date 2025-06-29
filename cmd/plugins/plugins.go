@@ -274,7 +274,7 @@ func outputTable(pluginList []*plugins.PluginInfo, verbose bool) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	
+
 	if verbose {
 		fmt.Fprintln(w, "NAME\tVERSION\tENABLED\tDESCRIPTION\tHOOKS\tPATH")
 		fmt.Fprintln(w, "----\t-------\t-------\t-----------\t-----\t----")
@@ -283,7 +283,7 @@ func outputTable(pluginList []*plugins.PluginInfo, verbose bool) error {
 			if !plugin.Enabled {
 				status = "❌"
 			}
-			
+
 			hooks := ""
 			for i, hook := range plugin.SupportedHooks {
 				if i > 0 {
@@ -291,7 +291,7 @@ func outputTable(pluginList []*plugins.PluginInfo, verbose bool) error {
 				}
 				hooks += string(hook)
 			}
-			
+
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 				plugin.Name, plugin.Version, status, plugin.Description, hooks, plugin.LoadPath)
 		}
@@ -303,7 +303,7 @@ func outputTable(pluginList []*plugins.PluginInfo, verbose bool) error {
 			if !plugin.Enabled {
 				status = "❌"
 			}
-			
+
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 				plugin.Name, plugin.Version, status, plugin.Description)
 		}
@@ -320,18 +320,18 @@ func outputPluginInfo(info *plugins.PluginInfo) error {
 	fmt.Printf("Description: %s\n", info.Description)
 	fmt.Printf("Enabled:     %t\n", info.Enabled)
 	fmt.Printf("Load Path:   %s\n", info.LoadPath)
-	
+
 	fmt.Printf("\nSupported Hooks:\n")
 	for _, hook := range info.SupportedHooks {
 		fmt.Printf("  • %s\n", hook)
 	}
-	
+
 	if len(info.Config) > 0 {
 		fmt.Printf("\nConfiguration:\n")
 		for key, value := range info.Config {
 			fmt.Printf("  %s: %v\n", key, value)
 		}
 	}
-	
+
 	return nil
 }

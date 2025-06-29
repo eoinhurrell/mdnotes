@@ -29,7 +29,7 @@ func createTestDownloader(t *testing.T) (*Downloader, string) {
 
 	downloader, err := NewDownloader(cfg)
 	require.NoError(t, err)
-	
+
 	return downloader, tmpDir
 }
 
@@ -73,12 +73,12 @@ func TestDownloadResource_Success(t *testing.T) {
 	assert.NotEmpty(t, result.LocalPath)
 	assert.Equal(t, server.URL, result.OriginalURL)
 	assert.False(t, result.Skipped)
-	
+
 	// Verify file exists and has correct content
 	content, err := os.ReadFile(result.LocalPath)
 	require.NoError(t, err)
 	assert.Equal(t, "test content", string(content))
-	
+
 	// Verify file is in attachments directory
 	assert.Contains(t, result.LocalPath, tmpDir)
 }

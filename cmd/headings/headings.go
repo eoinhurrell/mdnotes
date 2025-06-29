@@ -313,7 +313,7 @@ func runClean(cmd *cobra.Command, args []string) error {
 		} else {
 			fmt.Printf("\nSummary: %d files examined, %d modified\n", result.TotalFiles, result.ProcessedFiles)
 		}
-		
+
 		if totalSquareBracketsFixed > 0 || totalLinkHeadersConverted > 0 {
 			if totalSquareBracketsFixed > 0 {
 				fmt.Printf("  - Square brackets fixed: %d\n", totalSquareBracketsFixed)

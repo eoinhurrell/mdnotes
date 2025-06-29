@@ -65,12 +65,12 @@ func newStatsCommand() *cobra.Command {
 			if err != nil {
 				return errors.WrapError(err, "file selection config", "")
 			}
-			
+
 			// Merge config ignore patterns with global ignore patterns if needed
 			if len(fileSelector.IgnorePatterns) == 0 {
 				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
 			}
-			
+
 			// Select files using unified architecture
 			selection, err := fileSelector.SelectFiles(vaultPath, mode)
 			if err != nil {
@@ -92,7 +92,7 @@ func newStatsCommand() *cobra.Command {
 				}
 				fmt.Fprintf(os.Stderr, "\n")
 			}
-			
+
 			files := selection.Files
 
 			// Generate statistics
@@ -147,7 +147,7 @@ Example:
   mdnotes analyze duplicates --type obsidian
   mdnotes analyze duplicates --type sync-conflicts
   mdnotes analyze duplicates --type content`,
-		Args:  cobra.MaximumNArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vaultPath := "."
 			if len(args) > 0 {
@@ -165,12 +165,12 @@ Example:
 			if err != nil {
 				return errors.WrapError(err, "file selection config", "")
 			}
-			
+
 			// Merge config ignore patterns with global ignore patterns if needed
 			if len(fileSelector.IgnorePatterns) == 0 {
 				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
 			}
-			
+
 			// Select files using unified architecture
 			selection, err := fileSelector.SelectFiles(vaultPath, mode)
 			if err != nil {
@@ -183,7 +183,7 @@ Example:
 				}
 				return errors.WrapError(err, "vault scanning", vaultPath)
 			}
-			
+
 			files := selection.Files
 
 			// Report any parsing errors encountered
@@ -240,11 +240,11 @@ Example:
 				obsidianCopies := ana.FindObsidianCopies(files)
 				syncConflicts := ana.FindSyncConflictFiles(files)
 				contentDuplicates := ana.FindContentDuplicates(files, analyzer.ExactMatch)
-				
+
 				if outputFormat == "json" {
 					result := map[string]interface{}{
-						"obsidian_copies":  obsidianCopies,
-						"sync_conflicts":   syncConflicts,
+						"obsidian_copies":    obsidianCopies,
+						"sync_conflicts":     syncConflicts,
 						"content_duplicates": contentDuplicates,
 					}
 					data, err := json.MarshalIndent(result, "", "  ")
@@ -294,12 +294,12 @@ func newHealthCommand() *cobra.Command {
 			if err != nil {
 				return errors.WrapError(err, "file selection config", "")
 			}
-			
+
 			// Merge config ignore patterns with global ignore patterns if needed
 			if len(fileSelector.IgnorePatterns) == 0 {
 				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
 			}
-			
+
 			// Select files using unified architecture
 			selection, err := fileSelector.SelectFiles(vaultPath, mode)
 			files := selection.Files
@@ -777,12 +777,12 @@ Content Metrics:
 					if len(displayPath) > 35 {
 						displayPath = "..." + displayPath[len(displayPath)-32:]
 					}
-					
-					output += fmt.Sprintf("%-6.1f %-35s %4.0f %4.0f %4.0f %4.0f %4.0f\n", 
-						score.Score, displayPath, 
-						score.ReadabilityScore*100, score.LinkDensityScore*100, 
+
+					output += fmt.Sprintf("%-6.1f %-35s %4.0f %4.0f %4.0f %4.0f %4.0f\n",
+						score.Score, displayPath,
+						score.ReadabilityScore*100, score.LinkDensityScore*100,
 						score.CompletenessScore*100, score.AtomicityScore*100, score.RecencyScore*100)
-					
+
 					if verbose && len(score.SuggestedFixes) > 0 {
 						output += fmt.Sprintf("       Improvements: %s\n", strings.Join(score.SuggestedFixes, "; "))
 					}
@@ -812,20 +812,20 @@ func getWorstScoringFiles(fileScores []analyzer.FileQualityScore, n int) []analy
 	if len(fileScores) == 0 {
 		return nil
 	}
-	
+
 	// Create a copy and sort by score ascending (worst first)
 	scores := make([]analyzer.FileQualityScore, len(fileScores))
 	copy(scores, fileScores)
-	
+
 	sort.Slice(scores, func(i, j int) bool {
 		return scores[i].Score < scores[j].Score
 	})
-	
+
 	// Return first N (worst) files
 	if len(scores) < n {
 		n = len(scores)
 	}
-	
+
 	return scores[:n]
 }
 
@@ -1068,12 +1068,12 @@ func newInboxCommand() *cobra.Command {
 			if err != nil {
 				return errors.WrapError(err, "file selection config", "")
 			}
-			
+
 			// Merge config ignore patterns with global ignore patterns if needed
 			if len(fileSelector.IgnorePatterns) == 0 {
 				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
 			}
-			
+
 			// Select files using unified architecture
 			selection, err := fileSelector.SelectFiles(vaultPath, mode)
 			if err != nil {
@@ -1095,7 +1095,7 @@ func newInboxCommand() *cobra.Command {
 				}
 				fmt.Fprintf(os.Stderr, "\n")
 			}
-			
+
 			files := selection.Files
 
 			// Generate inbox analysis using configured headings
@@ -1155,9 +1155,9 @@ func formatInboxAnalysisText(analysis *analyzer.InboxAnalysis) string {
 	output.WriteString("Priority Recommendations:\n")
 	output.WriteString("------------------------\n")
 	if len(analysis.InboxSections) > 0 {
-		output.WriteString(fmt.Sprintf("🔥 Start with: %s (%d items, %d chars)\n", 
-			analysis.InboxSections[0].File, 
-			analysis.InboxSections[0].ItemCount, 
+		output.WriteString(fmt.Sprintf("🔥 Start with: %s (%d items, %d chars)\n",
+			analysis.InboxSections[0].File,
+			analysis.InboxSections[0].ItemCount,
 			analysis.InboxSections[0].ContentSize))
 	}
 	output.WriteString("\n")
@@ -1175,9 +1175,9 @@ func formatInboxAnalysisText(analysis *analyzer.InboxAnalysis) string {
 
 		output.WriteString(fmt.Sprintf("%s %s\n", priority, section.File))
 		output.WriteString(fmt.Sprintf("   Heading: %s\n", section.Heading))
-		output.WriteString(fmt.Sprintf("   Items: %d | Size: %d chars | Urgency: %s\n", 
+		output.WriteString(fmt.Sprintf("   Items: %d | Size: %d chars | Urgency: %s\n",
 			section.ItemCount, section.ContentSize, section.UrgencyLevel))
-		
+
 		if len(section.ActionSuggestions) > 0 {
 			output.WriteString("   Suggestions: ")
 			output.WriteString(strings.Join(section.ActionSuggestions, ", "))

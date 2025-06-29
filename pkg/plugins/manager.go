@@ -15,13 +15,13 @@ import (
 
 // PluginManager manages the lifecycle and execution of plugins
 type PluginManager struct {
-	mu              sync.RWMutex
-	plugins         map[string]Plugin
-	pluginInfos     map[string]*PluginInfo
-	hooks           map[HookType][]Plugin
-	searchPaths     []string
-	globalConfig    map[string]interface{}
-	enabled         bool
+	mu           sync.RWMutex
+	plugins      map[string]Plugin
+	pluginInfos  map[string]*PluginInfo
+	hooks        map[HookType][]Plugin
+	searchPaths  []string
+	globalConfig map[string]interface{}
+	enabled      bool
 }
 
 // ManagerConfig contains configuration for the plugin manager
@@ -224,7 +224,7 @@ func (pm *PluginManager) ExecuteHook(ctx context.Context, hookType HookType, hoo
 		// Execute the plugin
 		pluginResult, err := plugin.ExecuteHook(ctx, hookType, hookCtx, file)
 		if err != nil {
-			return result, NewPluginErrorWithCause(plugin.Name(), "execution", 
+			return result, NewPluginErrorWithCause(plugin.Name(), "execution",
 				fmt.Sprintf("hook %s failed", hookType), err)
 		}
 
@@ -260,7 +260,7 @@ func (pm *PluginManager) ExecuteHook(ctx context.Context, hookType HookType, hoo
 func (pm *PluginManager) GetPluginInfo(name string) (*PluginInfo, bool) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	info, exists := pm.pluginInfos[name]
 	return info, exists
 }
@@ -354,7 +354,7 @@ func (pm *PluginManager) Cleanup() error {
 	// Clean up all plugins
 	for name, plugin := range pm.plugins {
 		if err := plugin.Cleanup(); err != nil {
-			cleanupErrors = append(cleanupErrors, 
+			cleanupErrors = append(cleanupErrors,
 				NewPluginErrorWithCause(name, "cleanup", "cleanup failed", err))
 		}
 	}

@@ -207,8 +207,8 @@ func TestValidatePath(t *testing.T) {
 	// Test valid directory
 	v = NewValidator()
 	constraints = PathConstraints{
-		MustExist:         true,
-		MustBeDirectory:   true,
+		MustExist:       true,
+		MustBeDirectory: true,
 	}
 	v.ValidatePath("dir", tmpDir, constraints)
 	assert.False(t, v.HasErrors())
@@ -403,8 +403,8 @@ func TestCommonValidators(t *testing.T) {
 	// Test ValidateSlug
 	assert.NoError(t, ValidateSlug("hello-world"))
 	assert.NoError(t, ValidateSlug("test123"))
-	assert.Error(t, ValidateSlug("Hello-World")) // uppercase
-	assert.Error(t, ValidateSlug("hello_world")) // underscore
+	assert.Error(t, ValidateSlug("Hello-World"))  // uppercase
+	assert.Error(t, ValidateSlug("hello_world"))  // underscore
 	assert.Error(t, ValidateSlug("hello--world")) // double hyphen
 
 	// Test ValidateVersion
@@ -412,7 +412,7 @@ func TestCommonValidators(t *testing.T) {
 	assert.NoError(t, ValidateVersion("v1.2.3"))
 	assert.NoError(t, ValidateVersion("1.2.3-alpha"))
 	assert.NoError(t, ValidateVersion("1.2.3+build"))
-	assert.Error(t, ValidateVersion("1.2")) // incomplete
+	assert.Error(t, ValidateVersion("1.2"))     // incomplete
 	assert.Error(t, ValidateVersion("1.2.3.4")) // too many parts
 }
 

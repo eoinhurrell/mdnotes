@@ -193,7 +193,7 @@ func (m *mockPlugin) Cleanup() error {
 
 func TestExampleFrontmatterPlugin(t *testing.T) {
 	plugin := NewExampleFrontmatterPlugin()
-	
+
 	// Test plugin metadata
 	assert.Equal(t, "auto-frontmatter", plugin.Name())
 	assert.Equal(t, "1.0.0", plugin.Version())
@@ -237,7 +237,7 @@ func TestExampleFrontmatterPlugin(t *testing.T) {
 
 func TestExampleContentPlugin(t *testing.T) {
 	plugin := NewExampleContentPlugin()
-	
+
 	// Test plugin metadata
 	assert.Equal(t, "content-enhancer", plugin.Name())
 	assert.Equal(t, "1.0.0", plugin.Version())
@@ -274,7 +274,7 @@ func TestExampleContentPlugin(t *testing.T) {
 
 func TestExampleExportPlugin(t *testing.T) {
 	plugin := NewExampleExportPlugin()
-	
+
 	// Test plugin metadata
 	assert.Equal(t, "export-processor", plugin.Name())
 	assert.Equal(t, "1.0.0", plugin.Version())

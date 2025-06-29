@@ -54,7 +54,7 @@ func TestCalculateReadabilityScore(t *testing.T) {
 				Body: tt.content,
 			}
 			score := analyzer.CalculateReadabilityScore(file)
-			
+
 			if score < tt.min || score > tt.max {
 				t.Errorf("calculateReadabilityScore() = %f, want between %f and %f", score, tt.min, tt.max)
 			}
@@ -84,7 +84,7 @@ func TestCalculateLinkDensityScore(t *testing.T) {
 			expected:  1.0,
 		},
 		{
-			name:      "Too many links", 
+			name:      "Too many links",
 			content:   "This content has way too many links for good readability.",
 			linkCount: 8,
 			expected:  0.5,
@@ -104,7 +104,7 @@ func TestCalculateLinkDensityScore(t *testing.T) {
 				Links: make([]vault.Link, tt.linkCount),
 			}
 			score := analyzer.CalculateLinkDensityScore(file)
-			
+
 			// Allow some tolerance for floating point comparison
 			tolerance := 0.2
 			if score < tt.expected-tolerance || score > tt.expected+tolerance {
@@ -162,7 +162,7 @@ func TestCalculateCompletenessScore(t *testing.T) {
 				Frontmatter: tt.frontmatter,
 			}
 			score := analyzer.CalculateCompletenessScore(file)
-			
+
 			tolerance := 0.1
 			if score < tt.expected-tolerance || score > tt.expected+tolerance {
 				t.Errorf("calculateCompletenessScore() = %f, want approximately %f", score, tt.expected)
@@ -191,12 +191,12 @@ func TestCalculateAtomicityScore(t *testing.T) {
 			max:      1.0,
 		},
 		{
-			name:    "Too long note",
-			content: generateLongContent(600), // Over 500 words
+			name:     "Too long note",
+			content:  generateLongContent(600), // Over 500 words
 			headings: []vault.Heading{{Level: 1, Text: "Topic"}},
 			expected: 0.9,
-			min:     0.7,
-			max:     0.95,
+			min:      0.7,
+			max:      0.95,
 		},
 		{
 			name:     "Multiple H1 headings",
@@ -223,7 +223,7 @@ func TestCalculateAtomicityScore(t *testing.T) {
 				Headings: tt.headings,
 			}
 			score := analyzer.CalculateAtomicityScore(file)
-			
+
 			if score < tt.min || score > tt.max {
 				t.Errorf("calculateAtomicityScore() = %f, want between %f and %f", score, tt.min, tt.max)
 			}
@@ -268,7 +268,7 @@ func TestCalculateRecencyScore(t *testing.T) {
 				Modified: tt.modified,
 			}
 			score := analyzer.CalculateRecencyScore(file)
-			
+
 			if score != tt.expected {
 				t.Errorf("calculateRecencyScore() = %f, want %f", score, tt.expected)
 			}
@@ -473,10 +473,10 @@ func TestGenerateFileQualityFixes(t *testing.T) {
 func generateLongContent(wordCount int) string {
 	words := []string{"test", "content", "analysis", "quality", "score", "evaluation", "measurement", "assessment", "review", "examination"}
 	var content []string
-	
+
 	for i := 0; i < wordCount; i++ {
 		content = append(content, words[i%len(words)])
 	}
-	
+
 	return strings.Join(content, " ")
 }

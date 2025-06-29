@@ -95,28 +95,28 @@ Configuration:
 			if err != nil {
 				return fmt.Errorf("getting file selection config: %w", err)
 			}
-			
+
 			// Merge config ignore patterns with global ignore patterns if needed
 			if len(fileSelector.IgnorePatterns) == 0 {
 				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
 			}
-			
+
 			// Select files using unified architecture
 			selection, err := fileSelector.SelectFiles(vaultPath, mode)
 			if err != nil {
 				return fmt.Errorf("selecting files: %w", err)
 			}
-			
+
 			// Print selection summary if verbose
 			if verbose {
 				fmt.Printf("%s\n", selection.GetSelectionSummary())
 			}
-			
+
 			// Print parse errors if any
 			if len(selection.ParseErrors) > 0 && verbose {
 				selection.PrintParseErrors()
 			}
-			
+
 			files := selection.Files
 
 			// Create sync configuration
@@ -298,28 +298,28 @@ func newListCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("getting file selection config: %w", err)
 			}
-			
+
 			// Merge config ignore patterns with global ignore patterns if needed
 			if len(fileSelector.IgnorePatterns) == 0 {
 				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
 			}
-			
+
 			// Select files using unified architecture
 			selection, err := fileSelector.SelectFiles(vaultPath, mode)
 			if err != nil {
 				return fmt.Errorf("selecting files: %w", err)
 			}
-			
+
 			// Print selection summary if verbose
 			if verbose {
 				fmt.Printf("%s\n", selection.GetSelectionSummary())
 			}
-			
+
 			// Print parse errors if any
 			if len(selection.ParseErrors) > 0 && verbose {
 				selection.PrintParseErrors()
 			}
-			
+
 			files := selection.Files
 
 			// Create sync processor to analyze files
@@ -421,7 +421,7 @@ Configuration:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			notePath := args[0]
-			
+
 			// Get flags from persistent flags
 			dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
@@ -436,7 +436,7 @@ Configuration:
 				if !quiet {
 					fmt.Printf("Dry run: Would process note %s\n", notePath)
 				}
-				
+
 				// Parse note to extract linkding_id and url
 				vaultFile, err := vault.LoadVaultFile(notePath)
 				if err != nil {
@@ -454,7 +454,7 @@ Configuration:
 					fmt.Printf("Found linkding_id: %v\n", linkdingID)
 					fmt.Println("Would query Linkding API for snapshot assets")
 				}
-				
+
 				if hasURL {
 					fmt.Printf("Found fallback url: %v\n", url)
 					fmt.Println("Would use as fallback if no snapshots available")
@@ -511,7 +511,7 @@ Configuration:
 
 			// Print the extracted text to stdout
 			fmt.Print(text)
-			
+
 			return nil
 		},
 	}

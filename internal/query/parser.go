@@ -205,7 +205,7 @@ func (p *Parser) tokenize() {
 				pos++
 			}
 			value := input[start:pos]
-			
+
 			// Check for keywords and logical operators
 			valueLower := strings.ToLower(value)
 			switch valueLower {
@@ -273,7 +273,7 @@ func (p *Parser) Parse() (Expression, error) {
 	if len(p.tokens) == 0 {
 		return nil, fmt.Errorf("empty expression")
 	}
-	
+
 	expr, err := p.parseOrExpression()
 	if err != nil {
 		return nil, err
@@ -336,7 +336,7 @@ func (p *Parser) parseAndExpression() (Expression, error) {
 // parseNotExpression handles NOT operations
 func (p *Parser) parseNotExpression() (Expression, error) {
 	if p.current().Type == TokenKeyword && p.current().Value == "NOT" {
-		p.advance() // consume NOT
+		p.advance()                         // consume NOT
 		expr, err := p.parseNotExpression() // Right associative
 		if err != nil {
 			return nil, err
@@ -392,7 +392,7 @@ func (p *Parser) parseComparisonExpression() (Expression, error) {
 	// Check for keyword operators (contains, in, etc.)
 	if p.current().Type == TokenKeyword {
 		keyword := p.current().Value
-		
+
 		// Handle "not contains" and "not in"
 		if keyword == "NOT" {
 			p.advance()
@@ -579,7 +579,6 @@ func (e *FieldExpression) Evaluate(file *vault.VaultFile) bool {
 	_, exists := file.GetField(e.Name)
 	return exists
 }
-
 
 func isAlphaNumeric(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
@@ -963,7 +962,7 @@ func parseDuration(s string) (time.Duration, error) {
 // evaluateHas provides exact array element matching (solves learning vs machine_learning edge case)
 func evaluateHas(haystack, needle interface{}) bool {
 	needleStr := fmt.Sprintf("%v", needle)
-	
+
 	switch h := haystack.(type) {
 	case []interface{}:
 		for _, item := range h {
@@ -989,7 +988,7 @@ func evaluateHas(haystack, needle interface{}) bool {
 func evaluateStartsWith(fieldValue, prefix interface{}) bool {
 	fieldStr := strings.ToLower(fmt.Sprintf("%v", fieldValue))
 	prefixStr := strings.ToLower(fmt.Sprintf("%v", prefix))
-	
+
 	switch h := fieldValue.(type) {
 	case []interface{}:
 		for _, item := range h {
@@ -1014,7 +1013,7 @@ func evaluateStartsWith(fieldValue, prefix interface{}) bool {
 func evaluateEndsWith(fieldValue, suffix interface{}) bool {
 	fieldStr := strings.ToLower(fmt.Sprintf("%v", fieldValue))
 	suffixStr := strings.ToLower(fmt.Sprintf("%v", suffix))
-	
+
 	switch h := fieldValue.(type) {
 	case []interface{}:
 		for _, item := range h {
@@ -1042,7 +1041,7 @@ func evaluateMatches(fieldValue, pattern interface{}) bool {
 	if err != nil {
 		return false // Invalid regex pattern
 	}
-	
+
 	switch h := fieldValue.(type) {
 	case []interface{}:
 		for _, item := range h {
@@ -1071,29 +1070,29 @@ func evaluateBetween(fieldValue, rangeValue interface{}) bool {
 	if len(parts) != 2 {
 		return false
 	}
-	
+
 	minStr := strings.TrimSpace(parts[0])
 	maxStr := strings.TrimSpace(parts[1])
-	
+
 	// Try numeric comparison first
 	fieldFloat, fieldErr := convertToFloat(fieldValue)
 	minFloat, minErr := convertToFloat(minStr)
 	maxFloat, maxErr := convertToFloat(maxStr)
-	
+
 	if fieldErr == nil && minErr == nil && maxErr == nil {
 		return fieldFloat >= minFloat && fieldFloat <= maxFloat
 	}
-	
+
 	// Try date comparison
 	fieldDate, fieldErr := parseDate(fieldValue)
 	minDate, minErr := parseDate(minStr)
 	maxDate, maxErr := parseDate(maxStr)
-	
+
 	if fieldErr == nil && minErr == nil && maxErr == nil {
-		return (fieldDate.After(minDate) || fieldDate.Equal(minDate)) && 
-			   (fieldDate.Before(maxDate) || fieldDate.Equal(maxDate))
+		return (fieldDate.After(minDate) || fieldDate.Equal(minDate)) &&
+			(fieldDate.Before(maxDate) || fieldDate.Equal(maxDate))
 	}
-	
+
 	// Fall back to string comparison
 	fieldStr := fmt.Sprintf("%v", fieldValue)
 	return fieldStr >= minStr && fieldStr <= maxStr

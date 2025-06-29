@@ -193,14 +193,14 @@ func (fs *FileSelector) selectFromFile(filePath string) (*SelectionResult, error
 func (fs *FileSelector) selectFromReader(reader io.Reader, sourceName string, mode SelectionMode) (*SelectionResult, error) {
 	var files []*vault.VaultFile
 	var parseErrors []vault.ParseError
-	
+
 	scanner := bufio.NewScanner(reader)
 	lineNum := 0
-	
+
 	for scanner.Scan() {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -232,7 +232,7 @@ func (fs *FileSelector) selectFromReader(reader io.Reader, sourceName string, mo
 			})
 			continue
 		}
-		
+
 		files = append(files, file)
 	}
 
@@ -272,7 +272,7 @@ func (fs *FileSelector) loadSingleFile(path string) (*vault.VaultFile, error) {
 
 	// Determine relative path - use basename if we can't determine a better one
 	relativePath := filepath.Base(path)
-	
+
 	// Try to make it relative to current working directory
 	if cwd, err := os.Getwd(); err == nil {
 		if relPath, err := filepath.Rel(cwd, path); err == nil && !strings.HasPrefix(relPath, "..") {
@@ -320,11 +320,11 @@ func (fs *FileSelector) applyQueryFilter(files []*vault.VaultFile) ([]*vault.Vau
 // GetSelectionSummary returns a human-readable summary of the selection
 func (result *SelectionResult) GetSelectionSummary() string {
 	summary := fmt.Sprintf("Selected %d files from %s", len(result.Files), result.Source)
-	
+
 	if len(result.ParseErrors) > 0 {
 		summary += fmt.Sprintf(" (%d parse errors)", len(result.ParseErrors))
 	}
-	
+
 	return summary
 }
 
@@ -349,7 +349,7 @@ func GetGlobalSelectionConfig(cmd *cobra.Command) (SelectionMode, *FileSelector,
 	fromFile, _ := cmd.Root().PersistentFlags().GetString("from-file")
 	fromStdin, _ := cmd.Root().PersistentFlags().GetBool("from-stdin")
 	ignorePatterns, _ := cmd.Root().PersistentFlags().GetStringSlice("ignore")
-	
+
 	// Determine selection mode based on flags
 	mode := AutoDetect
 	if fromStdin {
@@ -359,12 +359,12 @@ func GetGlobalSelectionConfig(cmd *cobra.Command) (SelectionMode, *FileSelector,
 	} else if query != "" {
 		mode = FilesFromQuery
 	}
-	
+
 	// Create and configure FileSelector
 	fileSelector := NewFileSelector().
 		WithIgnorePatterns(ignorePatterns).
 		WithQuery(query).
 		WithSourceFile(fromFile)
-	
+
 	return mode, fileSelector, nil
 }

@@ -69,120 +69,120 @@ This note has no frontmatter.
 	defer os.RemoveAll(vaultPath)
 
 	tests := []struct {
-		name     string
-		command  []string
+		name          string
+		command       []string
 		shouldSucceed bool
-		description string
+		description   string
 	}{
 		// Frontmatter commands
 		{
-			name:     "frontmatter_ensure",
-			command:  []string{"frontmatter", "ensure", vaultPath, "--field", "test", "--default", "value"},
+			name:          "frontmatter_ensure",
+			command:       []string{"frontmatter", "ensure", vaultPath, "--field", "test", "--default", "value"},
 			shouldSucceed: true,
-			description: "Should add frontmatter fields",
+			description:   "Should add frontmatter fields",
 		},
 		{
-			name:     "frontmatter_validate",
-			command:  []string{"frontmatter", "validate", vaultPath},
+			name:          "frontmatter_validate",
+			command:       []string{"frontmatter", "validate", vaultPath},
 			shouldSucceed: true,
-			description: "Should validate frontmatter",
+			description:   "Should validate frontmatter",
 		},
 		{
-			name:     "frontmatter_cast",
-			command:  []string{"frontmatter", "cast", vaultPath},
+			name:          "frontmatter_cast",
+			command:       []string{"frontmatter", "cast", vaultPath},
 			shouldSucceed: true,
-			description: "Should cast frontmatter types",
+			description:   "Should cast frontmatter types",
 		},
 		{
-			name:     "frontmatter_sync",
-			command:  []string{"frontmatter", "sync", vaultPath, "--field", "modified", "--source", "file-mtime"},
+			name:          "frontmatter_sync",
+			command:       []string{"frontmatter", "sync", vaultPath, "--field", "modified", "--source", "file-mtime"},
 			shouldSucceed: true,
-			description: "Should sync frontmatter with file system",
+			description:   "Should sync frontmatter with file system",
 		},
 		{
-			name:     "frontmatter_query",
-			command:  []string{"frontmatter", "query", vaultPath, "--where", "title != ''"},
+			name:          "frontmatter_query",
+			command:       []string{"frontmatter", "query", vaultPath, "--where", "title != ''"},
 			shouldSucceed: true,
-			description: "Should query frontmatter",
+			description:   "Should query frontmatter",
 		},
 		{
-			name:     "frontmatter_set",
-			command:  []string{"frontmatter", "set", filepath.Join(vaultPath, "note1.md"), "--field", "processed", "--value", "true"},
+			name:          "frontmatter_set",
+			command:       []string{"frontmatter", "set", filepath.Join(vaultPath, "note1.md"), "--field", "processed", "--value", "true"},
 			shouldSucceed: true,
-			description: "Should set frontmatter field",
+			description:   "Should set frontmatter field",
 		},
 
 		// Heading commands
 		{
-			name:     "headings_analyze",
-			command:  []string{"headings", "analyze", vaultPath},
+			name:          "headings_analyze",
+			command:       []string{"headings", "analyze", vaultPath},
 			shouldSucceed: true,
-			description: "Should analyze headings",
+			description:   "Should analyze headings",
 		},
 		{
-			name:     "headings_fix",
-			command:  []string{"headings", "fix", vaultPath},
+			name:          "headings_fix",
+			command:       []string{"headings", "fix", vaultPath},
 			shouldSucceed: true,
-			description: "Should fix headings",
+			description:   "Should fix headings",
 		},
 
 		// Link commands
 		{
-			name:     "links_check",
-			command:  []string{"links", "check", vaultPath},
+			name:          "links_check",
+			command:       []string{"links", "check", vaultPath},
 			shouldSucceed: true,
-			description: "Should check links",
+			description:   "Should check links",
 		},
 
 		// Analysis commands
 		{
-			name:     "analyze_health",
-			command:  []string{"analyze", "health", vaultPath},
+			name:          "analyze_health",
+			command:       []string{"analyze", "health", vaultPath},
 			shouldSucceed: true,
-			description: "Should analyze vault health",
+			description:   "Should analyze vault health",
 		},
 		{
-			name:     "analyze_stats",
-			command:  []string{"analyze", "stats", vaultPath},
+			name:          "analyze_stats",
+			command:       []string{"analyze", "stats", vaultPath},
 			shouldSucceed: true,
-			description: "Should generate statistics",
+			description:   "Should generate statistics",
 		},
 		{
-			name:     "analyze_content",
-			command:  []string{"analyze", "content", vaultPath},
+			name:          "analyze_content",
+			command:       []string{"analyze", "content", vaultPath},
 			shouldSucceed: true,
-			description: "Should analyze content quality",
+			description:   "Should analyze content quality",
 		},
 		{
-			name:     "analyze_links",
-			command:  []string{"analyze", "links", vaultPath},
+			name:          "analyze_links",
+			command:       []string{"analyze", "links", vaultPath},
 			shouldSucceed: true,
-			description: "Should analyze link structure",
+			description:   "Should analyze link structure",
 		},
 		{
-			name:     "analyze_inbox",
-			command:  []string{"analyze", "inbox", vaultPath},
+			name:          "analyze_inbox",
+			command:       []string{"analyze", "inbox", vaultPath},
 			shouldSucceed: true,
-			description: "Should analyze inbox content",
+			description:   "Should analyze inbox content",
 		},
 		{
-			name:     "analyze_trends",
-			command:  []string{"analyze", "trends", vaultPath},
+			name:          "analyze_trends",
+			command:       []string{"analyze", "trends", vaultPath},
 			shouldSucceed: true,
-			description: "Should analyze trends",
+			description:   "Should analyze trends",
 		},
 		{
-			name:     "analyze_duplicates",
-			command:  []string{"analyze", "duplicates", vaultPath},
+			name:          "analyze_duplicates",
+			command:       []string{"analyze", "duplicates", vaultPath},
 			shouldSucceed: true,
-			description: "Should find duplicates",
+			description:   "Should find duplicates",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output, err := runMdnotesCommand(tt.command...)
-			
+
 			if tt.shouldSucceed {
 				assert.NoError(t, err, "%s failed: %s", tt.description, string(output))
 			} else {
@@ -218,8 +218,8 @@ Content.
 	}
 
 	globalFlags := []struct {
-		name  string
-		flag  string
+		name        string
+		flag        string
 		description string
 	}{
 		{"verbose", "--verbose", "Should provide detailed output"},
@@ -232,9 +232,9 @@ Content.
 			t.Run(strings.Join(baseCmd[:2], "_")+"_"+globalFlag.name, func(t *testing.T) {
 				cmd := append(baseCmd, globalFlag.flag)
 				output, err := runMdnotesCommand(cmd...)
-				
+
 				assert.NoError(t, err, "Command with %s should succeed: %s", globalFlag.flag, string(output))
-				
+
 				// Basic validation based on flag type
 				outputStr := string(output)
 				switch globalFlag.flag {
@@ -306,7 +306,7 @@ Content.
 	for _, tt := range errorTests {
 		t.Run(tt.name, func(t *testing.T) {
 			output, err := runMdnotesCommand(tt.command...)
-			
+
 			if tt.expectedFail {
 				assert.Error(t, err, "%s should fail: %s", tt.description, string(output))
 				// Error messages should be helpful
@@ -347,7 +347,7 @@ output:
   verbose: false
   format: "table"
 `
-	
+
 	configPath := filepath.Join(vaultPath, "test-config.yaml")
 	err = os.WriteFile(configPath, []byte(configContent), 0644)
 	require.NoError(t, err)
@@ -404,7 +404,7 @@ priority: 2
 			t.Run(strings.Join(cmd[:2], "_")+"_"+format, func(t *testing.T) {
 				cmdWithFormat := append(cmd, "--format", format)
 				output, err := runMdnotesCommand(cmdWithFormat...)
-				
+
 				// Not all commands may support all formats, so we allow errors
 				// but if it succeeds, output should be non-empty
 				if err == nil {

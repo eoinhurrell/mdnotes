@@ -120,7 +120,7 @@ func TestLinkParser_WikiLinks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			links := parser.Extract(tt.content)
 			require.Len(t, links, len(tt.expected))
-			
+
 			for i, expected := range tt.expected {
 				actual := links[i]
 				assert.Equal(t, expected.Type, actual.Type)
@@ -205,7 +205,7 @@ func TestLinkParser_MarkdownLinks(t *testing.T) {
 				{
 					Type:     vault.MarkdownLink,
 					Target:   "note file.md",
-					Text:     "Note", 
+					Text:     "Note",
 					Fragment: "section 1",
 					Encoding: "url",
 					RawText:  "[Note](note%20file.md#section%201)",
@@ -232,7 +232,7 @@ func TestLinkParser_MarkdownLinks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			links := parser.Extract(tt.content)
 			require.Len(t, links, len(tt.expected))
-			
+
 			for i, expected := range tt.expected {
 				actual := links[i]
 				assert.Equal(t, expected.Type, actual.Type)
@@ -299,7 +299,7 @@ func TestLinkParser_EmbedLinks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			links := parser.Extract(tt.content)
 			require.Len(t, links, len(tt.expected))
-			
+
 			for i, expected := range tt.expected {
 				actual := links[i]
 				assert.Equal(t, expected.Type, actual.Type)
@@ -314,7 +314,7 @@ func TestLinkParser_EmbedLinks(t *testing.T) {
 
 func TestLinkParser_ComplexContent(t *testing.T) {
 	parser := NewLinkParser()
-	
+
 	content := `# Complex Document
 
 This document has multiple link types:
@@ -328,15 +328,15 @@ This document has multiple link types:
 External links should be ignored: [Google](https://google.com)`
 
 	links := parser.Extract(content)
-	
+
 	// Should find 10 internal links (ignoring external URL)
 	assert.Len(t, links, 10)
-	
+
 	// Check specific links
 	wikiLinks := make([]vault.Link, 0)
 	markdownLinks := make([]vault.Link, 0)
 	embedLinks := make([]vault.Link, 0)
-	
+
 	for _, link := range links {
 		switch link.Type {
 		case vault.WikiLink:
@@ -347,11 +347,11 @@ External links should be ignored: [Google](https://google.com)`
 			embedLinks = append(embedLinks, link)
 		}
 	}
-	
-	assert.Len(t, wikiLinks, 4)    // note1, note2, note3, note4
-	assert.Len(t, markdownLinks, 4) // note5, note6, spaced note, angled note  
+
+	assert.Len(t, wikiLinks, 4)     // note1, note2, note3, note4
+	assert.Len(t, markdownLinks, 4) // note5, note6, spaced note, angled note
 	assert.Len(t, embedLinks, 2)    // image.png, note7
-	
+
 	// Verify fragment parsing
 	fragmentLinks := make([]vault.Link, 0)
 	for _, link := range links {
@@ -364,7 +364,7 @@ External links should be ignored: [Google](https://google.com)`
 
 func TestLinkParser_IsInternalLink(t *testing.T) {
 	parser := NewLinkParser()
-	
+
 	tests := []struct {
 		name   string
 		target string
@@ -393,7 +393,7 @@ func TestLinkParser_IsInternalLink(t *testing.T) {
 
 func TestLinkParser_UpdateFile(t *testing.T) {
 	parser := NewLinkParser()
-	
+
 	tests := []struct {
 		name        string
 		file        *vault.VaultFile

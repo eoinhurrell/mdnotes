@@ -9,8 +9,8 @@ import (
 
 func TestNewInputSanitizer(t *testing.T) {
 	config := InputSanitizerConfig{
-		MaxLength:   100,
-		AllowedChars: `^[a-zA-Z0-9\s]+$`,
+		MaxLength:       100,
+		AllowedChars:    `^[a-zA-Z0-9\s]+$`,
 		BlockedPatterns: []string{`script`, `<.*?>`},
 	}
 
@@ -26,8 +26,8 @@ func TestNewInputSanitizer(t *testing.T) {
 
 func TestSanitizeString(t *testing.T) {
 	config := InputSanitizerConfig{
-		MaxLength:   50,
-		AllowedChars: `^[a-zA-Z0-9\s\-_\.]+$`,
+		MaxLength:       50,
+		AllowedChars:    `^[a-zA-Z0-9\s\-_\.]+$`,
 		BlockedPatterns: []string{`script`, `<.*?>`},
 	}
 	sanitizer := NewInputSanitizer(config)
@@ -153,11 +153,11 @@ func TestSanitizeFieldName(t *testing.T) {
 
 	// Test invalid field names
 	invalidNames := []string{
-		"123field",    // Starts with number
-		"field@name",  // Invalid character
-		"__proto__",   // Reserved name
-		"constructor", // Reserved name
-		"",           // Empty
+		"123field",               // Starts with number
+		"field@name",             // Invalid character
+		"__proto__",              // Reserved name
+		"constructor",            // Reserved name
+		"",                       // Empty
 		strings.Repeat("a", 200), // Too long
 	}
 

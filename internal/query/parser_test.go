@@ -157,7 +157,7 @@ func TestTokenization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parser := NewParser(tt.input)
-			
+
 			if len(parser.tokens) != len(tt.expected) {
 				t.Errorf("Expected %d tokens, got %d", len(tt.expected), len(parser.tokens))
 				return
@@ -166,7 +166,7 @@ func TestTokenization(t *testing.T) {
 			for i, expected := range tt.expected {
 				actual := parser.tokens[i]
 				if actual.Type != expected.Type || actual.Value != expected.Value {
-					t.Errorf("Token %d: expected {Type: %v, Value: %q}, got {Type: %v, Value: %q}", 
+					t.Errorf("Token %d: expected {Type: %v, Value: %q}, got {Type: %v, Value: %q}",
 						i, expected.Type, expected.Value, actual.Type, actual.Value)
 				}
 			}
@@ -855,7 +855,7 @@ func TestHelperEvaluationFunctions(t *testing.T) {
 		for _, tt := range tests {
 			result := evaluateContains(tt.haystack, tt.needle)
 			if result != tt.expected {
-				t.Errorf("evaluateContains(%v, %v) = %v, expected %v", 
+				t.Errorf("evaluateContains(%v, %v) = %v, expected %v",
 					tt.haystack, tt.needle, result, tt.expected)
 			}
 		}
@@ -876,7 +876,7 @@ func TestHelperEvaluationFunctions(t *testing.T) {
 		for _, tt := range tests {
 			result := evaluateIn(tt.needle, tt.haystack)
 			if result != tt.expected {
-				t.Errorf("evaluateIn(%v, %v) = %v, expected %v", 
+				t.Errorf("evaluateIn(%v, %v) = %v, expected %v",
 					tt.needle, tt.haystack, result, tt.expected)
 			}
 		}
@@ -896,7 +896,7 @@ func TestHelperEvaluationFunctions(t *testing.T) {
 		for _, tt := range tests {
 			result := evaluateLen(tt.value)
 			if result != tt.expected {
-				t.Errorf("evaluateLen(%v) = %v, expected %v", 
+				t.Errorf("evaluateLen(%v) = %v, expected %v",
 					tt.value, result, tt.expected)
 			}
 		}
@@ -919,7 +919,7 @@ func TestHelperEvaluationFunctions(t *testing.T) {
 		for _, tt := range tests {
 			result := evaluateHas(tt.haystack, tt.needle)
 			if result != tt.expected {
-				t.Errorf("evaluateHas(%v, %v) = %v, expected %v", 
+				t.Errorf("evaluateHas(%v, %v) = %v, expected %v",
 					tt.haystack, tt.needle, result, tt.expected)
 			}
 		}
@@ -941,7 +941,7 @@ func TestHelperEvaluationFunctions(t *testing.T) {
 		for _, tt := range tests {
 			result := evaluateStartsWith(tt.fieldValue, tt.prefix)
 			if result != tt.expected {
-				t.Errorf("evaluateStartsWith(%v, %v) = %v, expected %v", 
+				t.Errorf("evaluateStartsWith(%v, %v) = %v, expected %v",
 					tt.fieldValue, tt.prefix, result, tt.expected)
 			}
 		}
@@ -962,7 +962,7 @@ func TestHelperEvaluationFunctions(t *testing.T) {
 		for _, tt := range tests {
 			result := evaluateEndsWith(tt.fieldValue, tt.suffix)
 			if result != tt.expected {
-				t.Errorf("evaluateEndsWith(%v, %v) = %v, expected %v", 
+				t.Errorf("evaluateEndsWith(%v, %v) = %v, expected %v",
 					tt.fieldValue, tt.suffix, result, tt.expected)
 			}
 		}
@@ -984,7 +984,7 @@ func TestHelperEvaluationFunctions(t *testing.T) {
 		for _, tt := range tests {
 			result := evaluateMatches(tt.fieldValue, tt.pattern)
 			if result != tt.expected {
-				t.Errorf("evaluateMatches(%v, %v) = %v, expected %v", 
+				t.Errorf("evaluateMatches(%v, %v) = %v, expected %v",
 					tt.fieldValue, tt.pattern, result, tt.expected)
 			}
 		}
@@ -1008,7 +1008,7 @@ func TestHelperEvaluationFunctions(t *testing.T) {
 		for _, tt := range tests {
 			result := evaluateBetween(tt.fieldValue, tt.rangeValue)
 			if result != tt.expected {
-				t.Errorf("evaluateBetween(%v, %v) = %v, expected %v", 
+				t.Errorf("evaluateBetween(%v, %v) = %v, expected %v",
 					tt.fieldValue, tt.rangeValue, result, tt.expected)
 			}
 		}

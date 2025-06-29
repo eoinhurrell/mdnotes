@@ -10,7 +10,6 @@ import (
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
-
 // TestURLEncodingFix tests the specific bug reported by the user
 func TestURLEncodingFix(t *testing.T) {
 	// Create temporary vault structure
@@ -23,7 +22,7 @@ func TestURLEncodingFix(t *testing.T) {
 	// Create directory structure
 	resourcesDir := filepath.Join(tempDir, "resources", "books")
 	projectsDir := filepath.Join(tempDir, "projects")
-	
+
 	if err := os.MkdirAll(resourcesDir, 0755); err != nil {
 		t.Fatalf("Failed to create resources dir: %v", err)
 	}
@@ -61,14 +60,14 @@ Book by Ken Baumann.
 			RelativePath: "projects/20241226230440-2025-to-be-read-list.md",
 			Body:         readingListContent,
 		}
-		
+
 		linkParser := processor.NewLinkParser()
 		linkParser.UpdateFile(readingListFile)
-		
+
 		if len(readingListFile.Links) != 1 {
 			t.Errorf("Expected 1 link, got %d", len(readingListFile.Links))
 		}
-		
+
 		if len(readingListFile.Links) > 0 {
 			link := readingListFile.Links[0]
 			// Target should be decoded for easier processing
@@ -126,7 +125,7 @@ Book by Ken Baumann.
 
 		// Rename to something else
 		newPath := filepath.Join(testVaultPath, "resources", "books", "20250527111132-renamed-book.md")
-		
+
 		result, err := renameProcessor.ProcessRename(context.Background(), originalBookPath, newPath, options)
 		if err != nil {
 			t.Fatalf("Failed to process rename: %v", err)
@@ -149,17 +148,17 @@ Book by Ken Baumann.
 		moves := []processor.FileMove{
 			{From: "resources/books/20250527111132-Blood's Hiding.md", To: "resources/books/20250527111132-Renamed-Book.md"},
 		}
-		
+
 		testFile := &vault.VaultFile{
 			Path:         readingListPath,
 			RelativePath: "projects/20241226230440-2025-to-be-read-list.md",
 			Body:         readingListContent,
 		}
-		
+
 		linkParser := processor.NewLinkParser()
 		linkParser.UpdateFile(testFile)
 		modified := linkUpdater.UpdateFile(testFile, moves)
-		
+
 		if !modified {
 			t.Error("Expected file to be modified")
 		}
@@ -181,15 +180,15 @@ Book by Ken Baumann.
 		moves := []processor.FileMove{
 			{From: "resources/books/20250527111132-Blood's Hiding.md", To: "resources/books/20250527111132-New File Name.md"},
 		}
-		
+
 		testFile := &vault.VaultFile{
 			Body: `- [Blood's Hiding](resources/books/20250527111132-Blood's%20Hiding.md)`,
 		}
-		
+
 		linkParser := processor.NewLinkParser()
 		linkParser.UpdateFile(testFile)
 		modified := linkUpdater.UpdateFile(testFile, moves)
-		
+
 		if !modified {
 			t.Error("Expected file to be modified")
 		}
@@ -200,4 +199,3 @@ Book by Ken Baumann.
 		}
 	})
 }
-

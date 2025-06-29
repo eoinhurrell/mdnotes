@@ -21,10 +21,10 @@ func TestPerformanceSmallVault(t *testing.T) {
 	defer os.RemoveAll(vaultPath)
 
 	tests := []struct {
-		name          string
-		command       []string
-		maxDuration   time.Duration
-		description   string
+		name        string
+		command     []string
+		maxDuration time.Duration
+		description string
 	}{
 		{
 			name:        "analyze health",
@@ -61,7 +61,7 @@ func TestPerformanceSmallVault(t *testing.T) {
 			duration := time.Since(start)
 
 			assert.NoError(t, err, "Command should succeed: %s", string(output))
-			assert.Less(t, duration, tt.maxDuration, 
+			assert.Less(t, duration, tt.maxDuration,
 				"%s took %v, should be less than %v", tt.description, duration, tt.maxDuration)
 
 			t.Logf("%s completed in %v", tt.name, duration)
@@ -81,10 +81,10 @@ func TestPerformanceMediumVault(t *testing.T) {
 	defer os.RemoveAll(vaultPath)
 
 	tests := []struct {
-		name          string
-		command       []string
-		maxDuration   time.Duration
-		description   string
+		name        string
+		command     []string
+		maxDuration time.Duration
+		description string
 	}{
 		{
 			name:        "analyze health",
@@ -113,7 +113,7 @@ func TestPerformanceMediumVault(t *testing.T) {
 			duration := time.Since(start)
 
 			assert.NoError(t, err, "Command should succeed: %s", string(output))
-			assert.Less(t, duration, tt.maxDuration, 
+			assert.Less(t, duration, tt.maxDuration,
 				"%s took %v, should be less than %v", tt.description, duration, tt.maxDuration)
 
 			t.Logf("%s completed in %v with 1000 files", tt.name, duration)
@@ -146,7 +146,7 @@ func TestMemoryUsage(t *testing.T) {
 			// In a real implementation, you might use memory profiling tools
 			output, err := runMdnotesCommand(cmd...)
 			assert.NoError(t, err, "Command should complete: %s", string(output))
-			
+
 			// For now, just verify the command succeeds
 			// TODO: Add actual memory usage measurement
 		})

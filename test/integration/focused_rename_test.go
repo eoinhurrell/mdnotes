@@ -29,7 +29,7 @@ func TestFocusedRenameValidation(t *testing.T) {
 		defer cleanup()
 
 		readingListPath := filepath.Join(testVaultPath, "projects", "20241226230440-2025-to-be-read-list.md")
-		
+
 		// Read initial content
 		initialContent, err := os.ReadFile(readingListPath)
 		require.NoError(t, err)
@@ -37,33 +37,33 @@ func TestFocusedRenameValidation(t *testing.T) {
 
 		t.Logf("=== INITIAL STATE ANALYSIS ===")
 		t.Logf("Reading list contains %d characters", len(initialStr))
-		
+
 		// Count different link patterns in the original
 		bigKidsCount := strings.Count(initialStr, "Big Kids") + strings.Count(initialStr, "Big%20Kids")
 		fragmentsCount := strings.Count(initialStr, "Fragments") + strings.Count(initialStr, "Fragments%20of%20Horror")
 		bloodCount := strings.Count(initialStr, "blood") + strings.Count(initialStr, "Blood")
-		
-		t.Logf("Found references: Big Kids: %d, Fragments: %d, Blood: %d", 
+
+		t.Logf("Found references: Big Kids: %d, Fragments: %d, Blood: %d",
 			bigKidsCount, fragmentsCount, bloodCount)
 
 		// Test 1: Rename file with case/underscore mismatch
 		t.Run("case_underscore_mismatch", func(t *testing.T) {
 			// Actual file: 20250525145132-big_kids.md (lowercase, underscores)
 			// Link shows: [Big Kids](resources/books/20250525145132-Big%20Kids.md) (URL-encoded spaces)
-			
+
 			originalPath := "resources/books/20250525145132-big_kids.md"
 			newPath := "resources/books/20250525145132-BIG_KIDS_RENAMED.md"
-			
+
 			result := performSafeRename(t, testVaultPath, originalPath, newPath)
-			
+
 			assert.Greater(t, result.LinksUpdated, 0, "Should update links despite case/underscore mismatch")
 			t.Logf("✅ Case/underscore mismatch: %d links updated", result.LinksUpdated)
-			
+
 			// Verify the link was actually updated
 			updatedContent, err := os.ReadFile(readingListPath)
 			require.NoError(t, err)
 			updatedStr := string(updatedContent)
-			
+
 			assert.Contains(t, updatedStr, "BIG_KIDS_RENAMED", "Reading list should contain new filename")
 			assert.NotContains(t, updatedStr, "Big%20Kids.md", "Should not contain old URL-encoded link")
 		})
@@ -72,46 +72,46 @@ func TestFocusedRenameValidation(t *testing.T) {
 		t.Run("special_characters_and_spaces", func(t *testing.T) {
 			// Actual file: 20250103125238-Fragments of Horror.md (spaces)
 			// Link shows: [Fragments of Horror](resources/books/20250103125238-Fragments%20of%20Horror.md) (URL-encoded)
-			
+
 			originalPath := "resources/books/20250103125238-Fragments of Horror.md"
 			newPath := "resources/books/20250103125238-Fragments of Horror™ & Terror!.md"
-			
+
 			result := performSafeRename(t, testVaultPath, originalPath, newPath)
-			
+
 			assert.Greater(t, result.LinksUpdated, 0, "Should update links with special characters")
 			t.Logf("✅ Special characters: %d links updated", result.LinksUpdated)
-			
+
 			// Verify proper URL encoding of new special characters
 			updatedContent, err := os.ReadFile(readingListPath)
 			require.NoError(t, err)
 			updatedStr := string(updatedContent)
-			
+
 			// Should contain URL-encoded version of new special characters
 			hasEncodedChars := strings.Contains(updatedStr, "%26") || // & encoded as %26
-							   strings.Contains(updatedStr, "Terror") ||
-							   strings.Contains(updatedStr, "™")
+				strings.Contains(updatedStr, "Terror") ||
+				strings.Contains(updatedStr, "™")
 			assert.True(t, hasEncodedChars, "Should contain properly encoded special characters")
 		})
 
 		// Test 3: Move file to different directory with complex characters
 		t.Run("path_change_with_special_chars", func(t *testing.T) {
 			// Test moving a file between directories
-			originalPath := "resources/books/20250527111132-blood_s_hiding.md" 
+			originalPath := "resources/books/20250527111132-blood_s_hiding.md"
 			newPath := "resources/archived/20250527111132-Blood's Hiding (ARCHIVED).md"
-			
+
 			// Ensure target directory exists
 			require.NoError(t, os.MkdirAll(filepath.Join(testVaultPath, "resources", "archived"), 0755))
-			
+
 			result := performSafeRename(t, testVaultPath, originalPath, newPath)
-			
+
 			assert.Greater(t, result.LinksUpdated, 0, "Should update links when moving directories")
 			t.Logf("✅ Directory move: %d links updated", result.LinksUpdated)
-			
+
 			// Verify path change was reflected
 			updatedContent, err := os.ReadFile(readingListPath)
 			require.NoError(t, err)
 			updatedStr := string(updatedContent)
-			
+
 			assert.Contains(t, updatedStr, "archived", "Should contain new directory path")
 			assert.Contains(t, updatedStr, "ARCHIVED", "Should contain new filename")
 		})
@@ -120,12 +120,12 @@ func TestFocusedRenameValidation(t *testing.T) {
 		finalContent, err := os.ReadFile(readingListPath)
 		require.NoError(t, err)
 		finalStr := string(finalContent)
-		
+
 		t.Logf("\n=== FINAL VALIDATION ===")
 		t.Logf("Final content length: %d characters", len(finalStr))
-		t.Logf("Reading list still contains essential structure: %t", 
+		t.Logf("Reading list still contains essential structure: %t",
 			strings.Contains(finalStr, "# 2025 To Be Read List"))
-		
+
 		// Verify essential structure is preserved
 		assert.Contains(t, finalStr, "# 2025 To Be Read List", "Title should be preserved")
 		assert.Contains(t, finalStr, "## Books", "Books section should be preserved")
@@ -138,12 +138,12 @@ func TestFocusedRenameValidation(t *testing.T) {
 		defer cleanup()
 
 		readingListPath := filepath.Join(testVaultPath, "projects", "20241226230440-2025-to-be-read-list.md")
-		
+
 		// Start with an existing file
 		currentPath := "resources/books/20250101134325-the_dracula_tape.md"
-		
+
 		t.Logf("=== SEQUENTIAL RENAME STRESS TEST ===")
-		
+
 		for i := 1; i <= 3; i++ {
 			newPath := ""
 			switch i {
@@ -154,18 +154,18 @@ func TestFocusedRenameValidation(t *testing.T) {
 			case 3:
 				newPath = "resources/archived/20250101134325-Final Dracula Tape.md"
 			}
-			
+
 			if i == 3 {
 				// Ensure archived directory exists for final move
 				require.NoError(t, os.MkdirAll(filepath.Join(testVaultPath, "resources", "archived"), 0755))
 			}
-			
+
 			result := performSafeRename(t, testVaultPath, currentPath, newPath)
 			assert.Greater(t, result.LinksUpdated, 0, "Should update links in iteration %d", i)
-			
-			t.Logf("  Iteration %d: %s → %s (%d links updated)", 
+
+			t.Logf("  Iteration %d: %s → %s (%d links updated)",
 				i, filepath.Base(currentPath), filepath.Base(newPath), result.LinksUpdated)
-			
+
 			currentPath = newPath
 		}
 
@@ -173,11 +173,11 @@ func TestFocusedRenameValidation(t *testing.T) {
 		finalContent, err := os.ReadFile(readingListPath)
 		require.NoError(t, err)
 		finalStr := string(finalContent)
-		
+
 		assert.Contains(t, finalStr, "Final Dracula Tape", "Should contain final renamed version")
 		assert.Contains(t, finalStr, "archived", "Should reference new archived directory")
 		assert.NotContains(t, finalStr, "the_dracula_tape.md", "Should not contain original name")
-		
+
 		t.Logf("✅ Sequential renames completed successfully")
 	})
 
@@ -190,10 +190,10 @@ func TestFocusedRenameValidation(t *testing.T) {
 			// Create two files with very similar names
 			file1 := filepath.Join(testVaultPath, "resources", "books", "test-file-1.md")
 			file2 := filepath.Join(testVaultPath, "resources", "books", "test-file-11.md")
-			
+
 			require.NoError(t, os.WriteFile(file1, []byte("# Test File 1"), 0644))
 			require.NoError(t, os.WriteFile(file2, []byte("# Test File 11"), 0644))
-			
+
 			// Add links to these files in a test document
 			testDoc := filepath.Join(testVaultPath, "test-similar.md")
 			testContent := `# Test Similar Files
@@ -201,21 +201,21 @@ func TestFocusedRenameValidation(t *testing.T) {
 - [File 11](resources/books/test-file-11.md)
 `
 			require.NoError(t, os.WriteFile(testDoc, []byte(testContent), 0644))
-			
+
 			// Rename file1 to something very different
 			result := performSafeRename(t, testVaultPath, "resources/books/test-file-1.md", "resources/books/RENAMED-different-name.md")
-			
+
 			assert.Equal(t, 1, result.LinksUpdated, "Should update exactly one link")
-			
+
 			// Verify only the correct link was updated
 			updatedContent, err := os.ReadFile(testDoc)
 			require.NoError(t, err)
 			updatedStr := string(updatedContent)
-			
+
 			assert.Contains(t, updatedStr, "RENAMED-different-name.md", "Should contain new name")
 			assert.Contains(t, updatedStr, "test-file-11.md", "Should preserve similar filename")
 			assert.NotContains(t, updatedStr, "test-file-1.md", "Should not contain old name")
-			
+
 			t.Logf("✅ Similar filename disambiguation successful")
 		})
 	})

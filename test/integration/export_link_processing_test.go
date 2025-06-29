@@ -79,8 +79,8 @@ Links in draft: [[external-note]] and [missing](missing.md)`,
 		defer os.RemoveAll(outputDir)
 
 		// Export only published posts with remove strategy
-		output, err := runMdnotesCommand("export", outputDir, vaultPath, 
-			"--query", "tags contains 'published'", 
+		output, err := runMdnotesCommand("export", outputDir, vaultPath,
+			"--query", "tags contains 'published'",
 			"--link-strategy", "remove")
 		assert.NoError(t, err)
 
@@ -209,7 +209,7 @@ Links in draft: [[external-note]] and [missing](missing.md)`,
 
 		outputStr := string(output)
 		assert.Contains(t, outputStr, "Export completed successfully")
-		assert.Contains(t, outputStr, "Exported 4 files") // 4 markdown files
+		assert.Contains(t, outputStr, "Exported 4 files")              // 4 markdown files
 		assert.Contains(t, outputStr, "Files with links processed: 2") // Both blog posts have links
 
 		// Verify both blog files are processed

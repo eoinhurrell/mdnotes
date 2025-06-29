@@ -27,7 +27,7 @@ func NewExportProgressReporter(quiet, verbose bool) *ExportProgressReporter {
 	} else {
 		reporter = NewTerminalProgress()
 	}
-	
+
 	return &ExportProgressReporter{
 		reporter: reporter,
 		quiet:    quiet,
@@ -84,34 +84,34 @@ type ExportOptions struct {
 
 // ExportResult contains the results of an export operation
 type ExportResult struct {
-	VaultPath              string
-	OutputPath             string
-	FilesScanned           int
-	FilesSelected          int
-	FilesExported          int
-	TotalSize              int64
-	SelectedFiles          []string
-	Duration               time.Duration
+	VaultPath     string
+	OutputPath    string
+	FilesScanned  int
+	FilesSelected int
+	FilesExported int
+	TotalSize     int64
+	SelectedFiles []string
+	Duration      time.Duration
 	// Link processing statistics
-	ExternalLinksRemoved   int
-	ExternalLinksConverted int
-	InternalLinksUpdated   int
+	ExternalLinksRemoved    int
+	ExternalLinksConverted  int
+	InternalLinksUpdated    int
 	FilesWithLinksProcessed int
 	// Asset processing statistics
-	AssetsCopied           int
-	AssetsMissing          int
+	AssetsCopied  int
+	AssetsMissing int
 	// Backlinks statistics
-	BacklinksIncluded      int
+	BacklinksIncluded int
 	// Filename processing statistics
-	FilesRenamed           int
+	FilesRenamed int
 	// Performance metrics
-	Performance            *PerformanceMetrics
+	Performance *PerformanceMetrics
 }
 
 // NewExportProcessor creates a new export processor
 func NewExportProcessor(options ExportOptions) *ExportProcessor {
 	scanner := vault.NewScanner(vault.WithIgnorePatterns(options.IgnorePatterns))
-	
+
 	return &ExportProcessor{
 		scanner:  scanner,
 		verbose:  options.Verbose,
@@ -171,7 +171,7 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 		}
 		filenameMap = normalizationResult.FileMap
 		result.FilesRenamed = normalizationResult.RenamedFiles
-		
+
 		if ep.verbose && result.FilesRenamed > 0 {
 			fmt.Printf("Renamed %d files during normalization\n", result.FilesRenamed)
 		}
@@ -193,10 +193,10 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 	// Step 6: Copy files (if not dry run)
 	if !options.DryRun {
 		ep.progress.StartPhase(len(selectedFiles), "📄 Copying files...")
-		
+
 		// Determine if we should use parallel processing
 		useParallel := len(selectedFiles) >= 10 && (options.ParallelWorkers > 1 || options.ParallelWorkers == 0)
-		
+
 		if options.ProcessLinks {
 			// Copy files with link processing and filename normalization
 			var linkResult *LinkProcessingResult
@@ -226,7 +226,7 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 		}
 		result.FilesExported = len(selectedFiles)
 		ep.progress.FinishPhase(fmt.Sprintf("✅ Copied %d files", result.FilesExported))
-		
+
 		// Step 7: Process assets (if requested and not dry run)
 		if options.IncludeAssets {
 			ep.progress.StartPhase(0, "🖼️ Processing assets...")
@@ -240,7 +240,7 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 		}
 	} else {
 		// For dry run, analyze what would be processed
-		
+
 		// Analyze backlinks for dry run
 		if options.WithBacklinks {
 			backlinkResult, err := ep.expandWithBacklinks(ctx, selectedFiles, files, options)
@@ -250,7 +250,7 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 			selectedFiles = append(selectedFiles, backlinkResult.BacklinkFiles...)
 			result.BacklinksIncluded = backlinkResult.TotalBacklinks
 		}
-		
+
 		// Analyze filename normalization for dry run
 		if options.Slugify || options.Flatten {
 			normalizationResult, err := ep.normalizeFilenames(selectedFiles, options)
@@ -260,7 +260,7 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 			filenameMap = normalizationResult.FileMap
 			result.FilesRenamed = normalizationResult.RenamedFiles
 		}
-		
+
 		if options.ProcessLinks {
 			linkResult := ep.analyzeLinkProcessing(selectedFiles, files, options)
 			result.ExternalLinksRemoved = linkResult.ExternalLinksRemoved
@@ -268,7 +268,7 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 			result.InternalLinksUpdated = linkResult.InternalLinksUpdated
 			result.FilesWithLinksProcessed = linkResult.FilesWithLinksProcessed
 		}
-		
+
 		// For dry run with assets, analyze what would be copied
 		if options.IncludeAssets {
 			assetResult := ep.analyzeAssetProcessing(selectedFiles, options)
@@ -278,7 +278,7 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 	}
 
 	result.Duration = time.Since(startTime)
-	
+
 	// Calculate performance metrics
 	result.Performance = &PerformanceMetrics{}
 	if result.FilesExported > 0 {
@@ -288,7 +288,7 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 			options.ParallelWorkers,
 		)
 	}
-	
+
 	return result, nil
 }
 
@@ -332,7 +332,7 @@ func (ep *ExportProcessor) filterFilesByQuery(files []*vault.VaultFile, queryStr
 	for _, file := range files {
 		// Evaluate the expression against this file
 		matches := expression.Evaluate(file)
-		
+
 		if matches {
 			filteredFiles = append(filteredFiles, file)
 		}
@@ -462,7 +462,7 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessing(ctx context.Context, sele
 
 		// Process links in the file
 		linkResult := rewriter.RewriteFileContent(file)
-		
+
 		// Aggregate link processing statistics
 		result.ExternalLinksRemoved += linkResult.ExternalLinksRemoved
 		result.ExternalLinksConverted += linkResult.ExternalLinksConverted
@@ -479,7 +479,7 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessing(ctx context.Context, sele
 
 		if ep.verbose {
 			if len(linkResult.ChangedLinks) > 0 {
-				fmt.Printf("Copied with link processing: %s (%d links processed)\n", 
+				fmt.Printf("Copied with link processing: %s (%d links processed)\n",
 					file.RelativePath, len(linkResult.ChangedLinks))
 			} else {
 				fmt.Printf("Copied: %s\n", file.RelativePath)
@@ -502,7 +502,7 @@ func (ep *ExportProcessor) analyzeLinkProcessing(selectedFiles, allFiles []*vaul
 	for _, file := range selectedFiles {
 		// Process links in the file
 		linkResult := rewriter.RewriteFileContent(file)
-		
+
 		// Aggregate link processing statistics
 		result.ExternalLinksRemoved += linkResult.ExternalLinksRemoved
 		result.ExternalLinksConverted += linkResult.ExternalLinksConverted
@@ -545,17 +545,17 @@ func (ep *ExportProcessor) writeProcessedFile(processedBody string, originalFile
 func (ep *ExportProcessor) processAssets(ctx context.Context, selectedFiles []*vault.VaultFile, options ExportOptions) (*AssetProcessingResult, error) {
 	// Create asset handler
 	assetHandler := NewExportAssetHandler(options.VaultPath, options.OutputPath, ep.verbose)
-	
+
 	// Discover assets referenced by exported files
 	discovery := assetHandler.DiscoverAssets(selectedFiles)
-	
+
 	if ep.verbose && discovery.TotalAssets > 0 {
 		fmt.Printf("Found %d asset references in exported files\n", discovery.TotalAssets)
 	}
-	
+
 	// Copy assets
 	result := assetHandler.ProcessAssets(discovery)
-	
+
 	return result, nil
 }
 
@@ -563,10 +563,10 @@ func (ep *ExportProcessor) processAssets(ctx context.Context, selectedFiles []*v
 func (ep *ExportProcessor) analyzeAssetProcessing(selectedFiles []*vault.VaultFile, options ExportOptions) *AssetProcessingResult {
 	// Create asset handler
 	assetHandler := NewExportAssetHandler(options.VaultPath, options.OutputPath, ep.verbose)
-	
+
 	// Discover assets that would be copied
 	discovery := assetHandler.DiscoverAssets(selectedFiles)
-	
+
 	return &AssetProcessingResult{
 		AssetsCopied:  len(discovery.AssetFiles),
 		AssetsMissing: len(discovery.MissingAssets),
@@ -579,14 +579,14 @@ func (ep *ExportProcessor) analyzeAssetProcessing(selectedFiles []*vault.VaultFi
 func (ep *ExportProcessor) expandWithBacklinks(ctx context.Context, selectedFiles, allFiles []*vault.VaultFile, options ExportOptions) (*BacklinksDiscoveryResult, error) {
 	// Create backlinks handler
 	backlinksHandler := NewExportBacklinksHandler(allFiles, ep.verbose)
-	
+
 	// Discover backlinks
 	result := backlinksHandler.DiscoverBacklinks(ctx, selectedFiles)
-	
+
 	if ep.verbose && result.TotalBacklinks > 0 {
 		fmt.Printf("Found %d backlink files\n", result.TotalBacklinks)
 	}
-	
+
 	return result, nil
 }
 
@@ -596,10 +596,10 @@ func (ep *ExportProcessor) normalizeFilenames(selectedFiles []*vault.VaultFile, 
 		Slugify: options.Slugify,
 		Flatten: options.Flatten,
 	}
-	
+
 	normalizer := NewExportFilenameNormalizer(normalizationOptions, ep.verbose)
 	result := normalizer.NormalizeFilenames(selectedFiles)
-	
+
 	return result, nil
 }
 
@@ -683,7 +683,7 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessingAndNormalization(ctx conte
 
 		// Process links in the file
 		linkResult := rewriter.RewriteFileContent(file)
-		
+
 		// Update links for filename normalization
 		processedContent := linkResult.RewrittenContent
 		if filenameMap[file.RelativePath] != file.RelativePath {
@@ -691,7 +691,7 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessingAndNormalization(ctx conte
 				Slugify: options.Slugify,
 				Flatten: options.Flatten,
 			}, ep.verbose)
-			
+
 			// Create a temporary file with the link-processed content for link normalization
 			tempFile := &vault.VaultFile{
 				Path:         file.Path,
@@ -702,7 +702,7 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessingAndNormalization(ctx conte
 			}
 			processedContent = normalizer.UpdateFileLinks(tempFile, filenameMap)
 		}
-		
+
 		// Aggregate link processing statistics
 		result.ExternalLinksRemoved += linkResult.ExternalLinksRemoved
 		result.ExternalLinksConverted += linkResult.ExternalLinksConverted
@@ -757,7 +757,7 @@ func (ep *ExportProcessor) writeNormalizedFile(processedBody string, originalFil
 // copyFilesWithNormalizationParallel copies files with parallel processing
 func (ep *ExportProcessor) copyFilesWithNormalizationParallel(ctx context.Context, files []*vault.VaultFile, filenameMap map[string]string, options ExportOptions) error {
 	parallelProcessor := NewParallelFileProcessor(options.ParallelWorkers, options.OptimizeMemory, ep.progress)
-	
+
 	// Create a processor function for individual files
 	fileProcessor := func(file *vault.VaultFile, outputPath string, opts ExportOptions) (*FileProcessingResult, error) {
 		// Create output directory for this file
@@ -765,7 +765,7 @@ func (ep *ExportProcessor) copyFilesWithNormalizationParallel(ctx context.Contex
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return nil, fmt.Errorf("creating output directory %s: %w", outputDir, err)
 		}
-		
+
 		// Update links in file content if filename normalization occurred
 		content := file.Body
 		if filenameMap[file.RelativePath] != file.RelativePath {
@@ -775,20 +775,20 @@ func (ep *ExportProcessor) copyFilesWithNormalizationParallel(ctx context.Contex
 			}, ep.verbose)
 			content = normalizer.UpdateFileLinks(file, filenameMap)
 		}
-		
+
 		// Write the file with updated content
 		fullOutputPath := filepath.Join(opts.OutputPath, outputPath)
 		err := ep.writeNormalizedFile(content, file, fullOutputPath)
 		if err != nil {
 			return nil, fmt.Errorf("writing normalized file %s: %w", file.RelativePath, err)
 		}
-		
+
 		return &FileProcessingResult{
 			File:    file,
 			Success: true,
 		}, nil
 	}
-	
+
 	_, err := parallelProcessor.ProcessFilesInParallel(ctx, files, filenameMap, options, fileProcessor)
 	return err
 }
@@ -796,12 +796,12 @@ func (ep *ExportProcessor) copyFilesWithNormalizationParallel(ctx context.Contex
 // copyFilesWithLinkProcessingParallel copies files with link processing using parallel workers
 func (ep *ExportProcessor) copyFilesWithLinkProcessingParallel(ctx context.Context, selectedFiles, allFiles []*vault.VaultFile, filenameMap map[string]string, options ExportOptions) (*LinkProcessingResult, error) {
 	parallelProcessor := NewParallelFileProcessor(options.ParallelWorkers, options.OptimizeMemory, ep.progress)
-	
+
 	// Create link analyzer and rewriter (shared across workers)
 	analyzer := NewExportLinkAnalyzer(selectedFiles, allFiles)
 	strategy := LinkRewriteStrategy(options.LinkStrategy)
 	rewriter := NewExportLinkRewriter(analyzer, strategy)
-	
+
 	// Create a processor function for individual files
 	fileProcessor := func(file *vault.VaultFile, outputPath string, opts ExportOptions) (*FileProcessingResult, error) {
 		// Create output directory for this file
@@ -809,10 +809,10 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessingParallel(ctx context.Conte
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return nil, fmt.Errorf("creating output directory %s: %w", outputDir, err)
 		}
-		
+
 		// Process links in the file
 		linkResult := rewriter.RewriteFileContent(file)
-		
+
 		// Update links for filename normalization
 		processedContent := linkResult.RewrittenContent
 		if filenameMap[file.RelativePath] != file.RelativePath {
@@ -820,7 +820,7 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessingParallel(ctx context.Conte
 				Slugify: opts.Slugify,
 				Flatten: opts.Flatten,
 			}, ep.verbose)
-			
+
 			// Create a temporary file with the link-processed content for link normalization
 			tempFile := &vault.VaultFile{
 				Path:         file.Path,
@@ -831,14 +831,14 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessingParallel(ctx context.Conte
 			}
 			processedContent = normalizer.UpdateFileLinks(tempFile, filenameMap)
 		}
-		
+
 		// Write the processed content to the output file
 		fullOutputPath := filepath.Join(opts.OutputPath, outputPath)
 		err := ep.writeNormalizedFile(processedContent, file, fullOutputPath)
 		if err != nil {
 			return nil, fmt.Errorf("writing processed file %s: %w", file.RelativePath, err)
 		}
-		
+
 		return &FileProcessingResult{
 			File:                   file,
 			Success:                true,
@@ -848,7 +848,6 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessingParallel(ctx context.Conte
 			LinksProcessed:         len(linkResult.ChangedLinks),
 		}, nil
 	}
-	
+
 	return parallelProcessor.ProcessFilesInParallel(ctx, selectedFiles, filenameMap, options, fileProcessor)
 }
-

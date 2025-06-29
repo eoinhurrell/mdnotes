@@ -13,11 +13,11 @@ import (
 
 func TestNewEngine(t *testing.T) {
 	engine := NewEngine()
-	
+
 	assert.NotNil(t, engine)
 	assert.NotNil(t, engine.cache)
 	assert.NotNil(t, engine.funcs)
-	
+
 	// Check that default functions are registered
 	assert.Contains(t, engine.funcs, "current_date")
 	assert.Contains(t, engine.funcs, "current_datetime")
@@ -30,34 +30,34 @@ func TestNewEngine(t *testing.T) {
 
 func TestEngine_Process_SimpleVariable(t *testing.T) {
 	engine := NewEngine()
-	
+
 	ctx := &Context{
 		Filename: "test-file",
 		Title:    "Test Title",
 	}
-	
+
 	result, err := engine.Process("{{.filename}}", ctx)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "test-file", result)
 }
 
 func TestEngine_Process_CurrentDate(t *testing.T) {
 	engine := NewEngine()
-	
+
 	result, err := engine.Process("{{.current_date}}", nil)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, time.Now().Format("2006-01-02"), result)
 }
 
 func TestEngine_Process_CurrentDateTime(t *testing.T) {
 	engine := NewEngine()
-	
+
 	result, err := engine.Process("{{.current_datetime}}", nil)
-	
+
 	require.NoError(t, err)
-	
+
 	// Check that it's a valid datetime format
 	_, err = time.Parse("2006-01-02T15:04:05Z", result)
 	assert.NoError(t, err)
@@ -65,9 +65,9 @@ func TestEngine_Process_CurrentDateTime(t *testing.T) {
 
 func TestEngine_Process_UUID(t *testing.T) {
 	engine := NewEngine()
-	
+
 	result, err := engine.Process("{{.uuid}}", nil)
-	
+
 	require.NoError(t, err)
 	assert.Len(t, result, 36) // UUID format: 8-4-4-4-12
 	assert.Contains(t, result, "-")
@@ -75,7 +75,7 @@ func TestEngine_Process_UUID(t *testing.T) {
 
 func TestEngine_Process_StringFilters(t *testing.T) {
 	engine := NewEngine()
-	
+
 	tests := []struct {
 		name     string
 		template string
@@ -107,7 +107,7 @@ func TestEngine_Process_StringFilters(t *testing.T) {
 			expected: "my-great-title",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := engine.Process(tt.template, tt.ctx)
@@ -119,35 +119,35 @@ func TestEngine_Process_StringFilters(t *testing.T) {
 
 func TestEngine_Process_DateFilter(t *testing.T) {
 	engine := NewEngine()
-	
+
 	testTime := time.Date(2023, 12, 25, 14, 30, 0, 0, time.UTC)
-	
+
 	ctx := &Context{
 		FileModTime: testTime,
 	}
-	
+
 	result, err := engine.Process("{{.file_mtime | date \"2006-01-02\"}}", ctx)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "2023-12-25", result)
 }
 
 func TestEngine_Process_ComplexTemplate(t *testing.T) {
 	engine := NewEngine()
-	
+
 	ctx := &Context{
-		Filename:  "test-note",
-		Title:     "My Test Note",
+		Filename: "test-note",
+		Title:    "My Test Note",
 		Variables: map[string]interface{}{
 			"tags": []string{"test", "example"},
 		},
 	}
-	
+
 	template := "{{.current_date}}-{{.filename | slug}}.md"
 	result, err := engine.Process(template, ctx)
-	
+
 	require.NoError(t, err)
-	
+
 	today := time.Now().Format("2006-01-02")
 	expected := today + "-test-note.md"
 	assert.Equal(t, expected, result)
@@ -155,30 +155,30 @@ func TestEngine_Process_ComplexTemplate(t *testing.T) {
 
 func TestEngine_Process_TemplateCache(t *testing.T) {
 	engine := NewEngine()
-	
+
 	ctx := &Context{Filename: "test"}
 	template := "{{.filename}}"
-	
+
 	// First call - should compile and cache
 	result1, err1 := engine.Process(template, ctx)
 	require.NoError(t, err1)
 	assert.Equal(t, "test", result1)
-	
+
 	// Verify template is cached
 	assert.Len(t, engine.cache, 1)
-	
+
 	// Second call - should use cache
 	result2, err2 := engine.Process(template, ctx)
 	require.NoError(t, err2)
 	assert.Equal(t, "test", result2)
-	
+
 	// Cache should still have one entry
 	assert.Len(t, engine.cache, 1)
 }
 
 func TestEngine_Process_InvalidTemplate(t *testing.T) {
 	engine := NewEngine()
-	
+
 	tests := []struct {
 		name     string
 		template string
@@ -200,7 +200,7 @@ func TestEngine_Process_InvalidTemplate(t *testing.T) {
 			errorMsg: "potentially unsafe directive",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := engine.Process(tt.template, nil)
@@ -212,7 +212,7 @@ func TestEngine_Process_InvalidTemplate(t *testing.T) {
 
 func TestEngine_Slugify(t *testing.T) {
 	engine := NewEngine()
-	
+
 	tests := []struct {
 		input    string
 		expected string
@@ -227,7 +227,7 @@ func TestEngine_Slugify(t *testing.T) {
 		{"123-numbers-456", "123-numbers-456"},
 		{"CamelCaseText", "camelcasetext"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			result := engine.slugify(tt.input)
@@ -240,16 +240,16 @@ func TestEngine_ProcessFile(t *testing.T) {
 	// Create a temporary file
 	tempDir := t.TempDir()
 	testFile := filepath.Join(tempDir, "test-note.md")
-	
+
 	err := os.WriteFile(testFile, []byte("# Test Content"), 0644)
 	require.NoError(t, err)
-	
+
 	engine := NewEngine()
-	
+
 	result, err := engine.ProcessFile("{{.current_date}}-{{.filename | slug}}", testFile)
-	
+
 	require.NoError(t, err)
-	
+
 	today := time.Now().Format("2006-01-02")
 	expected := today + "-test-note"
 	assert.Equal(t, expected, result)
@@ -257,17 +257,17 @@ func TestEngine_ProcessFile(t *testing.T) {
 
 func TestEngine_ProcessFile_NonexistentFile(t *testing.T) {
 	engine := NewEngine()
-	
+
 	// Should still work, just without file modification time
 	result, err := engine.ProcessFile("{{.filename}}", "/nonexistent/file.md")
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "file", result)
 }
 
 func TestEngine_RegisterFunction(t *testing.T) {
 	engine := NewEngine()
-	
+
 	// Register custom function
 	engine.RegisterFunction("reverse", func(s string) string {
 		runes := []rune(s)
@@ -276,22 +276,22 @@ func TestEngine_RegisterFunction(t *testing.T) {
 		}
 		return string(runes)
 	})
-	
+
 	ctx := &Context{Filename: "hello"}
 	result, err := engine.Process("{{.filename | reverse}}", ctx)
-	
+
 	require.NoError(t, err)
 	assert.Equal(t, "olleh", result)
 }
 
 func TestEngine_ClearCache(t *testing.T) {
 	engine := NewEngine()
-	
+
 	// Process a template to populate cache
 	_, err := engine.Process("{{.filename}}", &Context{Filename: "test"})
 	require.NoError(t, err)
 	assert.Len(t, engine.cache, 1)
-	
+
 	// Clear cache
 	engine.ClearCache()
 	assert.Len(t, engine.cache, 0)
@@ -311,7 +311,7 @@ func TestIsTemplate(t *testing.T) {
 		{"{{incomplete", false},
 		{"incomplete}}", false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			result := IsTemplate(tt.input)
@@ -352,7 +352,7 @@ func TestExtractVariables(t *testing.T) {
 			expected: []string{"title"},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ExtractVariables(tt.template)
@@ -363,7 +363,7 @@ func TestExtractVariables(t *testing.T) {
 
 func TestEngine_ValidateVariables(t *testing.T) {
 	engine := NewEngine()
-	
+
 	tests := []struct {
 		name        string
 		template    string
@@ -389,11 +389,11 @@ func TestEngine_ValidateVariables(t *testing.T) {
 			expectError: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := engine.ValidateVariables(tt.template, tt.ctx)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "undefined variables")
@@ -406,7 +406,7 @@ func TestEngine_ValidateVariables(t *testing.T) {
 
 func TestEngine_Process_SecurityValidation(t *testing.T) {
 	engine := NewEngine()
-	
+
 	// Test various potentially dangerous template constructs
 	dangerousTemplates := []string{
 		"{{call .os.Exit}}",
@@ -416,7 +416,7 @@ func TestEngine_Process_SecurityValidation(t *testing.T) {
 		"{{define \"hack\"}}evil{{end}}",
 		"{{template \"external\" .}}",
 	}
-	
+
 	for _, dangerous := range dangerousTemplates {
 		t.Run(dangerous, func(t *testing.T) {
 			_, err := engine.Process(dangerous, nil)
@@ -434,7 +434,7 @@ func BenchmarkEngine_Process(b *testing.B) {
 		Title:    "Test Title",
 	}
 	template := "{{.current_date}}-{{.filename | slug}}"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := engine.Process(template, ctx)
@@ -451,13 +451,13 @@ func BenchmarkEngine_ProcessCached(b *testing.B) {
 		Title:    "Test Title",
 	}
 	template := "{{.current_date}}-{{.filename | slug}}"
-	
+
 	// Pre-compile template
 	_, err := engine.Process(template, ctx)
 	if err != nil {
 		b.Fatal(err)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := engine.Process(template, ctx)
@@ -470,7 +470,7 @@ func BenchmarkEngine_ProcessCached(b *testing.B) {
 func BenchmarkSlugify(b *testing.B) {
 	engine := NewEngine()
 	input := "My Very Long Title With Many Words And Special Characters!"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = engine.slugify(input)

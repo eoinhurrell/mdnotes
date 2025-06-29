@@ -124,7 +124,7 @@ func (p *LinkParser) extractType(content string, linkType LinkType) []Link {
 			// Parse target with potential fragment
 			fullTarget := groups[1]
 			link.Target, link.Fragment = p.parseTargetAndFragment(fullTarget)
-			
+
 			// Parse alias
 			if len(groups) > 2 && groups[2] != "" {
 				link.Alias = groups[2]
@@ -135,24 +135,24 @@ func (p *LinkParser) extractType(content string, linkType LinkType) []Link {
 					link.Text = fullTarget // Include fragment in display
 				}
 			}
-			
+
 		case MarkdownLink:
 			link.Text = groups[1]
-			
+
 			// For markdown links, we need to manually find the balanced closing parenthesis
 			// since our pattern only matches up to the opening parenthesis
 			linkStart := match[0]
 			afterOpenParen := linkStart + len(groups[0])
-			
+
 			target, endPos := p.findBalancedTarget(content, afterOpenParen)
 			if target == "" {
 				continue // Skip malformed links
 			}
-			
+
 			// Update the link position to include the full link
 			link.Position.End = endPos + 1 // +1 for the closing )
 			link.RawText = content[linkStart:link.Position.End]
-			
+
 			// Handle angle bracket encoding
 			if strings.HasPrefix(target, "<") && strings.HasSuffix(target, ">") {
 				target = target[1 : len(target)-1] // Remove < >
@@ -165,10 +165,10 @@ func (p *LinkParser) extractType(content string, linkType LinkType) []Link {
 					link.Encoding = "none"
 				}
 			}
-			
+
 			// Parse target and fragment
 			link.Target, link.Fragment = p.parseTargetAndFragment(target)
-			
+
 		case EmbedLink:
 			// Parse target with potential fragment
 			fullTarget := groups[1]
@@ -186,7 +186,7 @@ func (p *LinkParser) extractType(content string, linkType LinkType) []Link {
 func (p *LinkParser) findBalancedTarget(content string, start int) (target string, endPos int) {
 	depth := 0
 	i := start
-	
+
 	for i < len(content) {
 		switch content[i] {
 		case '(':
@@ -200,7 +200,7 @@ func (p *LinkParser) findBalancedTarget(content string, start int) (target strin
 		}
 		i++
 	}
-	
+
 	// No balanced closing parenthesis found
 	return "", -1
 }
@@ -218,7 +218,7 @@ func (p *LinkParser) parseTargetAndFragment(fullTarget string) (target, fragment
 			decodedTarget = fullTarget
 		}
 	}
-	
+
 	// Find fragment separator
 	if idx := strings.Index(decodedTarget, "#"); idx != -1 {
 		target = decodedTarget[:idx]
@@ -226,7 +226,7 @@ func (p *LinkParser) parseTargetAndFragment(fullTarget string) (target, fragment
 	} else {
 		target = decodedTarget
 	}
-	
+
 	return target, fragment
 }
 
@@ -240,19 +240,19 @@ func (p *LinkParser) IsInternalLink(target string) bool {
 			return false
 		}
 	}
-	
+
 	// Check for domain-like patterns (for wiki links that might reference external)
 	// This is a heuristic - if it looks like a domain, treat as external
-	if strings.Contains(target, ".com") || strings.Contains(target, ".org") || 
-	   strings.Contains(target, ".net") || strings.Contains(target, ".edu") {
+	if strings.Contains(target, ".com") || strings.Contains(target, ".org") ||
+		strings.Contains(target, ".net") || strings.Contains(target, ".edu") {
 		// But allow if it looks like a filename with extension
-		if strings.HasSuffix(target, ".md") || strings.HasSuffix(target, ".png") || 
-		   strings.HasSuffix(target, ".jpg") || strings.HasSuffix(target, ".pdf") {
+		if strings.HasSuffix(target, ".md") || strings.HasSuffix(target, ".png") ||
+			strings.HasSuffix(target, ".jpg") || strings.HasSuffix(target, ".pdf") {
 			return true
 		}
 		return false
 	}
-	
+
 	return true
 }
 

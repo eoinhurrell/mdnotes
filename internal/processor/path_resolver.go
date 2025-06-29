@@ -116,7 +116,7 @@ func (pr *PathResolver) AnalyzeLinkMatch(link vault.Link, filePath string) Match
 	if link.Type == vault.WikiLink {
 		fileBasename := filepath.Base(fileBase)
 		targetBasename := filepath.Base(targetBase)
-		
+
 		if targetBasename == fileBasename || target == filepath.Base(fileRel) {
 			return BaseNameMatch
 		}
@@ -203,7 +203,7 @@ func (pr *PathResolver) ResolveBestMatch(link vault.Link, vaultFiles []*vault.Va
 func (pr *PathResolver) NormalizePath(path string) string {
 	// Convert to slash separators for cross-platform consistency
 	normalized := strings.ReplaceAll(path, "\\", "/")
-	
+
 	// Make relative to vault root if absolute
 	if filepath.IsAbs(normalized) {
 		vaultRootNormalized := strings.ReplaceAll(pr.vaultRoot, "\\", "/")
@@ -211,7 +211,7 @@ func (pr *PathResolver) NormalizePath(path string) string {
 			normalized = rel
 		}
 	}
-	
+
 	return normalized
 }
 
@@ -222,7 +222,7 @@ func (pr *PathResolver) IsVaultRelative(path string) bool {
 		rel, err := filepath.Rel(pr.vaultRoot, path)
 		return err == nil && !strings.HasPrefix(rel, "..")
 	}
-	
+
 	// Relative paths are assumed to be vault-relative
 	return true
 }
@@ -233,11 +233,11 @@ func (pr *PathResolver) GetVaultRelativePath(absolutePath string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("getting vault-relative path: %w", err)
 	}
-	
+
 	if strings.HasPrefix(rel, "..") {
 		return "", fmt.Errorf("path is outside vault: %s", absolutePath)
 	}
-	
+
 	return filepath.ToSlash(rel), nil
 }
 

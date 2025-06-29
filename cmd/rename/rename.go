@@ -58,7 +58,7 @@ Examples:
 
 func runRename(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	
+
 	path := args[0]
 	var templateOrTarget string
 	if len(args) == 2 {
@@ -101,7 +101,7 @@ func runRename(cmd *cobra.Command, args []string) error {
 
 	if info.IsDir() {
 		// Directory mode: rename all markdown files using template
-		return runDirectoryRename(ctx, pathAbs, vaultAbs, templateOrTarget, defaultTemplate, 
+		return runDirectoryRename(ctx, pathAbs, vaultAbs, templateOrTarget, defaultTemplate,
 			ignorePatterns, workers, dryRun, verbose, quiet)
 	} else {
 		// Single file mode: existing logic
@@ -113,7 +113,7 @@ func runRename(cmd *cobra.Command, args []string) error {
 // runSingleFileRename handles renaming a single file
 func runSingleFileRename(ctx context.Context, sourceAbs, vaultAbs, templateOrTarget, defaultTemplate string,
 	ignorePatterns []string, workers int, dryRun, verbose, quiet bool) error {
-	
+
 	var newName string
 	if templateOrTarget != "" {
 		// Use provided target name
@@ -224,7 +224,7 @@ func runSingleFileRename(ctx context.Context, sourceAbs, vaultAbs, templateOrTar
 // runDirectoryRename handles renaming all markdown files in a directory
 func runDirectoryRename(ctx context.Context, pathAbs, vaultAbs, templateOrTarget, defaultTemplate string,
 	ignorePatterns []string, workers int, dryRun, verbose, quiet bool) error {
-	
+
 	// Determine template to use
 	template := defaultTemplate
 	if templateOrTarget != "" {
@@ -283,7 +283,7 @@ func runDirectoryRename(ctx context.Context, pathAbs, vaultAbs, templateOrTarget
 
 		// Construct target path (in same directory as source)
 		targetPath := filepath.Join(filepath.Dir(file.Path), generatedName)
-		
+
 		// Ensure .md extension
 		if !strings.HasSuffix(targetPath, ".md") {
 			targetPath += ".md"
@@ -304,7 +304,7 @@ func runDirectoryRename(ctx context.Context, pathAbs, vaultAbs, templateOrTarget
 		if !isSameFile(file.Path, targetPath) {
 			// Check for conflicts with other files being renamed
 			if conflictFile, exists := targetPaths[targetPath]; exists {
-				op.error = fmt.Errorf("target name conflict: both %s and %s would be renamed to %s", 
+				op.error = fmt.Errorf("target name conflict: both %s and %s would be renamed to %s",
 					file.RelativePath, conflictFile.RelativePath, targetRel)
 				operations = append(operations, op)
 				continue
@@ -400,7 +400,7 @@ func runDirectoryRename(ctx context.Context, pathAbs, vaultAbs, templateOrTarget
 
 		renameProcessor := processor.NewRenameProcessor(options)
 		result, err := renameProcessor.ProcessRename(ctx, op.sourcePath, op.targetPath, options)
-		
+
 		// Clean up processor
 		if cleanupErr := renameProcessor.Cleanup(); cleanupErr != nil && verbose {
 			fmt.Printf("Warning: error during cleanup: %v\n", cleanupErr)
@@ -451,27 +451,22 @@ func isSameFile(path1, path2 string) bool {
 	if path1 == path2 {
 		return true
 	}
-	
+
 	// Get file info for both paths
 	info1, err1 := os.Stat(path1)
 	info2, err2 := os.Stat(path2)
-	
+
 	// If either file doesn't exist, they're not the same
 	if os.IsNotExist(err1) || os.IsNotExist(err2) {
 		return false
 	}
-	
+
 	// If we can't stat either file, fall back to case-insensitive string comparison
 	if err1 != nil || err2 != nil {
 		return strings.EqualFold(path1, path2)
 	}
-	
+
 	// On most filesystems, if the inodes are the same, it's the same file
 	// This works for case-insensitive renames and also handles hard links
 	return os.SameFile(info1, info2)
 }
-
-
-
-
-

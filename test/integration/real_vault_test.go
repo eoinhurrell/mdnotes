@@ -48,7 +48,7 @@ func TestRealVaultLinkUpdating(t *testing.T) {
 		// Parse the link to verify our enhanced parser works
 		linkParser := processor.NewLinkParser()
 		links := linkParser.Extract(originalContentStr)
-		
+
 		var bigKidsLinks []vault.Link
 		for _, link := range links {
 			if strings.Contains(link.Target, "20250525145132") || strings.Contains(link.Target, "Big Kids") {
@@ -59,9 +59,9 @@ func TestRealVaultLinkUpdating(t *testing.T) {
 
 		// Test the enhanced link parsing
 		for _, link := range bigKidsLinks {
-			t.Logf("Found link: Type=%d, Target=%q, Text=%q, Encoding=%q", 
+			t.Logf("Found link: Type=%d, Target=%q, Text=%q, Encoding=%q",
 				link.Type, link.Target, link.Text, link.Encoding)
-			
+
 			if link.Type == vault.MarkdownLink {
 				// Verify URL encoding detection
 				if strings.Contains(link.RawText, "%20") {
@@ -98,7 +98,7 @@ func TestRealVaultLinkUpdating(t *testing.T) {
 		// The rename system should correctly NOT update broken links
 		assert.Equal(t, 0, result.LinksUpdated, "Broken links should NOT be updated")
 
-		t.Logf("Rename results: %d files scanned, %d files modified, %d links updated", 
+		t.Logf("Rename results: %d files scanned, %d files modified, %d links updated",
 			result.FilesScanned, result.FilesModified, result.LinksUpdated)
 
 		// Read updated reading list content
@@ -107,9 +107,9 @@ func TestRealVaultLinkUpdating(t *testing.T) {
 		updatedContentStr := string(updatedContent)
 
 		// Verify the broken link was NOT updated (correct behavior)
-		assert.Contains(t, updatedContentStr, "20250525145132-Big%20Kids.md", 
+		assert.Contains(t, updatedContentStr, "20250525145132-Big%20Kids.md",
 			"Broken link should remain unchanged")
-		assert.NotContains(t, updatedContentStr, "big-kids-renamed.md", 
+		assert.NotContains(t, updatedContentStr, "big-kids-renamed.md",
 			"Broken link should not be 'fixed' automatically")
 
 		// Test that other links are unchanged
@@ -168,19 +168,19 @@ func TestRealVaultLinkUpdating(t *testing.T) {
 		updatedContentStr := string(updatedContent)
 
 		// Verify the link was updated
-		assert.Contains(t, updatedContentStr, "blood-hiding-renamed.md", 
+		assert.Contains(t, updatedContentStr, "blood-hiding-renamed.md",
 			"Reading list should contain updated filename")
-		assert.NotContains(t, updatedContentStr, "blood_s_hiding.md", 
+		assert.NotContains(t, updatedContentStr, "blood_s_hiding.md",
 			"Reading list should not contain old filename")
 
-		t.Logf("Blood's Hiding rename: %d files modified, %d links updated", 
+		t.Logf("Blood's Hiding rename: %d files modified, %d links updated",
 			result.FilesModified, result.LinksUpdated)
 	})
 
 	t.Run("test link parsing with various encoding patterns", func(t *testing.T) {
 		// Test the enhanced link parser on real vault content
 		readingListPath := filepath.Join(absVaultPath, "projects", "20241226230440-2025-to-be-read-list.md")
-		
+
 		content, err := os.ReadFile(readingListPath)
 		require.NoError(t, err)
 
@@ -197,14 +197,14 @@ func TestRealVaultLinkUpdating(t *testing.T) {
 				} else {
 					normalLinks = append(normalLinks, link)
 				}
-				
+
 				if link.HasFragment() {
 					fragmentLinks = append(fragmentLinks, link)
 				}
 			}
 		}
 
-		t.Logf("Found %d total links, %d book links (%d URL-encoded, %d normal, %d with fragments)", 
+		t.Logf("Found %d total links, %d book links (%d URL-encoded, %d normal, %d with fragments)",
 			len(links), len(urlEncodedLinks)+len(normalLinks), len(urlEncodedLinks), len(normalLinks), len(fragmentLinks))
 
 		// Verify we found URL-encoded links

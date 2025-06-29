@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/eoinhurrell/mdnotes/internal/config"
+	"github.com/fsnotify/fsnotify"
 )
 
 // WatchProcessor monitors file system changes and executes configured actions
@@ -277,7 +277,7 @@ func (wp *WatchProcessor) executeMdnotesCommand(args []string, filePath string) 
 	}
 
 	log.Printf("Would execute mdnotes command: %v for file: %s", args, filePath)
-	
+
 	// In a full implementation, this would use the actual command processors
 	// For now, we'll just log the action
 	switch args[0] {

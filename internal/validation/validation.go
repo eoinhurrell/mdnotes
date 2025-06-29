@@ -94,7 +94,7 @@ func (v *Validator) ValidateString(field string, value interface{}, constraints 
 
 	// Length constraints
 	if constraints.MinLength > 0 && len(str) < constraints.MinLength {
-		v.addError(errors.ErrCodeInvalidValue, field, 
+		v.addError(errors.ErrCodeInvalidValue, field,
 			fmt.Sprintf("Field '%s' must be at least %d characters long", field, constraints.MinLength))
 	}
 
@@ -254,8 +254,8 @@ func (v *Validator) ValidatePath(field string, value interface{}, constraints Pa
 		}
 		if !allowed {
 			v.addError(errors.ErrCodePathInvalid, field,
-				fmt.Sprintf("Field '%s' must have one of these extensions: %s", 
-				field, strings.Join(constraints.AllowedExtensions, ", ")))
+				fmt.Sprintf("Field '%s' must have one of these extensions: %s",
+					field, strings.Join(constraints.AllowedExtensions, ", ")))
 		}
 	}
 
@@ -300,7 +300,7 @@ func (v *Validator) ValidateURL(field string, value interface{}, constraints URL
 		if !allowed {
 			v.addError(errors.ErrCodeInvalidValue, field,
 				fmt.Sprintf("Field '%s' must use one of these schemes: %s",
-				field, strings.Join(constraints.AllowedSchemes, ", ")))
+					field, strings.Join(constraints.AllowedSchemes, ", ")))
 		}
 	}
 
@@ -329,11 +329,11 @@ func (v *Validator) ValidateDate(field string, value interface{}, constraints Da
 			"2006-01-02T15:04:05",
 			"2006-01-02 15:04:05",
 		}
-		
+
 		if constraints.Format != "" {
 			formats = []string{constraints.Format}
 		}
-		
+
 		for _, format := range formats {
 			parsed, parseErr := time.Parse(format, val)
 			if parseErr == nil {
@@ -342,7 +342,7 @@ func (v *Validator) ValidateDate(field string, value interface{}, constraints Da
 			}
 			err = parseErr
 		}
-		
+
 		if date.IsZero() {
 			v.addError(errors.ErrCodeInvalidValue, field,
 				fmt.Sprintf("Field '%s' is not a valid date: %v", field, err))
@@ -451,12 +451,12 @@ type NumberConstraints struct {
 
 // PathConstraints defines validation rules for file paths
 type PathConstraints struct {
-	MustBeAbsolute     bool
-	MustExist          bool
-	MustBeDirectory    bool
-	MustBeFile         bool
-	AllowedExtensions  []string
-	PreventTraversal   bool
+	MustBeAbsolute    bool
+	MustExist         bool
+	MustBeDirectory   bool
+	MustBeFile        bool
+	AllowedExtensions []string
+	PreventTraversal  bool
 }
 
 // URLConstraints defines validation rules for URLs
@@ -497,13 +497,13 @@ func ValidateEmail(email string) error {
 func ValidateMarkdownExtension(path string) error {
 	ext := strings.ToLower(filepath.Ext(path))
 	allowed := []string{".md", ".markdown", ".mdown", ".mkd"}
-	
+
 	for _, allowedExt := range allowed {
 		if ext == allowedExt {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("file must have a markdown extension (.md, .markdown, .mdown, .mkd)")
 }
 
@@ -511,13 +511,13 @@ func ValidateMarkdownExtension(path string) error {
 func ValidateYAMLExtension(path string) error {
 	ext := strings.ToLower(filepath.Ext(path))
 	allowed := []string{".yaml", ".yml"}
-	
+
 	for _, allowedExt := range allowed {
 		if ext == allowedExt {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("file must have a YAML extension (.yaml, .yml)")
 }
 
@@ -560,15 +560,15 @@ func SanitizeFilename(filename string) string {
 	// Replace invalid characters with underscores
 	invalid := regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]`)
 	sanitized := invalid.ReplaceAllString(filename, "_")
-	
+
 	// Trim spaces and dots from ends
 	sanitized = strings.Trim(sanitized, " .")
-	
+
 	// Ensure filename is not empty
 	if sanitized == "" {
 		sanitized = "untitled"
 	}
-	
+
 	return sanitized
 }
 
@@ -576,14 +576,14 @@ func SanitizeFilename(filename string) string {
 func SanitizePath(path string) (string, error) {
 	// Clean the path
 	cleaned := filepath.Clean(path)
-	
+
 	// Check for path traversal attempts
 	if strings.Contains(cleaned, "..") {
 		return "", fmt.Errorf("path contains invalid traversal")
 	}
-	
+
 	// Convert to forward slashes for consistency
 	cleaned = filepath.ToSlash(cleaned)
-	
+
 	return cleaned, nil
 }

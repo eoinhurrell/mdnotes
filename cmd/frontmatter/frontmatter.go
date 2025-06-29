@@ -109,7 +109,7 @@ func runEnsure(cmd *cobra.Command, args []string) error {
 			fieldDefaults[field] = nil
 		} else {
 			fieldDefaults[field] = defaultValue
-			
+
 			// Implicit array detection: if default value has bracket notation and no explicit type is set
 			if _, hasExplicitType := types[field]; !hasExplicitType {
 				trimmed := strings.TrimSpace(defaultValue)
@@ -270,7 +270,7 @@ func runSet(cmd *cobra.Command, args []string) error {
 			fieldValues[field] = nil
 		} else {
 			fieldValues[field] = value
-			
+
 			// Implicit array detection: if value has bracket notation and no explicit type is set
 			if _, hasExplicitType := types[field]; !hasExplicitType {
 				trimmed := strings.TrimSpace(value)
@@ -1081,11 +1081,11 @@ func runQuery(cmd *cobra.Command, args []string) error {
 	if fixWith != "" && missingField == "" {
 		return fmt.Errorf("--fix-with can only be used with --missing")
 	}
-	
+
 	if pathsOnly && format != "table" {
 		return fmt.Errorf("--paths-only cannot be used with --format (use --paths-only OR --format)")
 	}
-	
+
 	if pathsOnly {
 		format = "paths"
 	}

@@ -14,7 +14,7 @@ import (
 func TestNewSearcher(t *testing.T) {
 	searcher := NewSearcher()
 	assert.NotNil(t, searcher)
-	
+
 	// Check if ripgrep is available on the system
 	if searcher.IsAvailable() {
 		version, err := searcher.GetVersion()
@@ -25,7 +25,7 @@ func TestNewSearcher(t *testing.T) {
 
 func TestDefaultSearchOptions(t *testing.T) {
 	options := DefaultSearchOptions()
-	
+
 	assert.False(t, options.CaseSensitive)
 	assert.False(t, options.WordBoundary)
 	assert.False(t, options.FixedStrings)
@@ -56,7 +56,7 @@ func TestSearcherNotAvailable(t *testing.T) {
 
 	options := DefaultSearchOptions()
 	options.Pattern = "test"
-	
+
 	_, err = searcher.Search(context.Background(), options)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "ripgrep not available")
@@ -92,7 +92,7 @@ func TestSearchInTestFiles(t *testing.T) {
 
 	// Create temporary test files
 	tmpDir := t.TempDir()
-	
+
 	testFiles := map[string]string{
 		"file1.txt": "This is a test file\nwith multiple lines\ncontaining test data",
 		"file2.txt": "Another file\nwith different content\nno matches here",
@@ -112,10 +112,10 @@ func TestSearchInTestFiles(t *testing.T) {
 
 	results, err := searcher.Search(context.Background(), options)
 	require.NoError(t, err)
-	
+
 	// Should find matches in file1.txt and file3.md
 	assert.Greater(t, len(results), 0)
-	
+
 	// Check that we got actual match results
 	for _, result := range results {
 		assert.Equal(t, "match", result.Type)
@@ -132,10 +132,10 @@ func TestSearchFiles(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	
+
 	testFiles := map[string]string{
-		"match1.txt": "This file contains the keyword",
-		"match2.md":  "# Header\nAnother file with keyword",
+		"match1.txt":  "This file contains the keyword",
+		"match2.md":   "# Header\nAnother file with keyword",
 		"nomatch.txt": "This file does not contain the search term",
 	}
 
@@ -151,15 +151,15 @@ func TestSearchFiles(t *testing.T) {
 
 	files, err := searcher.SearchFiles(context.Background(), options)
 	require.NoError(t, err)
-	
+
 	assert.Len(t, files, 2)
-	
+
 	// Convert to basenames for easier checking
 	basenames := make([]string, len(files))
 	for i, file := range files {
 		basenames[i] = filepath.Base(file)
 	}
-	
+
 	assert.Contains(t, basenames, "match1.txt")
 	assert.Contains(t, basenames, "match2.md")
 	assert.NotContains(t, basenames, "nomatch.txt")
@@ -172,14 +172,14 @@ func TestSearchInFiles(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	
+
 	// Create test files
 	file1 := filepath.Join(tmpDir, "test1.txt")
 	file2 := filepath.Join(tmpDir, "test2.txt")
-	
+
 	err := os.WriteFile(file1, []byte("This file has matches\nand more matches"), 0644)
 	require.NoError(t, err)
-	
+
 	err = os.WriteFile(file2, []byte("This file has no hits"), 0644)
 	require.NoError(t, err)
 
@@ -188,7 +188,7 @@ func TestSearchInFiles(t *testing.T) {
 
 	results, err := searcher.SearchInFiles(context.Background(), "matches", files, options)
 	require.NoError(t, err)
-	
+
 	// Should find matches only in file1
 	assert.Greater(t, len(results), 0)
 	for _, result := range results {
@@ -204,11 +204,11 @@ func TestSearchWithIncludeExcludePatterns(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	
+
 	// Create files with different extensions
 	testFiles := map[string]string{
 		"test.md":   "markdown content",
-		"test.txt":  "text content", 
+		"test.txt":  "text content",
 		"test.log":  "log content",
 		"README.md": "readme content",
 	}
@@ -227,7 +227,7 @@ func TestSearchWithIncludeExcludePatterns(t *testing.T) {
 
 	files, err := searcher.SearchFiles(context.Background(), options)
 	require.NoError(t, err)
-	
+
 	// Should only find .md files
 	for _, file := range files {
 		assert.True(t, filepath.Ext(file) == ".md")
@@ -242,7 +242,7 @@ func TestSearchWithFixedStrings(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	
+
 	// Create file with regex special characters
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := "This file contains $pecial characters like . and *"
@@ -258,7 +258,7 @@ func TestSearchWithFixedStrings(t *testing.T) {
 
 	results, err := searcher.Search(context.Background(), options)
 	require.NoError(t, err)
-	
+
 	assert.Len(t, results, 1)
 	assert.Contains(t, results[0].Data.Lines.Text, "$pecial")
 }
@@ -270,7 +270,7 @@ func TestSearchWithCaseSensitivity(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	
+
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := "This file contains TEST and test"
 	err := os.WriteFile(testFile, []byte(content), 0644)
@@ -300,7 +300,7 @@ func TestCountMatches(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	
+
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := "test line 1\ntest line 2\nanother test line\nno match line"
 	err := os.WriteFile(testFile, []byte(content), 0644)
@@ -356,7 +356,7 @@ func TestSearchWithContext(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	
+
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := "line 1\nline 2\nmatch line\nline 4\nline 5"
 	err := os.WriteFile(testFile, []byte(content), 0644)
@@ -370,7 +370,7 @@ func TestSearchWithContext(t *testing.T) {
 
 	results, err := searcher.Search(context.Background(), options)
 	require.NoError(t, err)
-	
+
 	// With context, we should get multiple results (the match and context lines)
 	assert.Greater(t, len(results), 1)
 }
@@ -387,7 +387,7 @@ func TestSearchTimeout(t *testing.T) {
 
 	options := DefaultSearchOptions()
 	options.Pattern = "test"
-	options.Path = "/"  // Search entire filesystem (should timeout)
+	options.Path = "/" // Search entire filesystem (should timeout)
 
 	_, err := searcher.Search(ctx, options)
 	assert.Error(t, err)

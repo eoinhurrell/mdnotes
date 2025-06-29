@@ -56,7 +56,7 @@ func TestExportError_Unwrap(t *testing.T) {
 
 func TestNewExportError(t *testing.T) {
 	err := NewExportError(ErrInvalidInput, "Test message")
-	
+
 	assert.Equal(t, ErrInvalidInput, err.Type)
 	assert.Equal(t, "Test message", err.Message)
 	assert.Nil(t, err.Cause)
@@ -65,7 +65,7 @@ func TestNewExportError(t *testing.T) {
 func TestNewExportErrorWithCause(t *testing.T) {
 	cause := os.ErrNotExist
 	err := NewExportErrorWithCause(ErrFileSystem, "Test message", cause)
-	
+
 	assert.Equal(t, ErrFileSystem, err.Type)
 	assert.Equal(t, "Test message", err.Message)
 	assert.Equal(t, cause, err.Cause)
@@ -156,7 +156,7 @@ func TestValidateExportInputs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateExportInputs(tt.outputPath, tt.vaultPath, tt.query, tt.linkStrategy, tt.processLinks)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -219,7 +219,7 @@ func TestValidateQuerySyntax(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateQuerySyntax(tt.query)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -270,7 +270,7 @@ func TestValidateOutputPathSafety(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateOutputPathSafety(tt.outputPath)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -287,7 +287,7 @@ func TestValidateAndResolvePaths(t *testing.T) {
 	vaultDir := filepath.Join(tempDir, "vault")
 	outputDir := filepath.Join(tempDir, "output")
 	nonEmptyDir := filepath.Join(tempDir, "nonempty")
-	
+
 	require.NoError(t, os.MkdirAll(vaultDir, 0755))
 	require.NoError(t, os.MkdirAll(nonEmptyDir, 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(nonEmptyDir, "test.txt"), []byte("test"), 0644))
@@ -347,7 +347,7 @@ func TestValidateAndResolvePaths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vaultAbs, outputAbs, err := validateAndResolvePaths(tt.vaultPath, tt.outputPath, tt.dryRun)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				var exportErr *ExportError
@@ -369,47 +369,47 @@ func TestHandleExportError(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		inputError  error
+		name         string
+		inputError   error
 		expectedType ExportErrorType
-		expectedMsg string
+		expectedMsg  string
 	}{
 		{
-			name:        "Context cancelled",
-			inputError:  context.Canceled,
+			name:         "Context cancelled",
+			inputError:   context.Canceled,
 			expectedType: ErrCancellation,
-			expectedMsg: "cancelled",
+			expectedMsg:  "cancelled",
 		},
 		{
-			name:        "Context deadline exceeded",
-			inputError:  context.DeadlineExceeded,
+			name:         "Context deadline exceeded",
+			inputError:   context.DeadlineExceeded,
 			expectedType: ErrCancellation,
-			expectedMsg: "timed out",
+			expectedMsg:  "timed out",
 		},
 		{
-			name:        "Query parsing error",
-			inputError:  mockQueryError{msg: "syntax error"},
+			name:         "Query parsing error",
+			inputError:   mockQueryError{msg: "syntax error"},
 			expectedType: ErrQuery,
-			expectedMsg: "Query error",
+			expectedMsg:  "Query error",
 		},
 		{
-			name:        "Permission error",
-			inputError:  os.ErrPermission,
+			name:         "Permission error",
+			inputError:   os.ErrPermission,
 			expectedType: ErrPermission,
-			expectedMsg: "Permission denied",
+			expectedMsg:  "Permission denied",
 		},
 		{
-			name:        "File not found error",
-			inputError:  os.ErrNotExist,
+			name:         "File not found error",
+			inputError:   os.ErrNotExist,
 			expectedType: ErrFileSystem,
-			expectedMsg: "not found",
+			expectedMsg:  "not found",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := handleExportError(tt.inputError, options)
-			
+
 			var exportErr *ExportError
 			assert.ErrorAs(t, err, &exportErr)
 			assert.Equal(t, tt.expectedType, exportErr.Type)
@@ -431,10 +431,10 @@ func TestHandleExportError_QueryError(t *testing.T) {
 	options := processor.ExportOptions{
 		Query: "invalid syntax",
 	}
-	
+
 	inputError := mockQueryError{msg: "syntax error"}
 	err := handleExportError(inputError, options)
-	
+
 	var exportErr *ExportError
 	assert.ErrorAs(t, err, &exportErr)
 	assert.Equal(t, ErrQuery, exportErr.Type)
@@ -452,10 +452,10 @@ func (e mockProcessingError) Error() string {
 
 func TestHandleExportError_ProcessingError(t *testing.T) {
 	options := processor.ExportOptions{}
-	
+
 	inputError := mockProcessingError{msg: "invalid link format"}
 	err := handleExportError(inputError, options)
-	
+
 	var exportErr *ExportError
 	assert.ErrorAs(t, err, &exportErr)
 	assert.Equal(t, ErrProcessing, exportErr.Type)

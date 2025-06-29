@@ -354,11 +354,11 @@ func TestLinkdingSync_SyncBatch(t *testing.T) {
 // TestLinkdingSync_IsArchivedFlag verifies that bookmarks are created and updated with IsArchived = true
 func TestLinkdingSync_IsArchivedFlag(t *testing.T) {
 	config := LinkdingSyncConfig{
-		URLField:    "url",
-		TitleField:  "title",
-		TagsField:   "tags",
-		SyncTitle:   true,
-		SyncTags:    true,
+		URLField:   "url",
+		TitleField: "title",
+		TagsField:  "tags",
+		SyncTitle:  true,
+		SyncTags:   true,
 	}
 
 	sync := NewLinkdingSync(config)

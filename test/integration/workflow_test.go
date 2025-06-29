@@ -72,18 +72,18 @@ Reference: [[reference-note]]
 		output, err := runMdnotesCommand("analyze", "health", vaultPath)
 		assert.NoError(t, err)
 		assert.Contains(t, string(output), "Score:")
-		
+
 		// Should identify missing frontmatter
 		assert.Contains(t, string(output), "frontmatter")
 	})
 
 	t.Run("Step2_EnsureFrontmatter", func(t *testing.T) {
 		// Ensure all files have basic frontmatter
-		output, err := runMdnotesCommand("frontmatter", "ensure", vaultPath, 
+		output, err := runMdnotesCommand("frontmatter", "ensure", vaultPath,
 			"--field", "created", "--default", "{{current_date}}",
 			"--field", "modified", "--default", "{{file_mtime}}")
 		assert.NoError(t, err)
-		
+
 		// Should have processed files
 		assert.Contains(t, string(output), "Processed:")
 	})
@@ -92,7 +92,7 @@ Reference: [[reference-note]]
 		// Fix heading structure
 		output, err := runMdnotesCommand("headings", "fix", vaultPath, "--ensure-h1-title")
 		assert.NoError(t, err)
-		
+
 		// Should complete without errors
 		assert.NotContains(t, string(output), "Error")
 	})
@@ -101,17 +101,17 @@ Reference: [[reference-note]]
 		// Check for broken links
 		output, err := runMdnotesCommand("links", "check", vaultPath)
 		assert.NoError(t, err)
-		
+
 		// Should complete the check
 		assert.Contains(t, string(output), "complete")
 	})
 
 	t.Run("Step5_QueryContent", func(t *testing.T) {
 		// Query for project files
-		output, err := runMdnotesCommand("frontmatter", "query", vaultPath, 
+		output, err := runMdnotesCommand("frontmatter", "query", vaultPath,
 			"--where", "type = 'project'")
 		assert.NoError(t, err)
-		
+
 		// Should find the project file
 		assert.Contains(t, string(output), "project-alpha")
 	})
@@ -120,7 +120,7 @@ Reference: [[reference-note]]
 		// Analyze link structure
 		output, err := runMdnotesCommand("analyze", "links", vaultPath)
 		assert.NoError(t, err)
-		
+
 		// Should show link analysis
 		assert.Contains(t, string(output), "Link")
 	})
@@ -129,7 +129,7 @@ Reference: [[reference-note]]
 		// Final health check should show improvement
 		output, err := runMdnotesCommand("analyze", "health", vaultPath, "--quiet")
 		assert.NoError(t, err)
-		
+
 		// Should have a health score
 		assert.Contains(t, string(output), "Score:")
 	})
@@ -174,7 +174,7 @@ This note is already processed.
 		// Analyze INBOX content
 		output, err := runMdnotesCommand("analyze", "inbox", vaultPath)
 		assert.NoError(t, err)
-		
+
 		// Should identify INBOX content
 		assert.Contains(t, string(output), "INBOX")
 		assert.Contains(t, string(output), "items")
@@ -182,12 +182,12 @@ This note is already processed.
 
 	t.Run("ProcessFrontmatter", func(t *testing.T) {
 		// Add frontmatter to INBOX file
-		output, err := runMdnotesCommand("frontmatter", "ensure", 
+		output, err := runMdnotesCommand("frontmatter", "ensure",
 			filepath.Join(vaultPath, "INBOX.md"),
 			"--field", "type", "--default", "inbox",
 			"--field", "status", "--default", "needs-processing")
 		assert.NoError(t, err)
-		
+
 		// Should add fields
 		assert.Contains(t, string(output), "Processed:")
 	})
@@ -197,7 +197,7 @@ This note is already processed.
 		output, err := runMdnotesCommand("frontmatter", "query", vaultPath,
 			"--where", "status = 'needs-processing'")
 		assert.NoError(t, err)
-		
+
 		// Should find the INBOX file
 		assert.Contains(t, string(output), "INBOX")
 	})
@@ -256,7 +256,7 @@ This note references:
 		output, err := runMdnotesCommand("rename", messyFile, "--vault", vaultPath,
 			"--template", "{{created|date:20060102}}-{{filename|slug}}.md")
 		assert.NoError(t, err)
-		
+
 		// Should rename and update links
 		assert.Contains(t, string(output), "Renamed:")
 		assert.Contains(t, string(output), "Updated")
@@ -266,7 +266,7 @@ This note references:
 		// Check that links were updated in referencing files
 		output, err := runMdnotesCommand("links", "check", vaultPath)
 		assert.NoError(t, err)
-		
+
 		// Should not have broken links
 		assert.NotContains(t, string(output), "broken")
 	})
@@ -275,7 +275,7 @@ This note references:
 		// Analyze final link structure
 		_, err := runMdnotesCommand("analyze", "links", vaultPath, "--quiet")
 		assert.NoError(t, err)
-		
+
 		// Should complete successfully
 	})
 }
@@ -308,14 +308,14 @@ Content here.
 		t.Run("DryRun_"+strings.Join(cmd[:2], "_"), func(t *testing.T) {
 			output, err := runMdnotesCommand(cmd...)
 			assert.NoError(t, err, "Dry-run command should succeed")
-			
+
 			// Dry-run output should indicate what would be done
 			outputStr := string(output)
-			assert.True(t, 
-				strings.Contains(outputStr, "Would") || 
-				strings.Contains(outputStr, "would") || 
-				strings.Contains(outputStr, "Preview") ||
-				len(outputStr) == 0, // Some commands might produce no output in dry-run
+			assert.True(t,
+				strings.Contains(outputStr, "Would") ||
+					strings.Contains(outputStr, "would") ||
+					strings.Contains(outputStr, "Preview") ||
+					len(outputStr) == 0, // Some commands might produce no output in dry-run
 				"Dry-run should indicate what would be done: %s", outputStr)
 		})
 	}
@@ -325,7 +325,7 @@ Content here.
 		// Original file should still exist and be unchanged
 		content, err := os.ReadFile(filepath.Join(vaultPath, "test.md"))
 		assert.NoError(t, err)
-		
+
 		// Should not contain new_field that was added in dry-run
 		assert.NotContains(t, string(content), "new_field")
 		assert.NotContains(t, string(content), "status: active")

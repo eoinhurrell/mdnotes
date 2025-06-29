@@ -25,7 +25,7 @@ title: Test Note
 # Test Note
 
 This is a test note.`
-	
+
 	err = os.WriteFile(testFile, []byte(content), 0644)
 	require.NoError(t, err)
 
@@ -75,10 +75,10 @@ This is a test note.`
 		t.Run(tt.name, func(t *testing.T) {
 			// Run the command using the built binary
 			output, err := runMdnotesCommand(tt.command...)
-			
+
 			// All commands should succeed
 			assert.NoError(t, err, "Command should not return an error: %s", string(output))
-			
+
 			// Check for expected output if specified
 			if tt.expected != "" {
 				assert.Contains(t, string(output), tt.expected, "Output should contain expected text")
@@ -104,7 +104,7 @@ url: https://example.com
 # Test Note
 
 This is a test note with a URL.`
-	
+
 	err = os.WriteFile(testFile, []byte(content), 0644)
 	require.NoError(t, err)
 
@@ -144,10 +144,10 @@ This is a test note with a URL.`
 		t.Run(tt.name, func(t *testing.T) {
 			// Run the command using the built binary
 			output, err := runMdnotesCommand(tt.command...)
-			
+
 			// All commands should succeed
 			assert.NoError(t, err, "Command should not return an error: %s", string(output))
-			
+
 			// Check for expected output if specified
 			if tt.expected != "" {
 				assert.Contains(t, string(output), tt.expected, "Output should contain expected text")
@@ -173,14 +173,14 @@ tags: [test]
 # Test Note
 
 This is a test note.`
-	
+
 	err = os.WriteFile(testFile, []byte(content), 0644)
 	require.NoError(t, err)
 
 	tests := []struct {
-		name      string
-		fullCmd   []string
-		aliasCmd  []string
+		name     string
+		fullCmd  []string
+		aliasCmd []string
 	}{
 		{
 			name:     "frontmatter ensure vs fm ensure",
@@ -209,15 +209,15 @@ This is a test note.`
 			// Run both commands
 			fullOutput, fullErr := runMdnotesCommand(tt.fullCmd...)
 			aliasOutput, aliasErr := runMdnotesCommand(tt.aliasCmd...)
-			
+
 			// Both should succeed or fail the same way
 			assert.Equal(t, fullErr != nil, aliasErr != nil, "Both commands should have same error status")
-			
+
 			// Outputs should be identical (ignoring timing differences)
 			if fullErr == nil && aliasErr == nil {
 				// For some commands, output might contain timestamps or other variable data
 				// So we check that both contain the same key elements
-				assert.Contains(t, string(aliasOutput), extractKeyContent(string(fullOutput)), 
+				assert.Contains(t, string(aliasOutput), extractKeyContent(string(fullOutput)),
 					"Alias output should contain same key content as full command")
 			}
 		})

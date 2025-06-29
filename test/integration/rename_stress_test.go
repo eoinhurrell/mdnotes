@@ -30,10 +30,10 @@ func TestRenameStressTest(t *testing.T) {
 		defer cleanup()
 
 		readingListPath := filepath.Join(testVaultPath, "projects", "20241226230440-2025-to-be-read-list.md")
-		
+
 		// Verify reading list exists
 		require.FileExists(t, readingListPath)
-		
+
 		// Define stress test scenarios with increasing complexity
 		testScenarios := []struct {
 			name        string
@@ -45,13 +45,13 @@ func TestRenameStressTest(t *testing.T) {
 				description: "Test files with spaces and URL encoding",
 				operations: []RenameOperation{
 					{
-						original: "resources/books/20250525145132-Big%20Kids.md",
-						new:      "resources/books/20250525145132-Big Kids RENAMED.md",
+						original:         "resources/books/20250525145132-Big%20Kids.md",
+						new:              "resources/books/20250525145132-Big Kids RENAMED.md",
 						expectLinkUpdate: true,
 					},
 					{
-						original: "resources/books/20250103125238-Fragments%20of%20Horror.md", 
-						new:      "resources/books/20250103125238-Fragments of Horror RENAMED.md",
+						original:         "resources/books/20250103125238-Fragments%20of%20Horror.md",
+						new:              "resources/books/20250103125238-Fragments of Horror RENAMED.md",
 						expectLinkUpdate: true,
 					},
 				},
@@ -61,13 +61,13 @@ func TestRenameStressTest(t *testing.T) {
 				description: "Test files with special characters and symbols",
 				operations: []RenameOperation{
 					{
-						original: "resources/books/20250103151541-Batman%20Sword%20of%20Azrael%20(1992-).md",
-						new:      "resources/books/20250103151541-Batman & Robin (1992-) SPECIAL.md",
+						original:         "resources/books/20250103151541-Batman%20Sword%20of%20Azrael%20(1992-).md",
+						new:              "resources/books/20250103151541-Batman & Robin (1992-) SPECIAL.md",
 						expectLinkUpdate: true,
 					},
 					{
-						original: "resources/books/20250216145331-Ghazghkull%20Thraka%20Prophet%20of%20the%20Waaagh!.md",
-						new:      "resources/books/20250216145331-Ghazghkull Thraka & Prophet @#$%!.md",
+						original:         "resources/books/20250216145331-Ghazghkull%20Thraka%20Prophet%20of%20the%20Waaagh!.md",
+						new:              "resources/books/20250216145331-Ghazghkull Thraka & Prophet @#$%!.md",
 						expectLinkUpdate: true,
 					},
 				},
@@ -77,13 +77,13 @@ func TestRenameStressTest(t *testing.T) {
 				description: "Test underscore/space mismatches",
 				operations: []RenameOperation{
 					{
-						original: "resources/books/20250527111132-blood_s_hiding.md",
-						new:      "resources/books/20250527111132-blood's hiding RENAMED.md",
+						original:         "resources/books/20250527111132-blood_s_hiding.md",
+						new:              "resources/books/20250527111132-blood's hiding RENAMED.md",
 						expectLinkUpdate: true,
 					},
 					{
-						original: "resources/books/20250518210510-superman_whatever_happened_to_the_man_of_tomorrow.md",
-						new:      "resources/books/20250518210510-Superman: Whatever Happened?.md",
+						original:         "resources/books/20250518210510-superman_whatever_happened_to_the_man_of_tomorrow.md",
+						new:              "resources/books/20250518210510-Superman: Whatever Happened?.md",
 						expectLinkUpdate: true,
 					},
 				},
@@ -93,13 +93,13 @@ func TestRenameStressTest(t *testing.T) {
 				description: "Test moving files between directories",
 				operations: []RenameOperation{
 					{
-						original: "resources/books/20250113221045-flying_to_nowhere.md",
-						new:      "resources/relocated/20250113221045-flying to nowhere MOVED.md",
+						original:         "resources/books/20250113221045-flying_to_nowhere.md",
+						new:              "resources/relocated/20250113221045-flying to nowhere MOVED.md",
 						expectLinkUpdate: true,
 					},
 					{
-						original: "resources/notes/20230201100858-entropy_by_thomas_pynchon.md",
-						new:      "resources/articles/20230201100858-entropy by thomas pynchon MOVED.md", 
+						original:         "resources/notes/20230201100858-entropy_by_thomas_pynchon.md",
+						new:              "resources/articles/20230201100858-entropy by thomas pynchon MOVED.md",
 						expectLinkUpdate: true,
 					},
 				},
@@ -109,13 +109,13 @@ func TestRenameStressTest(t *testing.T) {
 				description: "Test extreme scenarios with multiple special chars",
 				operations: []RenameOperation{
 					{
-						original: "resources/books/20250320215255-In%20the%20Miso%20Soup.md",
-						new:      "resources/books/20250320215255-In the Miso Soup™ (2024) @#$%^&*()+=[]{}|\\:;\"'<>,.?!.md",
+						original:         "resources/books/20250320215255-In%20the%20Miso%20Soup.md",
+						new:              "resources/books/20250320215255-In the Miso Soup™ (2024) @#$%^&*()+=[]{}|\\:;\"'<>,.?!.md",
 						expectLinkUpdate: true,
 					},
 					{
-						original: "resources/books/20241020122921-Polysecure.md",
-						new:      "resources/books/20241020122921-Polysecure™ 测试 файл 🎉.md",
+						original:         "resources/books/20241020122921-Polysecure.md",
+						new:              "resources/books/20241020122921-Polysecure™ 测试 файл 🎉.md",
 						expectLinkUpdate: true,
 					},
 				},
@@ -129,26 +129,26 @@ func TestRenameStressTest(t *testing.T) {
 		for _, scenario := range testScenarios {
 			t.Run(scenario.name, func(t *testing.T) {
 				t.Logf("Testing scenario: %s", scenario.description)
-				
+
 				for i, op := range scenario.operations {
 					t.Logf("  Operation %d: %s → %s", i+1, op.original, op.new)
-					
+
 					// Ensure directories exist for the new path
 					newDir := filepath.Dir(filepath.Join(testVaultPath, op.new))
 					require.NoError(t, os.MkdirAll(newDir, 0755))
-					
+
 					// Perform the rename
 					result := performRename(t, testVaultPath, op.original, op.new)
-					
+
 					if op.expectLinkUpdate {
-						assert.Greater(t, result.LinksUpdated, 0, 
+						assert.Greater(t, result.LinksUpdated, 0,
 							"Expected links to be updated for %s", op.original)
 					}
-					
+
 					totalRenames++
 					totalLinksUpdated += result.LinksUpdated
-					
-					t.Logf("    Result: %d files scanned, %d modified, %d links updated", 
+
+					t.Logf("    Result: %d files scanned, %d modified, %d links updated",
 						result.FilesScanned, result.FilesModified, result.LinksUpdated)
 				}
 			})
@@ -162,17 +162,17 @@ func TestRenameStressTest(t *testing.T) {
 		finalContent, err := os.ReadFile(readingListPath)
 		require.NoError(t, err)
 		finalContentStr := string(finalContent)
-		
+
 		// Basic sanity checks
 		assert.Contains(t, finalContentStr, "# 2025 To Be Read List", "Reading list title should be preserved")
 		assert.Contains(t, finalContentStr, "## Books", "Books section should be preserved")
 		assert.Greater(t, len(strings.Split(finalContentStr, "\n")), 50, "Reading list should still have substantial content")
-		
+
 		// Verify some of our renames are reflected
 		assert.Contains(t, finalContentStr, "Big Kids RENAMED", "Should contain renamed Big Kids")
 		assert.Contains(t, finalContentStr, "blood's hiding RENAMED", "Should contain renamed blood's hiding")
 		assert.Contains(t, finalContentStr, "Fragments of Horror RENAMED", "Should contain renamed Fragments")
-		
+
 		t.Logf("Reading list integrity verified after %d renames", totalRenames)
 	})
 
@@ -182,26 +182,26 @@ func TestRenameStressTest(t *testing.T) {
 		defer cleanup()
 
 		readingListPath := filepath.Join(testVaultPath, "projects", "20241226230440-2025-to-be-read-list.md")
-		
+
 		// Perform rapid sequential renames of the same file
 		currentPath := "resources/books/20250101134325-the_dracula_tape.md"
-		
+
 		for i := 1; i <= 5; i++ {
 			newPath := fmt.Sprintf("resources/books/20250101134325-the_dracula_tape_v%d.md", i)
-			
+
 			result := performRename(t, testVaultPath, currentPath, newPath)
 			assert.Greater(t, result.LinksUpdated, 0, "Should update links in iteration %d", i)
-			
+
 			currentPath = newPath
 		}
 
 		// Verify final state
 		finalContent, err := os.ReadFile(readingListPath)
 		require.NoError(t, err)
-		
+
 		assert.Contains(t, string(finalContent), "the_dracula_tape_v5.md", "Should contain final renamed version")
 		assert.NotContains(t, string(finalContent), "the_dracula_tape.md", "Should not contain original name")
-		
+
 		t.Logf("Sequential rename stress test completed successfully")
 	})
 
@@ -249,11 +249,11 @@ func TestRenameStressTest(t *testing.T) {
 				t.Logf("Rename processor correctly errored on duplicate target: %v", err)
 			}
 		})
-		
+
 		t.Run("very_long_filename", func(t *testing.T) {
 			// Test with extremely long filename
 			longName := strings.Repeat("very_long_name_", 20) + ".md"
-			
+
 			result := performRename(t, testVaultPath, "resources/books/20250601223002-the_queen.md", "resources/books/"+longName)
 			t.Logf("Long filename rename: %d links updated", result.LinksUpdated)
 		})

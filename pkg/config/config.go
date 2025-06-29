@@ -112,8 +112,8 @@ type Loader struct {
 func NewLoader() *Loader {
 	return &Loader{
 		searchPaths: []string{
-			".", // Current working directory
-			"~", // User home directory
+			".",            // Current working directory
+			"~",            // User home directory
 			"/etc/mdnotes", // System-wide directory
 		},
 	}
@@ -122,24 +122,24 @@ func NewLoader() *Loader {
 // Load loads configuration from multiple sources with precedence
 func (l *Loader) Load() (*Config, error) {
 	v := viper.New()
-	
+
 	// Set defaults
 	config := DefaultConfig()
-	
+
 	// Configure viper
 	v.SetConfigName("mdnotes")
 	v.SetConfigType("yaml")
-	
+
 	// Add search paths
 	for _, path := range l.searchPaths {
 		expandedPath := l.expandPath(path)
 		v.AddConfigPath(expandedPath)
 	}
-	
+
 	// Enable environment variable support
 	v.SetEnvPrefix("MDNOTES")
 	v.AutomaticEnv()
-	
+
 	// Try to read configuration
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -147,23 +147,23 @@ func (l *Loader) Load() (*Config, error) {
 		}
 		// Config file not found is OK, we'll use defaults
 	}
-	
+
 	// Unmarshal into struct
 	if err := v.Unmarshal(config); err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
-	
+
 	// Validate configuration
 	if err := l.Validate(config); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
-	
+
 	// Expand paths in configuration
 	config.Vault.Path = l.expandPath(config.Vault.Path)
 	for i, path := range config.Plugins.Paths {
 		config.Plugins.Paths[i] = l.expandPath(path)
 	}
-	
+
 	return config, nil
 }
 
@@ -172,7 +172,7 @@ func (l *Loader) expandPath(path string) string {
 	if path == "" {
 		return path
 	}
-	
+
 	if path[0] == '~' {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -180,13 +180,13 @@ func (l *Loader) expandPath(path string) string {
 		}
 		return filepath.Join(home, path[1:])
 	}
-	
+
 	// Convert to absolute path
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return path // Return original if can't resolve
 	}
-	
+
 	return abs
 }
 
@@ -196,23 +196,23 @@ func (l *Loader) Validate(config *Config) error {
 	if config.Vault.Path == "" {
 		return fmt.Errorf("vault.path cannot be empty")
 	}
-	
+
 	// Validate Linkding configuration if API URL is provided
 	if config.Linkding.APIURL != "" && config.Linkding.APIToken == "" {
 		return fmt.Errorf("linkding.api_token is required when api_url is specified")
 	}
-	
+
 	// Validate export strategy
 	validStrategies := map[string]bool{"remove": true, "url": true, "stub": true}
 	if !validStrategies[config.Export.DefaultStrategy] {
 		return fmt.Errorf("invalid export.default_strategy: %s", config.Export.DefaultStrategy)
 	}
-	
+
 	// Validate performance settings
 	if config.Performance.MaxWorkers < 0 {
 		return fmt.Errorf("performance.max_workers cannot be negative")
 	}
-	
+
 	return nil
 }
 
@@ -223,14 +223,14 @@ func (l *Loader) MigrateLegacy() (*Config, error) {
 		".obsidian-admin.yaml",
 		"obsidian-admin.yaml",
 	}
-	
+
 	for _, legacyFile := range legacyFiles {
 		if _, err := os.Stat(legacyFile); err == nil {
 			// Found legacy config, attempt migration
 			return l.migrateLegacyFile(legacyFile)
 		}
 	}
-	
+
 	return nil, nil // No legacy config found
 }
 
@@ -238,19 +238,19 @@ func (l *Loader) MigrateLegacy() (*Config, error) {
 func (l *Loader) migrateLegacyFile(filename string) (*Config, error) {
 	v := viper.New()
 	v.SetConfigFile(filename)
-	
+
 	var legacyConfig map[string]interface{}
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("error reading legacy config %s: %w", filename, err)
 	}
-	
+
 	if err := v.Unmarshal(&legacyConfig); err != nil {
 		return nil, fmt.Errorf("error parsing legacy config %s: %w", filename, err)
 	}
-	
+
 	// Start with defaults and merge legacy settings
 	config := DefaultConfig()
-	
+
 	// Migrate vault settings
 	if vault, ok := legacyConfig["vault"].(map[string]interface{}); ok {
 		if path, ok := vault["path"].(string); ok {
@@ -265,7 +265,7 @@ func (l *Loader) migrateLegacyFile(filename string) (*Config, error) {
 			}
 		}
 	}
-	
+
 	// Migrate linkding settings
 	if linkding, ok := legacyConfig["linkding"].(map[string]interface{}); ok {
 		if apiURL, ok := linkding["api_url"].(string); ok {
@@ -281,6 +281,6 @@ func (l *Loader) migrateLegacyFile(filename string) (*Config, error) {
 			config.Linkding.SyncTags = syncTags
 		}
 	}
-	
+
 	return config, nil
 }

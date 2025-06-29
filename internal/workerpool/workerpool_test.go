@@ -28,7 +28,7 @@ func TestNewWorkerPool(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
-	
+
 	assert.Greater(t, config.MaxWorkers, 0)
 	assert.Greater(t, config.QueueSize, 0)
 	assert.Greater(t, config.TaskTimeout, time.Duration(0))
@@ -57,13 +57,13 @@ func TestWorkerPoolSubmit(t *testing.T) {
 
 	// Wait for completion
 	time.Sleep(100 * time.Millisecond)
-	
+
 	assert.Equal(t, int64(3), atomic.LoadInt64(&counter))
 }
 
 func TestWorkerPoolSubmitWithTimeout(t *testing.T) {
 	config := DefaultConfig()
-	config.QueueSize = 0 // No queue buffer
+	config.QueueSize = 0  // No queue buffer
 	config.MaxWorkers = 1 // Single worker
 
 	pool := NewWorkerPool(config)
@@ -96,11 +96,11 @@ func TestWorkerPoolResults(t *testing.T) {
 	defer pool.ForceShutdown()
 
 	testError := errors.New("test error")
-	
+
 	successTask := func(ctx context.Context) error {
 		return nil
 	}
-	
+
 	errorTask := func(ctx context.Context) error {
 		return testError
 	}
@@ -108,7 +108,7 @@ func TestWorkerPoolResults(t *testing.T) {
 	// Submit tasks
 	err := pool.Submit(successTask)
 	require.NoError(t, err)
-	
+
 	err = pool.Submit(errorTask)
 	require.NoError(t, err)
 
@@ -124,7 +124,7 @@ func TestWorkerPoolResults(t *testing.T) {
 	}
 
 	assert.Len(t, results, 2)
-	
+
 	// Check we got one success and one error
 	var successCount, errorCount int
 	for _, result := range results {
@@ -137,7 +137,7 @@ func TestWorkerPoolResults(t *testing.T) {
 			assert.Equal(t, testError, result.Error)
 		}
 	}
-	
+
 	assert.Equal(t, 1, successCount)
 	assert.Equal(t, 1, errorCount)
 }
@@ -166,7 +166,7 @@ func TestWorkerPoolStats(t *testing.T) {
 		err := pool.Submit(task)
 		require.NoError(t, err)
 	}
-	
+
 	err := pool.Submit(errorTask)
 	require.NoError(t, err)
 
@@ -320,10 +320,10 @@ func TestWorkerPoolProcessBatch(t *testing.T) {
 	}
 
 	results := pool.ProcessBatch(tasks)
-	
+
 	assert.Len(t, results, 5)
 	assert.Equal(t, int64(5), atomic.LoadInt64(&counter))
-	
+
 	for _, result := range results {
 		assert.NoError(t, result.Error)
 		assert.True(t, result.Completed)
@@ -359,7 +359,7 @@ func TestWorkerPoolProcessBatchWithProgress(t *testing.T) {
 	for p := range progress {
 		progressUpdates = append(progressUpdates, p)
 	}
-	
+
 	assert.Greater(t, len(progressUpdates), 0)
 	assert.Equal(t, 3, progressUpdates[len(progressUpdates)-1]) // Final progress should be 3
 }
@@ -412,7 +412,7 @@ func TestWorkerPoolConcurrentAccess(t *testing.T) {
 	// Submit tasks concurrently
 	const numGoroutines = 10
 	const tasksPerGoroutine = 10
-	
+
 	done := make(chan struct{})
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
@@ -434,7 +434,7 @@ func TestWorkerPoolConcurrentAccess(t *testing.T) {
 
 	expectedTasks := int64(numGoroutines * tasksPerGoroutine)
 	assert.Equal(t, expectedTasks, atomic.LoadInt64(&counter))
-	
+
 	stats := pool.Stats()
 	assert.Equal(t, expectedTasks, stats.TasksSubmitted)
 	assert.Equal(t, expectedTasks, stats.TasksCompleted)

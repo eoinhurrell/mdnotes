@@ -12,9 +12,9 @@ import (
 
 // AssetDiscoveryResult contains information about discovered assets
 type AssetDiscoveryResult struct {
-	AssetFiles     map[string]string // asset path -> source file that references it
-	MissingAssets  []string          // asset paths that don't exist
-	TotalAssets    int               // total number of asset references found
+	AssetFiles    map[string]string // asset path -> source file that references it
+	MissingAssets []string          // asset paths that don't exist
+	TotalAssets   int               // total number of asset references found
 }
 
 // AssetProcessingResult contains the results of asset processing
@@ -27,9 +27,9 @@ type AssetProcessingResult struct {
 
 // ExportAssetHandler handles asset discovery and copying during export
 type ExportAssetHandler struct {
-	vaultPath string
-	outputPath string
-	verbose bool
+	vaultPath           string
+	outputPath          string
+	verbose             bool
 	supportedExtensions []string
 }
 
@@ -61,14 +61,14 @@ func (ah *ExportAssetHandler) DiscoverAssets(files []*vault.VaultFile) *AssetDis
 	for _, file := range files {
 		// Extract all links from the file
 		links := parser.Extract(file.Body)
-		
+
 		for _, link := range links {
 			// Try to resolve as asset path
 			assetPath := ah.resolveAssetPath(link.Target, file.RelativePath)
-			
+
 			if assetPath != "" {
 				result.TotalAssets++
-				
+
 				// Check if asset exists
 				fullAssetPath := filepath.Join(ah.vaultPath, assetPath)
 				if _, err := os.Stat(fullAssetPath); err == nil {
@@ -99,7 +99,7 @@ func (ah *ExportAssetHandler) ProcessAssets(discovery *AssetDiscoveryResult) *As
 		err := ah.copyAssetFile(srcPath, dstPath)
 		if err != nil {
 			if ah.verbose {
-				fmt.Printf("Warning: Failed to copy asset %s (referenced in %s): %v\n", 
+				fmt.Printf("Warning: Failed to copy asset %s (referenced in %s): %v\n",
 					assetPath, sourceFile, err)
 			}
 			result.MissingAssets = append(result.MissingAssets, assetPath)
@@ -107,7 +107,7 @@ func (ah *ExportAssetHandler) ProcessAssets(discovery *AssetDiscoveryResult) *As
 		} else {
 			result.CopiedAssets = append(result.CopiedAssets, assetPath)
 			result.AssetsCopied++
-			
+
 			if ah.verbose {
 				fmt.Printf("Copied asset: %s\n", assetPath)
 			}
@@ -158,12 +158,12 @@ func (ah *ExportAssetHandler) copyAssetFile(srcPath, dstPath string) error {
 func (ah *ExportAssetHandler) resolveAssetPath(target, sourceRelativePath string) string {
 	// Clean the target path
 	target = strings.TrimSpace(target)
-	
-	// Remove any fragment identifiers (#section) 
+
+	// Remove any fragment identifiers (#section)
 	if hashIndex := strings.Index(target, "#"); hashIndex != -1 {
 		target = target[:hashIndex]
 	}
-	
+
 	// Skip if it's not a supported asset extension
 	ext := strings.ToLower(filepath.Ext(target))
 	supported := false
@@ -176,19 +176,19 @@ func (ah *ExportAssetHandler) resolveAssetPath(target, sourceRelativePath string
 	if !supported {
 		return ""
 	}
-	
+
 	// Handle absolute paths from vault root
 	if filepath.IsAbs(target) || strings.HasPrefix(target, "/") {
 		return strings.TrimPrefix(target, "/")
 	}
-	
+
 	// Handle relative paths
 	if strings.Contains(target, "/") {
 		// Try relative to vault root first
 		if ah.assetExists(target) {
 			return target
 		}
-		
+
 		// Try relative to source file directory
 		sourceDir := filepath.Dir(sourceRelativePath)
 		relativePath := filepath.Join(sourceDir, target)
@@ -197,22 +197,22 @@ func (ah *ExportAssetHandler) resolveAssetPath(target, sourceRelativePath string
 		if ah.assetExists(cleanRelativePath) {
 			return cleanRelativePath
 		}
-		
+
 		// Return vault root attempt as fallback
 		return target
 	}
-	
+
 	// Just a filename - try in source directory first, then vault root
 	sourceDir := filepath.Dir(sourceRelativePath)
 	sameDirPath := filepath.Join(sourceDir, target)
 	if ah.assetExists(sameDirPath) {
 		return sameDirPath
 	}
-	
+
 	if ah.assetExists(target) {
 		return target
 	}
-	
+
 	// Return same directory attempt as fallback
 	return sameDirPath
 }

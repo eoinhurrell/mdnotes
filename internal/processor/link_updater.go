@@ -74,14 +74,11 @@ func (u *LinkUpdater) UpdateBatch(files []*vault.VaultFile, moves []FileMove) []
 	return modifiedFiles
 }
 
-
-
 // createUpdatedLink creates the new link text for a moved file
 func (u *LinkUpdater) createUpdatedLink(link vault.Link, newPath string) string {
 	// Use the GenerateUpdatedLink method from the Link struct
 	return link.GenerateUpdatedLink(newPath)
 }
-
 
 // TrackMoves creates a log of file moves for later reference
 func (u *LinkUpdater) TrackMoves(moves []FileMove) MoveLog {

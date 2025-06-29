@@ -75,10 +75,10 @@ type DownloadConfig struct {
 
 // WatchConfig contains file watching settings
 type WatchConfig struct {
-	Enabled         bool                `yaml:"enabled"`
-	DebounceTimeout string              `yaml:"debounce_timeout"`
-	Rules           []WatchRule         `yaml:"rules"`
-	IgnorePatterns  []string            `yaml:"ignore_patterns"`
+	Enabled         bool        `yaml:"enabled"`
+	DebounceTimeout string      `yaml:"debounce_timeout"`
+	Rules           []WatchRule `yaml:"rules"`
+	IgnorePatterns  []string    `yaml:"ignore_patterns"`
 }
 
 // WatchRule defines a file watching rule
@@ -238,12 +238,12 @@ func GetDefaultConfigPaths() []string {
 	return []string{
 		filepath.Join(currentDir, "mdnotes.yaml"),
 		filepath.Join(currentDir, ".mdnotes.yaml"),
-		filepath.Join(currentDir, ".obsidian-admin.yaml"),  // Legacy support
-		filepath.Join(currentDir, "obsidian-admin.yaml"),   // Legacy support
+		filepath.Join(currentDir, ".obsidian-admin.yaml"), // Legacy support
+		filepath.Join(currentDir, "obsidian-admin.yaml"),  // Legacy support
 		filepath.Join(homeDir, ".config", "mdnotes", "config.yaml"),
 		filepath.Join(homeDir, ".mdnotes.yaml"),
 		filepath.Join(homeDir, ".config", "obsidian-admin", "config.yaml"), // Legacy support
-		filepath.Join(homeDir, ".obsidian-admin.yaml"),  // Legacy support
+		filepath.Join(homeDir, ".obsidian-admin.yaml"),                     // Legacy support
 		"/etc/mdnotes/config.yaml",
 		"/etc/obsidian-admin/config.yaml", // Legacy support
 	}

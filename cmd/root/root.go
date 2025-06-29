@@ -38,7 +38,7 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.PersistentFlags().Bool("verbose", false, "Detailed output; prints filepath of every file examined and actions taken")
 	cmd.PersistentFlags().Bool("quiet", false, "Suppress all output except errors and final summary; overrides --verbose")
 	cmd.PersistentFlags().String("config", "", "Config file (default: .obsidian-admin.yaml)")
-	
+
 	// Add global file selection flags
 	cmd.PersistentFlags().String("query", "", "Filter files using query expression (e.g., \"tags contains 'published'\")")
 	cmd.PersistentFlags().String("from-file", "", "Read file list from specified file (one file path per line)")
@@ -81,7 +81,7 @@ func GetGlobalSelectionConfig(cmd *cobra.Command) (selector.SelectionMode, *sele
 	fromFile, _ := cmd.Root().PersistentFlags().GetString("from-file")
 	fromStdin, _ := cmd.Root().PersistentFlags().GetBool("from-stdin")
 	ignorePatterns, _ := cmd.Root().PersistentFlags().GetStringSlice("ignore")
-	
+
 	// Determine selection mode based on flags
 	mode := selector.AutoDetect
 	if fromStdin {
@@ -91,13 +91,13 @@ func GetGlobalSelectionConfig(cmd *cobra.Command) (selector.SelectionMode, *sele
 	} else if query != "" {
 		mode = selector.FilesFromQuery
 	}
-	
+
 	// Create and configure FileSelector
 	fileSelector := selector.NewFileSelector().
 		WithIgnorePatterns(ignorePatterns).
 		WithQuery(query).
 		WithSourceFile(fromFile)
-	
+
 	return mode, fileSelector, nil
 }
 
@@ -107,13 +107,13 @@ func ConfigureFileProcessor(cmd *cobra.Command, processor *processor.FileProcess
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
 	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
-	
+
 	// Get file selection configuration
 	mode, fileSelector, err := GetGlobalSelectionConfig(cmd)
 	if err != nil {
 		return err
 	}
-	
+
 	// Configure processor
 	processor.DryRun = dryRun
 	processor.Verbose = verbose
@@ -122,7 +122,7 @@ func ConfigureFileProcessor(cmd *cobra.Command, processor *processor.FileProcess
 	processor.QueryFilter = fileSelector.QueryFilter
 	processor.SelectionMode = mode
 	processor.SourceFile = fileSelector.SourceFile
-	
+
 	return nil
 }
 
@@ -228,7 +228,7 @@ func setupCustomCompletions(cmd *cobra.Command) {
 		subCmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
 		subCmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
 		subCmd.RegisterFlagCompletionFunc("format", CompleteOutputFormats)
-		
+
 		// Add completion for global shortcuts
 		if subCmd.Name() == "e" {
 			// Global ensure shortcut
@@ -411,7 +411,7 @@ func CompleteFieldTypesWithFormat(cmd *cobra.Command, args []string, toComplete 
 			prefix := parts[0] + ":"
 			types := []string{
 				prefix + "string",
-				prefix + "number", 
+				prefix + "number",
 				prefix + "boolean",
 				prefix + "array",
 				prefix + "date",
@@ -420,14 +420,14 @@ func CompleteFieldTypesWithFormat(cmd *cobra.Command, args []string, toComplete 
 			return types, cobra.ShellCompDirectiveNoFileComp
 		}
 	}
-	
+
 	// Provide both standalone types and common field:type combinations
 	completions := []string{}
-	
+
 	// Standalone types (for single field commands)
 	types := []string{"string", "number", "boolean", "array", "date", "null"}
 	completions = append(completions, types...)
-	
+
 	// Common field:type combinations
 	fields := []string{"title", "tags", "created", "modified", "priority", "status"}
 	for _, field := range fields {
@@ -435,19 +435,19 @@ func CompleteFieldTypesWithFormat(cmd *cobra.Command, args []string, toComplete 
 			completions = append(completions, field+":"+fieldType)
 		}
 	}
-	
+
 	return completions, cobra.ShellCompDirectiveNoFileComp
 }
 
 // CompleteDefaultValues provides completion for default values
 func CompleteDefaultValues(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	defaults := []string{
-		"\"\"",          // empty string
-		"null",          // null value
-		"[]",            // empty array
-		"[\"tag1\"]",    // single item array
-		"0",             // number
-		"false",         // boolean
+		"\"\"",             // empty string
+		"null",             // null value
+		"[]",               // empty array
+		"[\"tag1\"]",       // single item array
+		"0",                // number
+		"false",            // boolean
 		"{{current_date}}", // template variable
 		"{{filename}}",     // template variable
 		"{{uuid}}",         // template variable
@@ -459,7 +459,7 @@ func CompleteDefaultValues(cmd *cobra.Command, args []string, toComplete string)
 func CompleteSyncSources(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	sources := []string{
 		"file-mtime",
-		"file-ctime", 
+		"file-ctime",
 		"file-atime",
 		"filename:pattern:regex",
 		"path:dir",
@@ -473,7 +473,7 @@ func CompleteSyncSources(cmd *cobra.Command, args []string, toComplete string) (
 func CompleteQueryFilters(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	filters := []string{
 		"title:exists",
-		"title:missing", 
+		"title:missing",
 		"tags:exists",
 		"tags:missing",
 		"created:exists",
@@ -540,11 +540,11 @@ func CompleteQualityScores(cmd *cobra.Command, args []string, toComplete string)
 func setupAnalyzeCompletions(cmd *cobra.Command) {
 	for _, subCmd := range cmd.Commands() {
 		subCmd.ValidArgsFunction = CompleteDirs
-		
+
 		// All analyze commands have format flag
 		subCmd.RegisterFlagCompletionFunc("format", CompleteOutputFormats)
 		subCmd.RegisterFlagCompletionFunc("output", CompleteOutputFiles)
-		
+
 		switch subCmd.Name() {
 		case "duplicates":
 			subCmd.RegisterFlagCompletionFunc("type", CompleteDuplicateTypes)
@@ -566,7 +566,7 @@ func setupAnalyzeCompletions(cmd *cobra.Command) {
 func setupLinksCompletions(cmd *cobra.Command) {
 	for _, subCmd := range cmd.Commands() {
 		subCmd.ValidArgsFunction = CompleteDirs
-		
+
 		if subCmd.Name() == "convert" {
 			subCmd.RegisterFlagCompletionFunc("from", CompleteLinkFormats)
 			subCmd.RegisterFlagCompletionFunc("to", CompleteLinkFormats)
@@ -578,7 +578,7 @@ func setupLinksCompletions(cmd *cobra.Command) {
 func setupExportCompletions(cmd *cobra.Command) {
 	// Export takes output directory as first argument, vault path as second
 	cmd.ValidArgsFunction = CompleteDirs
-	
+
 	// Query flag can use existing query completions (to be enhanced in Task 1.2)
 	cmd.RegisterFlagCompletionFunc("query", CompleteQueryExpressions)
 }
@@ -600,7 +600,7 @@ func CompleteQueryExpressions(cmd *cobra.Command, args []string, toComplete stri
 func setupLinkdingCompletions(cmd *cobra.Command) {
 	for _, subCmd := range cmd.Commands() {
 		subCmd.ValidArgsFunction = CompleteDirs
-		
+
 		if subCmd.Name() == "sync" {
 			subCmd.RegisterFlagCompletionFunc("url-field", CompleteFrontmatterFields)
 			subCmd.RegisterFlagCompletionFunc("title-field", CompleteFrontmatterFields)

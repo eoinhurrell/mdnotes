@@ -26,7 +26,7 @@ func TestNewCache(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
-	
+
 	assert.Equal(t, 1000, config.MaxSize)
 	assert.Equal(t, 1*time.Hour, config.DefaultTTL)
 	assert.Nil(t, config.OnEvict)
@@ -55,7 +55,7 @@ func TestCacheSetWithTTL(t *testing.T) {
 
 	// Set with short TTL
 	cache.SetWithTTL("key1", "value1", 50*time.Millisecond)
-	
+
 	// Should exist immediately
 	value, exists := cache.Get("key1")
 	assert.True(t, exists)
@@ -63,7 +63,7 @@ func TestCacheSetWithTTL(t *testing.T) {
 
 	// Wait for expiration
 	time.Sleep(60 * time.Millisecond)
-	
+
 	// Should be expired
 	value, exists = cache.Get("key1")
 	assert.False(t, exists)
@@ -75,7 +75,7 @@ func TestCacheDelete(t *testing.T) {
 
 	cache.Set("key1", "value1")
 	cache.Set("key2", "value2")
-	
+
 	assert.Equal(t, 2, cache.Size())
 
 	// Delete existing key
@@ -104,7 +104,7 @@ func TestCacheClear(t *testing.T) {
 	cache.Set("key1", "value1")
 	cache.Set("key2", "value2")
 	cache.Set("key3", "value3")
-	
+
 	assert.Equal(t, 3, cache.Size())
 
 	cache.Clear()
@@ -185,7 +185,7 @@ func TestCacheStats(t *testing.T) {
 	// Set some values
 	cache.Set("key1", "value1")
 	cache.Set("key2", "value2")
-	
+
 	stats = cache.Stats()
 	assert.Equal(t, int64(2), stats.Sets)
 	assert.Equal(t, int64(2), stats.Size)
@@ -193,10 +193,10 @@ func TestCacheStats(t *testing.T) {
 	// Get hits
 	cache.Get("key1")
 	cache.Get("key1")
-	
+
 	// Get misses
 	cache.Get("nonexistent")
-	
+
 	stats = cache.Stats()
 	assert.Equal(t, int64(2), stats.Hits)
 	assert.Equal(t, int64(1), stats.Misses)
@@ -209,7 +209,7 @@ func TestCacheKeys(t *testing.T) {
 	cache.Set("key1", "value1")
 	cache.Set("key2", "value2")
 	cache.SetWithTTL("key3", "value3", 1*time.Millisecond)
-	
+
 	// Wait for key3 to expire
 	time.Sleep(5 * time.Millisecond)
 
@@ -226,7 +226,7 @@ func TestCacheExpireExpiredEntries(t *testing.T) {
 	cache.Set("key1", "value1")
 	cache.SetWithTTL("key2", "value2", 1*time.Millisecond)
 	cache.SetWithTTL("key3", "value3", 1*time.Millisecond)
-	
+
 	// Wait for expiration
 	time.Sleep(5 * time.Millisecond)
 
@@ -260,7 +260,7 @@ func TestCacheGetOrSet(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "computed1", value) // Original cached value
-	assert.False(t, called) // Provider should not be called
+	assert.False(t, called)             // Provider should not be called
 }
 
 func TestCacheGetOrSetWithError(t *testing.T) {
@@ -270,7 +270,7 @@ func TestCacheGetOrSetWithError(t *testing.T) {
 	value, err := cache.GetOrSet("key1", func() (interface{}, error) {
 		return nil, expectedErr
 	})
-	
+
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 	assert.Nil(t, value)
@@ -296,7 +296,7 @@ func TestCacheGetOrSetWithTTL(t *testing.T) {
 
 	// Wait for expiration
 	time.Sleep(60 * time.Millisecond)
-	
+
 	// Should be expired
 	_, exists = cache.Get("key1")
 	assert.False(t, exists)
@@ -306,7 +306,7 @@ func TestCachePeek(t *testing.T) {
 	cache := NewCache(DefaultConfig())
 
 	cache.Set("key1", "value1")
-	
+
 	// Get initial stats
 	initialStats := cache.Stats()
 
@@ -329,7 +329,7 @@ func TestCacheContains(t *testing.T) {
 	cache := NewCache(DefaultConfig())
 
 	cache.Set("key1", "value1")
-	
+
 	assert.True(t, cache.Contains("key1"))
 	assert.False(t, cache.Contains("nonexistent"))
 }
@@ -338,11 +338,11 @@ func TestCacheGetEntry(t *testing.T) {
 	cache := NewCache(DefaultConfig())
 
 	cache.Set("key1", "value1")
-	
+
 	entry, exists := cache.GetEntry("key1")
 	require.True(t, exists)
 	require.NotNil(t, entry)
-	
+
 	assert.Equal(t, "key1", entry.Key)
 	assert.Equal(t, "value1", entry.Value)
 	assert.Equal(t, int64(1), entry.AccessCount)
@@ -352,13 +352,13 @@ func TestCacheGetEntry(t *testing.T) {
 
 func TestCacheOnEvict(t *testing.T) {
 	evicted := make(map[string]interface{})
-	
+
 	config := DefaultConfig()
 	config.MaxSize = 2
 	config.OnEvict = func(key string, value interface{}) {
 		evicted[key] = value
 	}
-	
+
 	cache := NewCache(config)
 
 	cache.Set("key1", "value1")
@@ -371,19 +371,19 @@ func TestCacheOnEvict(t *testing.T) {
 
 func TestCacheStartCleanupTimer(t *testing.T) {
 	cache := NewCache(DefaultConfig())
-	
+
 	cache.SetWithTTL("key1", "value1", 10*time.Millisecond)
 	cache.SetWithTTL("key2", "value2", 10*time.Millisecond)
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
+
 	// Start cleanup timer with short interval
 	cache.StartCleanupTimer(ctx, 20*time.Millisecond)
-	
+
 	// Wait for cleanup to run
 	time.Sleep(50 * time.Millisecond)
-	
+
 	// Cache should be empty after cleanup
 	assert.Equal(t, 0, cache.Size())
 }
@@ -391,13 +391,13 @@ func TestCacheStartCleanupTimer(t *testing.T) {
 func TestMultiCache(t *testing.T) {
 	config := DefaultConfig()
 	config.MaxSize = 10
-	
+
 	mc := NewMultiCache(config)
 
 	// Get caches
 	cache1 := mc.GetCache("cache1")
 	cache2 := mc.GetCache("cache2")
-	
+
 	assert.NotNil(t, cache1)
 	assert.NotNil(t, cache2)
 	assert.True(t, cache1 != cache2) // Different cache instances
@@ -430,7 +430,7 @@ func TestMultiCache(t *testing.T) {
 
 func TestCacheMiddleware(t *testing.T) {
 	cache := NewCache(DefaultConfig())
-	
+
 	callCount := 0
 	fn := func(args ...interface{}) (interface{}, error) {
 		callCount++
@@ -475,7 +475,7 @@ func TestHash(t *testing.T) {
 
 func TestCacheEntryExpiration(t *testing.T) {
 	now := time.Now()
-	
+
 	// Non-expiring entry
 	entry1 := &CacheEntry{
 		ExpiresAt: time.Time{}, // Zero time means no expiration

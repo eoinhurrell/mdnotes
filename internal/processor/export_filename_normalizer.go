@@ -18,9 +18,9 @@ type FilenameNormalizationOptions struct {
 
 // FilenameNormalizationResult contains the results of filename normalization
 type FilenameNormalizationResult struct {
-	FileMap       map[string]string   // original path -> new path
-	RenamedFiles  int                 // number of files that were renamed
-	Collisions    map[string][]string // filename -> list of original paths that collided
+	FileMap      map[string]string   // original path -> new path
+	RenamedFiles int                 // number of files that were renamed
+	Collisions   map[string][]string // filename -> list of original paths that collided
 }
 
 // FilenameMapping represents a file path mapping
@@ -55,13 +55,13 @@ func (fn *ExportFilenameNormalizer) NormalizeFilenames(files []*vault.VaultFile)
 
 	for _, file := range files {
 		newPath := fn.normalizeFilePath(file.RelativePath)
-		
+
 		if newPath != file.RelativePath {
 			result.RenamedFiles++
 		}
-		
+
 		result.FileMap[file.RelativePath] = newPath
-		
+
 		// Track collisions
 		if newPath != file.RelativePath {
 			filename := filepath.Base(newPath)
@@ -70,7 +70,7 @@ func (fn *ExportFilenameNormalizer) NormalizeFilenames(files []*vault.VaultFile)
 			}
 			result.Collisions[filename] = append(result.Collisions[filename], file.RelativePath)
 		}
-		
+
 		if fn.verbose && newPath != file.RelativePath {
 			fmt.Printf("Normalized: %s -> %s\n", file.RelativePath, newPath)
 		}
@@ -98,7 +98,7 @@ func (fn *ExportFilenameNormalizer) normalizeFilePath(originalPath string) strin
 
 	// Reconstruct filename
 	newFilename := nameWithoutExt + ext
-	
+
 	// Handle collisions by adding numbers
 	newFilename = fn.handleCollisions(newFilename)
 
@@ -113,11 +113,11 @@ func (fn *ExportFilenameNormalizer) normalizeFilePath(originalPath string) strin
 func (fn *ExportFilenameNormalizer) slugify(input string) string {
 	// Convert to lowercase
 	slug := strings.ToLower(input)
-	
+
 	// Replace spaces and underscores with hyphens
 	slug = strings.ReplaceAll(slug, " ", "-")
 	slug = strings.ReplaceAll(slug, "_", "-")
-	
+
 	// Remove or replace special characters
 	// Keep alphanumeric characters, hyphens, and dots
 	var result strings.Builder
@@ -130,18 +130,18 @@ func (fn *ExportFilenameNormalizer) slugify(input string) string {
 		// Skip all other characters
 	}
 	slug = result.String()
-	
+
 	// Clean up multiple consecutive hyphens
 	slug = regexp.MustCompile(`-+`).ReplaceAllString(slug, "-")
-	
+
 	// Remove leading/trailing hyphens
 	slug = strings.Trim(slug, "-")
-	
+
 	// Ensure the slug is not empty
 	if slug == "" {
 		slug = "untitled"
 	}
-	
+
 	return slug
 }
 
@@ -154,15 +154,15 @@ func (fn *ExportFilenameNormalizer) handleCollisions(filename string) string {
 		fn.usedFilenames[filename] = 1
 		return filename
 	}
-	
+
 	// Collision detected, generate a unique filename
 	nameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
 	ext := filepath.Ext(filename)
-	
+
 	for {
 		count++
 		newFilename := fmt.Sprintf("%s-%d%s", nameWithoutExt, count, ext)
-		
+
 		if _, exists := fn.usedFilenames[newFilename]; !exists {
 			fn.usedFilenames[filename] = count
 			fn.usedFilenames[newFilename] = 1
@@ -175,29 +175,29 @@ func (fn *ExportFilenameNormalizer) handleCollisions(filename string) string {
 func (fn *ExportFilenameNormalizer) UpdateFileLinks(file *vault.VaultFile, fileMap map[string]string) string {
 	content := file.Body
 	parser := NewLinkParser()
-	
+
 	// Extract all links
 	links := parser.Extract(content)
-	
+
 	// Process links in reverse order to maintain position accuracy
 	for i := len(links) - 1; i >= 0; i-- {
 		link := links[i]
-		
+
 		// Resolve the link target to see if it needs updating
 		resolvedPath := fn.resolveLinkTarget(link.Target, file.RelativePath)
-		
+
 		if newPath, exists := fileMap[resolvedPath]; exists && newPath != resolvedPath {
 			// Update the link to point to the new filename
 			newTarget := fn.calculateNewLinkTarget(newPath, fileMap[file.RelativePath])
 			newLinkText := fn.createUpdatedLink(link, newTarget)
-			
+
 			// Replace the link in content
 			start := link.Position.Start
 			end := link.Position.End
 			content = content[:start] + newLinkText + content[end:]
 		}
 	}
-	
+
 	return content
 }
 
@@ -205,17 +205,17 @@ func (fn *ExportFilenameNormalizer) UpdateFileLinks(file *vault.VaultFile, fileM
 func (fn *ExportFilenameNormalizer) resolveLinkTarget(target, sourceRelativePath string) string {
 	// Clean the target path
 	target = strings.TrimSpace(target)
-	
+
 	// Remove any fragment identifiers (#section)
 	if hashIndex := strings.Index(target, "#"); hashIndex != -1 {
 		target = target[:hashIndex]
 	}
-	
+
 	// Skip external URLs
 	if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
 		return ""
 	}
-	
+
 	// Handle absolute paths from vault root
 	if filepath.IsAbs(target) || strings.HasPrefix(target, "/") {
 		cleanTarget := strings.TrimPrefix(target, "/")
@@ -225,7 +225,7 @@ func (fn *ExportFilenameNormalizer) resolveLinkTarget(target, sourceRelativePath
 		}
 		return cleanTarget
 	}
-	
+
 	// Handle relative paths
 	if strings.Contains(target, "/") {
 		// For wiki links without extension, try adding .md
@@ -233,20 +233,20 @@ func (fn *ExportFilenameNormalizer) resolveLinkTarget(target, sourceRelativePath
 		if filepath.Ext(target) == "" {
 			targetWithExt = target + ".md"
 		}
-		
+
 		// Try relative to source file directory
 		sourceDir := filepath.Dir(sourceRelativePath)
 		relativePath := filepath.Join(sourceDir, targetWithExt)
 		cleanRelativePath := filepath.Clean(relativePath)
 		return cleanRelativePath
 	}
-	
+
 	// Just a filename - assume same directory first
 	targetWithExt := target
 	if filepath.Ext(target) == "" {
 		targetWithExt = target + ".md"
 	}
-	
+
 	sourceDir := filepath.Dir(sourceRelativePath)
 	return filepath.Join(sourceDir, targetWithExt)
 }
@@ -257,22 +257,22 @@ func (fn *ExportFilenameNormalizer) calculateNewLinkTarget(targetNewPath, source
 		// When flattening, all files are in the same directory
 		return filepath.Base(targetNewPath)
 	}
-	
+
 	// Calculate relative path from source to target
 	sourceDir := filepath.Dir(sourceNewPath)
-	
+
 	if sourceDir == "." {
 		// Source is in root, target path is relative to root
 		return targetNewPath
 	}
-	
+
 	// Calculate relative path
 	relPath, err := filepath.Rel(sourceDir, targetNewPath)
 	if err != nil {
 		// Fallback to absolute path
 		return targetNewPath
 	}
-	
+
 	return relPath
 }
 
@@ -286,15 +286,15 @@ func (fn *ExportFilenameNormalizer) createUpdatedLink(link vault.Link, newTarget
 		}
 		// Simple wiki link: [[target]]
 		return fmt.Sprintf("[[%s]]", newTarget)
-		
+
 	case vault.MarkdownLink:
 		// Markdown link: [text](target)
 		return fmt.Sprintf("[%s](%s)", link.Text, newTarget)
-		
+
 	case vault.EmbedLink:
 		// Embed link: ![[target]]
 		return fmt.Sprintf("![[%s]]", newTarget)
-		
+
 	default:
 		// Fallback - shouldn't happen
 		return fmt.Sprintf("[[%s]]", newTarget)

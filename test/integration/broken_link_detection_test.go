@@ -51,7 +51,7 @@ func TestBrokenLinkDetection(t *testing.T) {
 			// This link points to a file that doesn't exist
 			// Link: [Big Kids](resources/books/20250525145132-Big%20Kids.md)
 			// Actual file: 20250525145132-big_kids.md
-			
+
 			assert.True(t, bigKidsExists, "Actual file should exist")
 			assert.False(t, bigKidsLinkExists, "Link target should NOT exist (broken link)")
 			assert.Contains(t, contentStr, "Big%20Kids.md", "Should contain broken link")
@@ -64,12 +64,12 @@ func TestBrokenLinkDetection(t *testing.T) {
 
 			// Should NOT update the broken link
 			assert.Equal(t, 0, result.LinksUpdated, "Broken links should NOT be updated")
-			
+
 			// Verify the broken link remains unchanged
 			updatedContent, err := os.ReadFile(readingListPath)
 			require.NoError(t, err)
 			updatedStr := string(updatedContent)
-			
+
 			assert.Contains(t, updatedStr, "Big%20Kids.md", "Broken link should remain unchanged")
 			assert.NotContains(t, updatedStr, "big_kids_RENAMED", "Should not contain new filename")
 
@@ -81,7 +81,7 @@ func TestBrokenLinkDetection(t *testing.T) {
 			// This link points to a file that exists
 			// Link: [Blood's Hiding](resources/books/20250527111132-blood_s_hiding.md)
 			// Actual file: 20250527111132-blood_s_hiding.md
-			
+
 			assert.True(t, bloodExists, "Blood file should exist")
 			assert.Contains(t, contentStr, "blood_s_hiding.md", "Should contain valid link")
 
@@ -93,12 +93,12 @@ func TestBrokenLinkDetection(t *testing.T) {
 
 			// Should update the valid link
 			assert.Greater(t, result.LinksUpdated, 0, "Valid links should be updated")
-			
+
 			// Verify the link was updated
 			updatedContent, err := os.ReadFile(readingListPath)
 			require.NoError(t, err)
 			updatedStr := string(updatedContent)
-			
+
 			assert.Contains(t, updatedStr, "blood_s_hiding_RENAMED", "Should contain new filename")
 			assert.NotContains(t, updatedStr, "[Blood's Hiding](resources/books/20250527111132-blood_s_hiding.md)", "Old link should be gone")
 
@@ -130,7 +130,7 @@ func TestBrokenLinkDetection(t *testing.T) {
 		require.NoError(t, os.WriteFile(testDoc, []byte(testContent), 0644))
 
 		// Test renaming blood_s_hiding file
-		result := performRenameOperation(t, testVaultPath, 
+		result := performRenameOperation(t, testVaultPath,
 			"resources/books/20250527111132-blood_s_hiding.md",
 			"resources/books/20250527111132-blood_hiding_fixed.md")
 
@@ -157,7 +157,6 @@ func TestBrokenLinkDetection(t *testing.T) {
 		t.Logf("✅ Correct link behavior validated")
 	})
 }
-
 
 // performRenameOperation executes a single rename operation
 func performRenameOperation(t *testing.T, vaultPath, originalPath, newPath string) *processor.RenameResult {

@@ -40,7 +40,7 @@ func TestPhase4PluginSystemIntegration(t *testing.T) {
 
 		// Initially no plugins loaded
 		assert.Equal(t, 0, manager.GetLoadedPluginCount())
-		
+
 		// Test hook execution with no plugins
 		ctx := context.Background()
 		hookCtx := &plugins.HookContext{
@@ -129,7 +129,7 @@ func TestPhase4PluginSystemIntegration(t *testing.T) {
 
 func testExampleFrontmatterPlugin(t *testing.T) {
 	plugin := plugins.NewExampleFrontmatterPlugin()
-	
+
 	// Initialize plugin
 	config := map[string]interface{}{
 		"required_fields": []string{"title", "created", "tags"},
@@ -173,7 +173,7 @@ func testExampleFrontmatterPlugin(t *testing.T) {
 
 func testExampleContentPlugin(t *testing.T) {
 	plugin := plugins.NewExampleContentPlugin()
-	
+
 	// Initialize plugin
 	err := plugin.Init(map[string]interface{}{})
 	require.NoError(t, err)
@@ -198,15 +198,15 @@ func testExampleContentPlugin(t *testing.T) {
 
 	// Verify content was cleaned up
 	assert.True(t, result.Modified)
-	assert.NotContains(t, result.NewContent, "  ") // No double spaces
+	assert.NotContains(t, result.NewContent, "  ")     // No double spaces
 	assert.NotContains(t, result.NewContent, "\n\n\n") // No triple newlines
-	assert.NotContains(t, result.NewContent, "   ") // No trailing spaces
+	assert.NotContains(t, result.NewContent, "   ")    // No trailing spaces
 	assert.Contains(t, result.Metadata, "content_enhancements")
 }
 
 func testExampleExportPlugin(t *testing.T) {
 	plugin := plugins.NewExampleExportPlugin()
-	
+
 	// Initialize plugin
 	err := plugin.Init(map[string]interface{}{})
 	require.NoError(t, err)
@@ -255,10 +255,10 @@ func TestPhase4ExportIntegration(t *testing.T) {
 		// This test verifies that export functionality is accessible
 		// The actual export functionality is already implemented and tested
 		// in the existing codebase
-		
+
 		// Create a temporary vault structure
 		tmpDir := t.TempDir()
-		
+
 		// Create test markdown files
 		testFiles := map[string]string{
 			"note1.md": `---
@@ -296,7 +296,7 @@ func TestPhase4WatchIntegration(t *testing.T) {
 		// This test verifies that watch functionality is accessible
 		// The actual watch functionality is already implemented and tested
 		// in the existing codebase
-		
+
 		// The watch functionality is verified to exist and work
 		// through the comprehensive implementation in cmd/watch/
 		assert.True(t, true, "Watch functionality is implemented and available")
@@ -320,14 +320,14 @@ func TestPhase4PluginSystemEnd2End(t *testing.T) {
 		}
 
 		manager := plugins.NewPluginManager(config)
-		
+
 		// Simulate loading example plugins manually (since we can't load .so files in tests)
 		frontmatterPlugin := plugins.NewExampleFrontmatterPlugin()
 		contentPlugin := plugins.NewExampleContentPlugin()
-		
+
 		err := frontmatterPlugin.Init(config.Plugins["auto-frontmatter"].(map[string]interface{}))
 		require.NoError(t, err)
-		
+
 		err = contentPlugin.Init(config.Plugins["content-enhancer"].(map[string]interface{}))
 		require.NoError(t, err)
 
@@ -359,16 +359,16 @@ func TestPhase4PluginSystemEnd2End(t *testing.T) {
 		result, err = contentPlugin.ExecuteHook(ctx, plugins.HookPerFile, hookCtx, file)
 		require.NoError(t, err)
 		assert.True(t, result.Modified)
-		assert.NotContains(t, result.NewContent, "  ") // Fixed spacing
+		assert.NotContains(t, result.NewContent, "  ")     // Fixed spacing
 		assert.NotContains(t, result.NewContent, "\n\n\n") // Fixed newlines
 
 		// Cleanup
 		err = frontmatterPlugin.Cleanup()
 		assert.NoError(t, err)
-		
+
 		err = contentPlugin.Cleanup()
 		assert.NoError(t, err)
-		
+
 		err = manager.Cleanup()
 		assert.NoError(t, err)
 	})

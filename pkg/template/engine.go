@@ -262,9 +262,9 @@ func (e *Engine) processConditionals(template string, file *vault.VaultFile) str
 	// Handle {{if condition}}...{{else}}...{{end}} and {{if condition}}...{{end}}
 	ifElsePattern := regexp.MustCompile(`\{\{if\s+([^}]+)\}\}(.*?)\{\{else\}\}(.*?)\{\{end\}\}`)
 	ifOnlyPattern := regexp.MustCompile(`\{\{if\s+([^}]+)\}\}(.*?)\{\{end\}\}`)
-	
+
 	result := template
-	
+
 	// First handle if-else constructs
 	result = ifElsePattern.ReplaceAllStringFunc(result, func(match string) string {
 		matches := ifElsePattern.FindStringSubmatch(match)
@@ -272,7 +272,7 @@ func (e *Engine) processConditionals(template string, file *vault.VaultFile) str
 			condition := strings.TrimSpace(matches[1])
 			trueBranch := matches[2]
 			falseBranch := matches[3]
-			
+
 			if e.evaluateCondition(condition, file) {
 				return trueBranch
 			} else {
@@ -281,14 +281,14 @@ func (e *Engine) processConditionals(template string, file *vault.VaultFile) str
 		}
 		return match
 	})
-	
+
 	// Then handle if-only constructs
 	result = ifOnlyPattern.ReplaceAllStringFunc(result, func(match string) string {
 		matches := ifOnlyPattern.FindStringSubmatch(match)
 		if len(matches) >= 3 {
 			condition := strings.TrimSpace(matches[1])
 			trueBranch := matches[2]
-			
+
 			if e.evaluateCondition(condition, file) {
 				return trueBranch
 			} else {
@@ -297,7 +297,7 @@ func (e *Engine) processConditionals(template string, file *vault.VaultFile) str
 		}
 		return match
 	})
-	
+
 	return result
 }
 

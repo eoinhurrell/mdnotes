@@ -26,13 +26,13 @@ func TestExportLinkRewriter_RewriteFileContent_RemoveStrategy(t *testing.T) {
 	rewriter := NewExportLinkRewriter(analyzer, RemoveStrategy)
 
 	tests := []struct {
-		name                     string
-		file                     *vault.VaultFile
-		content                  string
-		expectedContent          string
-		expectedExternalRemoved  int
+		name                      string
+		file                      *vault.VaultFile
+		content                   string
+		expectedContent           string
+		expectedExternalRemoved   int
 		expectedExternalConverted int
-		expectedInternalUpdated  int
+		expectedInternalUpdated   int
 	}{
 		{
 			name: "remove external wikilinks",
@@ -120,12 +120,12 @@ func TestExportLinkRewriter_RewriteFileContent_URLStrategy(t *testing.T) {
 	rewriter := NewExportLinkRewriter(analyzer, URLStrategy)
 
 	tests := []struct {
-		name                     string
-		file                     *vault.VaultFile
-		content                  string
-		frontmatter              map[string]interface{}
-		expectedContent          string
-		expectedExternalRemoved  int
+		name                      string
+		file                      *vault.VaultFile
+		content                   string
+		frontmatter               map[string]interface{}
+		expectedContent           string
+		expectedExternalRemoved   int
 		expectedExternalConverted int
 	}{
 		{

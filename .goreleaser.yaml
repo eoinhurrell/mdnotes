@@ -32,10 +32,10 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/eoinhurrell/mdnotes/cmd/root.version={{.Version}}
-      - -X github.com/eoinhurrell/mdnotes/cmd/root.commit={{.Commit}}
-      - -X github.com/eoinhurrell/mdnotes/cmd/root.date={{.Date}}
-      - -X github.com/eoinhurrell/mdnotes/cmd/root.builtBy=goreleaser
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
 
 archives:
   - format: tar.gz

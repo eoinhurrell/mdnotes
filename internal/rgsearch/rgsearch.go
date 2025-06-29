@@ -15,17 +15,17 @@ import (
 
 // SearchResult represents a single search result from ripgrep
 type SearchResult struct {
-	Type    string           `json:"type"`
-	Data    SearchResultData `json:"data"`
+	Type string           `json:"type"`
+	Data SearchResultData `json:"data"`
 }
 
 // SearchResultData contains the actual search result data
 type SearchResultData struct {
-	Path        PathData    `json:"path"`
-	Lines       LinesData   `json:"lines"`
-	LineNumber  *int        `json:"line_number,omitempty"`
-	AbsoluteOffset *int     `json:"absolute_offset,omitempty"`
-	Submatches  []Submatch  `json:"submatches,omitempty"`
+	Path           PathData   `json:"path"`
+	Lines          LinesData  `json:"lines"`
+	LineNumber     *int       `json:"line_number,omitempty"`
+	AbsoluteOffset *int       `json:"absolute_offset,omitempty"`
+	Submatches     []Submatch `json:"submatches,omitempty"`
 }
 
 // PathData contains file path information
@@ -52,24 +52,24 @@ type MatchData struct {
 
 // SearchOptions configures ripgrep search behavior
 type SearchOptions struct {
-	Pattern           string
-	Path              string
-	CaseSensitive     bool
-	WordBoundary      bool
-	FixedStrings      bool
-	Regex             bool
-	IncludePatterns   []string
-	ExcludePatterns   []string
-	MaxDepth          int
-	FollowSymlinks    bool
-	SearchZip         bool
-	Multiline         bool
-	ContextBefore     int
-	ContextAfter      int
-	MaxMatches        int
-	MaxFileMatches    int
-	Timeout           time.Duration
-	AdditionalArgs    []string
+	Pattern         string
+	Path            string
+	CaseSensitive   bool
+	WordBoundary    bool
+	FixedStrings    bool
+	Regex           bool
+	IncludePatterns []string
+	ExcludePatterns []string
+	MaxDepth        int
+	FollowSymlinks  bool
+	SearchZip       bool
+	Multiline       bool
+	ContextBefore   int
+	ContextAfter    int
+	MaxMatches      int
+	MaxFileMatches  int
+	Timeout         time.Duration
+	AdditionalArgs  []string
 }
 
 // DefaultSearchOptions returns sensible defaults for ripgrep search
@@ -143,10 +143,10 @@ func (s *Searcher) Search(ctx context.Context, options SearchOptions) ([]SearchR
 	}
 
 	args := s.buildArgs(options)
-	
+
 	// Create command with context
 	cmd := exec.CommandContext(ctx, s.rgPath, args...)
-	
+
 	// Set up output parsing
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -161,7 +161,7 @@ func (s *Searcher) Search(ctx context.Context, options SearchOptions) ([]SearchR
 	// Parse JSON output
 	var results []SearchResult
 	scanner := bufio.NewScanner(stdout)
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -224,12 +224,12 @@ func (s *Searcher) SearchInFiles(ctx context.Context, pattern string, files []st
 	options.Path = "" // Will be handled by file list
 
 	args := s.buildArgs(options)
-	
+
 	// Add file list
 	args = append(args, files...)
 
 	cmd := exec.CommandContext(ctx, s.rgPath, args...)
-	
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("creating stdout pipe: %w", err)
@@ -241,7 +241,7 @@ func (s *Searcher) SearchInFiles(ctx context.Context, pattern string, files []st
 
 	var results []SearchResult
 	scanner := bufio.NewScanner(stdout)
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -301,7 +301,7 @@ func (s *Searcher) CountMatches(ctx context.Context, options SearchOptions) (int
 func (s *Searcher) findRipgrep() (string, bool) {
 	// Try common names
 	names := []string{"rg", "ripgrep"}
-	
+
 	for _, name := range names {
 		if path, err := exec.LookPath(name); err == nil {
 			return path, true

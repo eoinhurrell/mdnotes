@@ -287,7 +287,7 @@ func TestPathResolver_ResolveBestMatch(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := resolver.ResolveBestMatch(tt.link, vaultFiles)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -387,10 +387,10 @@ func TestPathResolver_GetVaultRelativePath(t *testing.T) {
 	resolver := NewPathResolver(tmpDir)
 
 	tests := []struct {
-		name        string
+		name         string
 		absolutePath string
-		expected    string
-		expectError bool
+		expected     string
+		expectError  bool
 	}{
 		{
 			name:         "file in vault root",
@@ -421,7 +421,7 @@ func TestPathResolver_GetVaultRelativePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := resolver.GetVaultRelativePath(tt.absolutePath)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -439,9 +439,9 @@ func TestPathResolver_ResolveAbsolutePath(t *testing.T) {
 	resolver := NewPathResolver(tmpDir)
 
 	tests := []struct {
-		name                string
-		vaultRelativePath   string
-		expected           string
+		name              string
+		vaultRelativePath string
+		expected          string
 	}{
 		{
 			name:              "simple filename",

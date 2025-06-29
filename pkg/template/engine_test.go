@@ -204,34 +204,34 @@ func TestTemplateEngine_DatestringExtraction(t *testing.T) {
 	engine := NewEngine()
 
 	tests := []struct {
-		name                string
-		filename            string
-		expectedDatestring  string
-		expectedFilename    string
+		name               string
+		filename           string
+		expectedDatestring string
+		expectedFilename   string
 	}{
 		{
-			name:                "filename with datestring",
-			filename:            "20250601223002-The Queen",
-			expectedDatestring:  "20250601223002",
-			expectedFilename:    "The Queen",
+			name:               "filename with datestring",
+			filename:           "20250601223002-The Queen",
+			expectedDatestring: "20250601223002",
+			expectedFilename:   "The Queen",
 		},
 		{
-			name:                "filename without datestring",
-			filename:            "Regular Note",
-			expectedDatestring:  "",
-			expectedFilename:    "Regular Note",
+			name:               "filename without datestring",
+			filename:           "Regular Note",
+			expectedDatestring: "",
+			expectedFilename:   "Regular Note",
 		},
 		{
-			name:                "filename with partial datestring",
-			filename:            "2025-Note",
-			expectedDatestring:  "",
-			expectedFilename:    "2025-Note",
+			name:               "filename with partial datestring",
+			filename:           "2025-Note",
+			expectedDatestring: "",
+			expectedFilename:   "2025-Note",
 		},
 		{
-			name:                "complex filename with datestring",
-			filename:            "20231215120000-My Complex Note (Version 2)",
-			expectedDatestring:  "20231215120000",
-			expectedFilename:    "My Complex Note (Version 2)",
+			name:               "complex filename with datestring",
+			filename:           "20231215120000-My Complex Note (Version 2)",
+			expectedDatestring: "20231215120000",
+			expectedFilename:   "My Complex Note (Version 2)",
 		},
 	}
 

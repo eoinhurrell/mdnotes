@@ -289,7 +289,7 @@ func TestClient_ListAssets_NotFound(t *testing.T) {
 
 func TestClient_DownloadAsset(t *testing.T) {
 	testContent := "<html><body><h1>Test HTML</h1><p>This is test content.</p></body></html>"
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/api/bookmarks/123/assets/456/download/", r.URL.Path)

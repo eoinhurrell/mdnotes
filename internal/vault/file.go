@@ -73,12 +73,12 @@ const (
 // Link represents a link in markdown content with comprehensive metadata
 type Link struct {
 	Type     LinkType
-	Target   string   // The target file/path without fragments
-	Text     string   // Display text or alias
-	Fragment string   // Fragment identifier (#heading or #^blockid)
-	Alias    string   // Explicit alias for wiki links
-	Encoding string   // Original encoding style (url, angle, none)
-	RawText  string   // Original link text as found in document
+	Target   string // The target file/path without fragments
+	Text     string // Display text or alias
+	Fragment string // Fragment identifier (#heading or #^blockid)
+	Alias    string // Explicit alias for wiki links
+	Encoding string // Original encoding style (url, angle, none)
+	RawText  string // Original link text as found in document
 	Position Position
 }
 
@@ -114,16 +114,16 @@ func (l Link) ShouldUpdate(oldPath, newPath string) bool {
 		// If link has fragment, we need to compare against the target without fragment
 		linkTarget = l.Target // Target already excludes fragment in our parsing
 	}
-	
+
 	// Remove extensions for comparison
 	oldBase := strings.TrimSuffix(oldPath, ".md")
 	targetBase := strings.TrimSuffix(linkTarget, ".md")
-	
+
 	// For exact path matching, check both original and URL-decoded versions
 	if linkTarget == oldPath || targetBase == oldBase {
 		return true
 	}
-	
+
 	// Also check URL-decoded version of the link target against the old path
 	if decodedTarget, err := url.QueryUnescape(linkTarget); err == nil {
 		decodedBase := strings.TrimSuffix(decodedTarget, ".md")
@@ -131,24 +131,24 @@ func (l Link) ShouldUpdate(oldPath, newPath string) bool {
 			return true
 		}
 	}
-	
+
 	// Check if oldPath URL-encoded matches the link target
 	encodedOldPath := obsidianURLEncode(oldPath)
 	encodedOldBase := strings.TrimSuffix(encodedOldPath, ".md")
 	if linkTarget == encodedOldPath || targetBase == encodedOldBase {
 		return true
 	}
-	
+
 	// For wiki links, allow basename-only matches but only exact matches
 	if l.Type == WikiLink {
 		oldBasename := filepath.Base(oldBase)
 		targetBasename := filepath.Base(targetBase)
-		
+
 		// Exact basename match (case-sensitive for file system accuracy)
 		if targetBasename == oldBasename || linkTarget == filepath.Base(oldPath) {
 			return true
 		}
-		
+
 		// Also check URL-decoded basename matching
 		if decodedTarget, err := url.QueryUnescape(linkTarget); err == nil {
 			decodedBasename := filepath.Base(strings.TrimSuffix(decodedTarget, ".md"))
@@ -157,38 +157,38 @@ func (l Link) ShouldUpdate(oldPath, newPath string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
 // GenerateUpdatedLink creates the new link text for a moved file
 func (l Link) GenerateUpdatedLink(newPath string) string {
 	newTarget := newPath
-	
+
 	switch l.Type {
 	case WikiLink:
 		// Remove .md extension for wiki links
 		newTarget = strings.TrimSuffix(newPath, ".md")
-		
+
 		// Add fragment if present
 		if l.Fragment != "" {
 			newTarget += "#" + l.Fragment
 		}
-		
+
 		// Check if we need an alias
 		if l.Alias != "" {
 			return "[[" + newTarget + "|" + l.Alias + "]]"
 		} else {
 			return "[[" + newTarget + "]]"
 		}
-		
+
 	case MarkdownLink:
 		// Apply encoding to the path part only, then add fragment
 		encodedPath := newTarget
 		if l.Encoding == "url" || needsURLEncoding(newTarget) {
 			encodedPath = obsidianURLEncode(newTarget)
 		}
-		
+
 		// Add fragment after encoding (encode fragment if it contains special characters)
 		if l.Fragment != "" {
 			if needsURLEncoding(l.Fragment) {
@@ -198,25 +198,25 @@ func (l Link) GenerateUpdatedLink(newPath string) string {
 				encodedPath += "#" + l.Fragment
 			}
 		}
-		
+
 		// Apply angle bracket wrapping if needed
 		if l.Encoding == "angle" {
 			encodedPath = "<" + encodedPath + ">"
 		}
-		
+
 		return "[" + l.Text + "](" + encodedPath + ")"
-		
+
 	case EmbedLink:
 		// Remove .md extension for embed links
 		newTarget = strings.TrimSuffix(newPath, ".md")
-		
+
 		// Add fragment if present
 		if l.Fragment != "" {
 			newTarget += "#" + l.Fragment
 		}
-		
+
 		return "![[" + newTarget + "]]"
-		
+
 	default:
 		return l.RawText
 	}
