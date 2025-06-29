@@ -3,6 +3,7 @@ package rename
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -32,6 +33,23 @@ func createTestFile(t *testing.T, dir, filename, content string) string {
 func runCommand(t *testing.T, cmd *cobra.Command, args []string) error {
 	cmd.SetArgs(args)
 	return cmd.Execute()
+}
+
+// Test helper to run command with root command and global flags
+func runCommandWithRoot(t *testing.T, cmd *cobra.Command, args []string) error {
+	// Create a root command with global flags like the real CLI
+	rootCmd := &cobra.Command{Use: "mdnotes"}
+	rootCmd.PersistentFlags().Bool("dry-run", false, "Preview changes without applying them")
+	rootCmd.PersistentFlags().Bool("verbose", false, "Detailed output")
+	rootCmd.PersistentFlags().Bool("quiet", false, "Suppress output")
+	
+	rootCmd.AddCommand(cmd)
+	
+	// Prepend "rename" to args since we're running from root
+	fullArgs := append([]string{"rename"}, args...)
+	rootCmd.SetArgs(fullArgs)
+	
+	return rootCmd.Execute()
 }
 
 func TestRenameCommand_Basic(t *testing.T) {
@@ -515,6 +533,247 @@ This file doesn't have a datestring prefix.`
 	// Should be in format YYYYMMDDHHMMSS-regular_note.md with underscores
 	assert.Regexp(t, `^\d{14}-regular_note\.md$`, renamedName)
 	assert.Contains(t, renamedName, "regular_note") // underscores not hyphens
+}
+
+func TestRenameCommand_DirectoryBasic(t *testing.T) {
+	tmpDir := createTestVault(t)
+	
+	// Create several test files with various names
+	file1Content := `---
+title: First Note
+created: 2023-01-01
+---
+
+# First Note
+This is the first note.`
+	
+	file2Content := `---
+title: Second Note  
+created: 2023-01-02
+---
+
+# Second Note
+This is the second note.`
+	
+	file3Content := `---
+title: Third Note
+created: 2023-01-03
+---
+
+# Third Note
+References: [[messy filename]] and [[another note]]`
+	
+	createTestFile(t, tmpDir, "messy filename.md", file1Content)
+	createTestFile(t, tmpDir, "another note.md", file2Content)
+	createTestFile(t, tmpDir, "third-note.md", file3Content)
+	
+	cmd := NewRenameCommand()
+	
+	// Rename all files in directory using default template
+	args := []string{
+		tmpDir,
+		"--vault", tmpDir,
+	}
+	
+	err := runCommand(t, cmd, args)
+	assert.NoError(t, err)
+	
+	// Check that files were renamed according to template
+	entries, err := os.ReadDir(tmpDir)
+	require.NoError(t, err)
+	
+	var renamedFiles []string
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".md") {
+			renamedFiles = append(renamedFiles, entry.Name())
+		}
+	}
+	
+	// Should have 3 renamed files with datestring prefixes
+	assert.Len(t, renamedFiles, 3)
+	for _, filename := range renamedFiles {
+		assert.Regexp(t, `^\d{14}-.*\.md$`, filename, "File should have datestring prefix")
+	}
+	
+	// Verify references were updated
+	for _, filename := range renamedFiles {
+		if strings.Contains(filename, "third") {
+			content, err := os.ReadFile(filepath.Join(tmpDir, filename))
+			require.NoError(t, err)
+			
+			contentStr := string(content)
+			// Should still contain references, but with updated names
+			assert.Contains(t, contentStr, "References:")
+		}
+	}
+}
+
+func TestRenameCommand_DirectoryWithCustomTemplate(t *testing.T) {
+	tmpDir := createTestVault(t)
+	
+	// Create test files
+	file1Content := `---
+title: Test One
+created: 2023-05-01
+---
+
+# Test One`
+	
+	file2Content := `---
+title: Test Two
+created: 2023-05-02
+---
+
+# Test Two`
+	
+	createTestFile(t, tmpDir, "file1.md", file1Content)
+	createTestFile(t, tmpDir, "file2.md", file2Content)
+	
+	cmd := NewRenameCommand()
+	
+	// Use custom template
+	customTemplate := "{{created|date:2006-01-02}}-{{title|slug}}.md"
+	args := []string{
+		tmpDir,
+		customTemplate,
+		"--vault", tmpDir,
+	}
+	
+	err := runCommand(t, cmd, args)
+	assert.NoError(t, err)
+	
+	// Verify files were renamed with custom template
+	expectedFiles := []string{
+		"2023-05-01-test-one.md",
+		"2023-05-02-test-two.md",
+	}
+	
+	for _, expectedFile := range expectedFiles {
+		filePath := filepath.Join(tmpDir, expectedFile)
+		_, err := os.Stat(filePath)
+		assert.NoError(t, err, "Expected file should exist: %s", expectedFile)
+	}
+}
+
+func TestRenameCommand_DirectoryWithSubdirectories(t *testing.T) {
+	tmpDir := createTestVault(t)
+	
+	// Create subdirectories with files
+	subDir1 := filepath.Join(tmpDir, "subdir1")
+	subDir2 := filepath.Join(tmpDir, "subdir2")
+	require.NoError(t, os.MkdirAll(subDir1, 0755))
+	require.NoError(t, os.MkdirAll(subDir2, 0755))
+	
+	// Create files in root and subdirectories
+	createTestFile(t, tmpDir, "root-file.md", "# Root File")
+	createTestFile(t, subDir1, "sub1-file.md", "# Sub1 File")
+	createTestFile(t, subDir2, "sub2-file.md", "# Sub2 File")
+	
+	cmd := NewRenameCommand()
+	
+	// Rename all files recursively
+	args := []string{
+		tmpDir,
+		"--vault", tmpDir,
+	}
+	
+	err := runCommand(t, cmd, args)
+	assert.NoError(t, err)
+	
+	// Check files in all directories were processed
+	checkDir := func(dir string) {
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		
+		for _, entry := range entries {
+			if strings.HasSuffix(entry.Name(), ".md") {
+				// All .md files should have datestring prefixes
+				assert.Regexp(t, `^\d{14}-.*\.md$`, entry.Name())
+			}
+		}
+	}
+	
+	checkDir(tmpDir)
+	checkDir(subDir1)
+	checkDir(subDir2)
+}
+
+func TestRenameCommand_DirectoryNoFilesNeedRename(t *testing.T) {
+	tmpDir := createTestVault(t)
+	
+	// Create files that already match the template pattern
+	existingContent := `---
+title: Already Good
+created: 2023-01-01
+---
+
+# Already Good`
+	
+	// Create file that already has correct naming pattern
+	createTestFile(t, tmpDir, "20230101120000-already_good.md", existingContent)
+	
+	cmd := NewRenameCommand()
+	
+	args := []string{
+		tmpDir,
+		"--vault", tmpDir,
+	}
+	
+	err := runCommand(t, cmd, args)
+	assert.NoError(t, err, "Should succeed even if no files need renaming")
+	
+	// File should still exist unchanged
+	_, err = os.Stat(filepath.Join(tmpDir, "20230101120000-already_good.md"))
+	assert.NoError(t, err, "Original file should remain unchanged")
+}
+
+func TestRenameCommand_DirectoryDryRun(t *testing.T) {
+	tmpDir := createTestVault(t)
+	
+	// Create test files
+	createTestFile(t, tmpDir, "test file.md", `---
+title: Test File
+created: 2023-01-01
+---
+
+# Test File`)
+	
+	createTestFile(t, tmpDir, "another-file.md", `---
+title: Another File  
+created: 2023-01-02
+---
+
+# Another File`)
+	
+	cmd := NewRenameCommand()
+	
+	// Run with dry-run flag using root command helper
+	args := []string{
+		tmpDir,
+		"--vault", tmpDir,
+		"--dry-run",
+	}
+	
+	err := runCommandWithRoot(t, cmd, args)
+	assert.NoError(t, err)
+	
+	// Original files should still exist
+	_, err = os.Stat(filepath.Join(tmpDir, "test file.md"))
+	assert.NoError(t, err, "Original file should still exist after dry run")
+	
+	_, err = os.Stat(filepath.Join(tmpDir, "another-file.md"))
+	assert.NoError(t, err, "Original file should still exist after dry run")
+	
+	// No renamed files should exist
+	entries, err := os.ReadDir(tmpDir)
+	require.NoError(t, err)
+	
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".md") {
+			// Should be one of the original files
+			assert.True(t, entry.Name() == "test file.md" || entry.Name() == "another-file.md")
+		}
+	}
 }
 
 func BenchmarkRenameCommand_FilenameOnly(b *testing.B) {
