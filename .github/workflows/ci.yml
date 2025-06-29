@@ -2,15 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   test:
     strategy:
       matrix:
-        go-version: ['1.21', '1.22']
+        go-version: ['1.22', '1.23', '1.24']
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     
@@ -19,20 +19,24 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Cache Go modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
         restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
           ${{ runner.os }}-go-
 
     - name: Download dependencies
       run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
 
     - name: Run tests
       run: go test -race -coverprofile=coverage.out ./...
@@ -41,17 +45,45 @@ jobs:
       run: go tool cover -html=coverage.out -o coverage.html
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.out
         flags: unittests
         name: codecov-umbrella
+        fail_ci_if_error: false
 
     - name: Run benchmarks
       run: go test -bench=. -run=^$ ./internal/processor
 
-    - name: Build
+    - name: Build binary
       run: go build -v ./cmd
+
+    - name: Test shell completions
+      if: runner.os != 'Windows'
+      run: |
+        ./mdnotes completion bash > /tmp/completion.bash
+        ./mdnotes completion zsh > /tmp/completion.zsh
+        ./mdnotes completion fish > /tmp/completion.fish
+        # Verify completions contain expected content
+        grep -q "mdnotes" /tmp/completion.bash
+        grep -q "mdnotes" /tmp/completion.zsh
+        grep -q "mdnotes" /tmp/completion.fish
+
+    - name: Test shell completions (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        ./mdnotes completion powershell > completion.ps1
+        # Verify PowerShell completion contains expected content
+        Select-String -Pattern "mdnotes" -Path "completion.ps1" -Quiet
+      shell: powershell
+
+    - name: Verify completion functionality
+      if: runner.os != 'Windows'
+      run: |
+        # Test that __complete returns expected completions
+        ./mdnotes __complete frontmatter ensure --field "" | grep -q "title"
+        ./mdnotes __complete completion "" | grep -q "bash"
+        ./mdnotes __complete analyze content --format "" | grep -q "json"
 
   lint:
     runs-on: ubuntu-latest
@@ -60,14 +92,48 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: '1.24'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ubuntu-latest-go-1.24-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ubuntu-latest-go-1.24-
+          ubuntu-latest-go-
+
+    - name: Download dependencies
+      run: go mod download
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v3
+      uses: golangci/golangci-lint-action@v4
       with:
         version: latest
+        args: --timeout=5m
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run go fmt check
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "The following files are not formatted:"
+          gofmt -s -l .
+          exit 1
+        fi
+
+    - name: Check for inefficient assignments
+      run: |
+        go install github.com/gordonklaus/ineffassign@latest
+        ineffassign ./...
+
+    - name: Check for misspellings
+      run: |
+        go install github.com/client9/misspell/cmd/misspell@latest
+        misspell -error .
 
   security:
     runs-on: ubuntu-latest
@@ -75,14 +141,78 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ubuntu-latest-go-1.24-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ubuntu-latest-go-1.24-
+          ubuntu-latest-go-
+
+    - name: Download dependencies
+      run: go mod download
+
     - name: Run Gosec Security Scanner
       uses: securecodewarrior/github-action-gosec@master
       with:
         args: './...'
 
+    - name: Run govulncheck
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        govulncheck ./...
+
     - name: Run Nancy (check for vulnerabilities)
       run: |
         go list -json -m all | docker run --rm -i sonatypecommunity/nancy:latest sleuth
+
+  build-verification:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ubuntu-latest-go-1.24-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ubuntu-latest-go-1.24-
+          ubuntu-latest-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build for ${{ matrix.goos }}/${{ matrix.goarch }}
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: |
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          go build -v -o mdnotes.exe ./cmd
+        else
+          go build -v -o mdnotes ./cmd
+        fi
 
   docker:
     runs-on: ubuntu-latest
@@ -100,3 +230,46 @@ jobs:
         platforms: linux/amd64,linux/arm64
         push: false
         tags: mdnotes:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image functionality
+      run: |
+        docker run --rm mdnotes:test --version
+        docker run --rm mdnotes:test --help
+
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ubuntu-latest-go-1.24-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ubuntu-latest-go-1.24-
+          ubuntu-latest-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build binary
+      run: go build -v ./cmd
+
+    - name: Run performance benchmarks
+      run: |
+        go test -bench=. -benchmem -run=^$ ./internal/processor > benchmark_results.txt
+        cat benchmark_results.txt
+
+    - name: Run profiling benchmarks
+      run: |
+        # Run a quick profiling test to ensure profile commands work
+        ./mdnotes profile benchmark --generate 100 --iterations 1

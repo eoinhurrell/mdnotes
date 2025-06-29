@@ -5,6 +5,13 @@ before:
     - go mod tidy
     - go test ./...
     - go run ./cmd profile benchmark --generate 1000 --iterations 3
+    - mkdir -p dist/completions
+    - go build -o dist/mdnotes-temp ./cmd
+    - ./dist/mdnotes-temp completion bash > dist/completions/mdnotes_completion.bash
+    - ./dist/mdnotes-temp completion zsh > dist/completions/mdnotes_completion.zsh
+    - ./dist/mdnotes-temp completion fish > dist/completions/mdnotes_completion.fish
+    - ./dist/mdnotes-temp completion powershell > dist/completions/mdnotes_completion.ps1
+    - rm -f dist/mdnotes-temp
 
 builds:
   - main: ./cmd
@@ -25,10 +32,10 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
-      - -X main.builtBy=goreleaser
+      - -X github.com/eoinhurrell/mdnotes/cmd/root.version={{.Version}}
+      - -X github.com/eoinhurrell/mdnotes/cmd/root.commit={{.Commit}}
+      - -X github.com/eoinhurrell/mdnotes/cmd/root.date={{.Date}}
+      - -X github.com/eoinhurrell/mdnotes/cmd/root.builtBy=goreleaser
 
 archives:
   - format: tar.gz
@@ -45,13 +52,25 @@ archives:
     files:
       - README.md
       - LICENSE
+      - CLAUDE.md
       - docs/**/*
+      - dist/completions/*
+    rlcp: true
 
 checksum:
   name_template: 'checksums.txt'
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}_sbom.spdx.json"
 
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
+
+metadata:
+  mod_timestamp: '{{ .CommitTimestamp }}'
 
 changelog:
   sort: asc
@@ -166,35 +185,77 @@ publishers:
     cmd: curl -F package=@{{ .ArtifactName }} https://{{ .Env.FURY_TOKEN }}@push.fury.io/eoinhurrell/
 
 release:
+  header: |
+    ## Release {{ .Tag }}
+
+    This release includes pre-compiled binaries for multiple platforms, shell completions, and comprehensive documentation.
+
   footer: |
     ## Installation
 
-    ### Download
-    Download the pre-compiled binaries from the [releases page](https://github.com/eoinhurrell/mdnotes/releases) and copy to the desired location.
+    ### Download Binary
+    Download the pre-compiled binaries from the assets below and copy to the desired location.
 
-    ### Homebrew
+    ### Homebrew (macOS/Linux)
     ```bash
     brew install eoinhurrell/tap/mdnotes
     ```
 
-    ### Go Install
+    ### Go Install (Latest from source)
     ```bash
     go install github.com/eoinhurrell/mdnotes/cmd@latest
     ```
 
     ### Docker
     ```bash
+    # Run directly
+    docker run --rm -v $(pwd):/vault ghcr.io/eoinhurrell/mdnotes:{{ .Tag }} analyze stats /vault
+    
+    # Use latest
     docker run --rm -v $(pwd):/vault ghcr.io/eoinhurrell/mdnotes:latest analyze stats /vault
     ```
 
-    ## Checksums
-    The checksums are computed with sha256sum and can be checked with:
+    ## Shell Completions
+
+    Each archive includes shell completion scripts in the `dist/completions/` directory:
+    - `mdnotes_completion.bash` - Bash completion
+    - `mdnotes_completion.zsh` - Zsh completion  
+    - `mdnotes_completion.fish` - Fish completion
+    - `mdnotes_completion.ps1` - PowerShell completion
+
+    ### Installation
+    ```bash
+    # Bash (Linux)
+    sudo cp dist/completions/mdnotes_completion.bash /etc/bash_completion.d/mdnotes
+    
+    # Bash (macOS)
+    sudo cp dist/completions/mdnotes_completion.bash /usr/local/etc/bash_completion.d/mdnotes
+    
+    # Zsh
+    cp dist/completions/mdnotes_completion.zsh "${fpath[1]}/_mdnotes"
+    
+    # Fish
+    cp dist/completions/mdnotes_completion.fish ~/.config/fish/completions/mdnotes.fish
+    ```
+
+    ## Verification
+
+    ### Checksums
+    All binaries can be verified using the provided checksums:
     ```bash
     sha256sum -c checksums.txt
     ```
 
+    ### SBOM (Software Bill of Materials)
+    This release includes an SBOM for supply chain security. The SBOM lists all dependencies and their versions.
+
+    ## What's Changed
+    See the full changelog below for detailed changes in this release.
+
   extra_files:
     - glob: ./docs/*.md
+    - glob: ./dist/completions/*
+    - glob: ./test_completions.sh
 
 milestones:
   - close: true
