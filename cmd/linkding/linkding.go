@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/eoinhurrell/mdnotes/cmd/root"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/linkding"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
@@ -92,7 +91,7 @@ Configuration:
 			client := linkding.NewClient(cfg.Linkding.APIURL, cfg.Linkding.APIToken)
 
 			// Get file selection configuration from global flags
-			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
+			mode, fileSelector, err := selector.GetGlobalSelectionConfig(cmd)
 			if err != nil {
 				return fmt.Errorf("getting file selection config: %w", err)
 			}
@@ -295,7 +294,7 @@ func newListCommand() *cobra.Command {
 			}
 
 			// Get file selection configuration from global flags
-			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
+			mode, fileSelector, err := selector.GetGlobalSelectionConfig(cmd)
 			if err != nil {
 				return fmt.Errorf("getting file selection config: %w", err)
 			}

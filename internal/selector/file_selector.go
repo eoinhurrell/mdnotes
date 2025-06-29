@@ -10,6 +10,7 @@ import (
 
 	"github.com/eoinhurrell/mdnotes/internal/query"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
+	"github.com/spf13/cobra"
 )
 
 // SelectionMode determines how files are selected
@@ -338,4 +339,32 @@ func (result *SelectionResult) PrintParseErrors() {
 		fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
 	}
 	fmt.Fprintf(os.Stderr, "\n")
+}
+
+// GetGlobalSelectionConfig extracts global file selection flags from a cobra command
+// and returns the appropriate selection mode and configured FileSelector
+func GetGlobalSelectionConfig(cmd *cobra.Command) (SelectionMode, *FileSelector, error) {
+	// Get global flags - check both the command and its root for persistent flags
+	query, _ := cmd.Root().PersistentFlags().GetString("query")
+	fromFile, _ := cmd.Root().PersistentFlags().GetString("from-file")
+	fromStdin, _ := cmd.Root().PersistentFlags().GetBool("from-stdin")
+	ignorePatterns, _ := cmd.Root().PersistentFlags().GetStringSlice("ignore")
+	
+	// Determine selection mode based on flags
+	mode := AutoDetect
+	if fromStdin {
+		mode = FilesFromStdin
+	} else if fromFile != "" {
+		mode = FilesFromFile
+	} else if query != "" {
+		mode = FilesFromQuery
+	}
+	
+	// Create and configure FileSelector
+	fileSelector := NewFileSelector().
+		WithIgnorePatterns(ignorePatterns).
+		WithQuery(query).
+		WithSourceFile(fromFile)
+	
+	return mode, fileSelector, nil
 }

@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/eoinhurrell/mdnotes/cmd/root"
 	"github.com/eoinhurrell/mdnotes/internal/analyzer"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/errors"
@@ -62,7 +61,7 @@ func newStatsCommand() *cobra.Command {
 			}
 
 			// Get file selection configuration from global flags
-			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
+			mode, fileSelector, err := selector.GetGlobalSelectionConfig(cmd)
 			if err != nil {
 				return errors.WrapError(err, "file selection config", "")
 			}
@@ -162,7 +161,7 @@ Example:
 			}
 
 			// Get file selection configuration from global flags
-			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
+			mode, fileSelector, err := selector.GetGlobalSelectionConfig(cmd)
 			if err != nil {
 				return errors.WrapError(err, "file selection config", "")
 			}
@@ -291,7 +290,7 @@ func newHealthCommand() *cobra.Command {
 			}
 
 			// Get file selection configuration from global flags
-			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
+			mode, fileSelector, err := selector.GetGlobalSelectionConfig(cmd)
 			if err != nil {
 				return errors.WrapError(err, "file selection config", "")
 			}
@@ -1061,22 +1060,47 @@ func newInboxCommand() *cobra.Command {
 			// Load configuration
 			cfg, err := loadConfig(cmd)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return errors.NewConfigError("", err.Error())
 			}
 
-			// Scan vault files
-			scanner := vault.NewScanner(
-				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
-				vault.WithContinueOnErrors(),
-			)
-			files, err := scanner.Walk(vaultPath)
+			// Get file selection configuration from global flags
+			mode, fileSelector, err := selector.GetGlobalSelectionConfig(cmd)
 			if err != nil {
-				return fmt.Errorf("scanning vault: %w", err)
+				return errors.WrapError(err, "file selection config", "")
+			}
+			
+			// Merge config ignore patterns with global ignore patterns if needed
+			if len(fileSelector.IgnorePatterns) == 0 {
+				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
+			}
+			
+			// Select files using unified architecture
+			selection, err := fileSelector.SelectFiles(vaultPath, mode)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return errors.NewFileNotFoundError(vaultPath,
+						"Ensure the vault path exists and contains markdown files. Use 'ls' to verify the directory structure.")
+				}
+				if os.IsPermission(err) {
+					return errors.NewPermissionError(vaultPath, "vault scanning")
+				}
+				return errors.WrapError(err, "vault scanning", vaultPath)
 			}
 
-			// Generate inbox analysis
+			// Report any parsing errors encountered
+			if len(selection.ParseErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
+				for _, parseErr := range selection.ParseErrors {
+					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
+				}
+				fmt.Fprintf(os.Stderr, "\n")
+			}
+			
+			files := selection.Files
+
+			// Generate inbox analysis using configured headings
 			ana := analyzer.NewAnalyzer()
-			inboxAnalysis := ana.AnalyzeInbox(files, sortBy, minItems)
+			inboxAnalysis := ana.AnalyzeInbox(files, cfg.Analysis.InboxHeadings, sortBy, minItems)
 
 			// Output results
 			if outputFormat == "json" {

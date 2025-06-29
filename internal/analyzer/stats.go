@@ -1687,22 +1687,23 @@ func (a *Analyzer) GetHealthScore(stats VaultStats) HealthScore {
 }
 
 // AnalyzeInbox analyzes INBOX sections and pending content that needs processing
-func (a *Analyzer) AnalyzeInbox(files []*vault.VaultFile, sortBy string, minItems int) *InboxAnalysis {
+func (a *Analyzer) AnalyzeInbox(files []*vault.VaultFile, inboxHeadings []string, sortBy string, minItems int) *InboxAnalysis {
 	analysis := &InboxAnalysis{
 		InboxSections: []InboxSection{},
 	}
 
-	// Define patterns for INBOX-like headings
-	inboxPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?i)^#+ ?(inbox|INBOX)`),
-		regexp.MustCompile(`(?i)^#+ ?(todo|TODO|To Do)`),
-		regexp.MustCompile(`(?i)^#+ ?(pending|PENDING)`),
-		regexp.MustCompile(`(?i)^#+ ?(later|LATER)`),
-		regexp.MustCompile(`(?i)^#+ ?(unsorted|UNSORTED)`),
-		regexp.MustCompile(`(?i)^#+ ?(draft|DRAFT|drafts|DRAFTS)`),
-		regexp.MustCompile(`(?i)^#+ ?(notes|quick notes|temporary)`),
-		regexp.MustCompile(`(?i)^#+ ?(capture|quick capture)`),
-		regexp.MustCompile(`(?i)^#+ ?(process|to process)`),
+	// If no inbox headings provided, use default
+	if len(inboxHeadings) == 0 {
+		inboxHeadings = []string{"INBOX"}
+	}
+
+	// Build patterns for specified inbox headings
+	var inboxPatterns []*regexp.Regexp
+	for _, heading := range inboxHeadings {
+		// Escape special regex characters and create pattern
+		escaped := regexp.QuoteMeta(heading)
+		pattern := fmt.Sprintf(`(?i)^#+ ?%s(\s|$)`, escaped)
+		inboxPatterns = append(inboxPatterns, regexp.MustCompile(pattern))
 	}
 
 	totalItems := 0

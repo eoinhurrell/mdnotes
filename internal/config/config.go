@@ -24,6 +24,7 @@ type Config struct {
 	Watch       WatchConfig       `yaml:"watch"`
 	Plugins     PluginConfig      `yaml:"plugins"`
 	Performance PerformanceConfig `yaml:"performance"`
+	Analysis    AnalysisConfig    `yaml:"analysis"`
 }
 
 // VaultConfig contains vault-specific settings
@@ -104,6 +105,11 @@ type PerformanceConfig struct {
 	CacheTTL         string `yaml:"cache_ttl"`
 	ParallelAnalysis bool   `yaml:"parallel_analysis"`
 	MemoryLimit      string `yaml:"memory_limit"`
+}
+
+// AnalysisConfig contains analysis-specific settings
+type AnalysisConfig struct {
+	InboxHeadings []string `yaml:"inbox_headings"`
 }
 
 // LoadConfig loads configuration from a reader with environment variable expansion
@@ -217,6 +223,9 @@ func DefaultConfig() *Config {
 			CacheTTL:         "1h",
 			ParallelAnalysis: true,
 			MemoryLimit:      "200MB",
+		},
+		Analysis: AnalysisConfig{
+			InboxHeadings: []string{"INBOX"},
 		},
 	}
 }

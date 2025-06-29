@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/eoinhurrell/mdnotes/cmd/root"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/selector"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
@@ -69,7 +68,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get file selection configuration from global flags
-	mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
+	mode, fileSelector, err := selector.GetGlobalSelectionConfig(cmd)
 	if err != nil {
 		return fmt.Errorf("getting file selection config: %w", err)
 	}

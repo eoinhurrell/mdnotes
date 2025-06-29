@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/eoinhurrell/mdnotes)
 
-A powerful CLI tool for managing Obsidian markdown note vaults with automated batch operations, frontmatter management, and external service integrations.
+A powerful CLI tool for managing Obsidian markdown note vaults with automated operations, frontmatter management, and external service integrations.
 
 ## ✨ Features
 
@@ -13,9 +13,8 @@ A powerful CLI tool for managing Obsidian markdown note vaults with automated ba
 - **🔗 Link Management**: Convert between wiki/markdown links and check integrity
 - **📊 Vault Analysis**: Generate statistics, find duplicates, and assess quality
 - **📤 Export & Backup**: Export filtered files with link processing and asset copying
-- **⚡ Batch Operations**: Execute multiple operations with progress tracking
 - **🔄 External Integrations**: Sync with Linkding and other services
-- **🚀 Performance**: Parallel processing, worker pools, and memory optimization for large vaults
+- **⚡ Performance**: Parallel processing and memory optimization for large vaults
 - **👁️ File Watching**: Automated processing on file changes with configurable rules
 - **🛡️ Safety**: Dry-run mode, backups, atomic operations, and security hardening
 - **🔌 Plugin System**: Extensible architecture with hook-based plugin support
@@ -30,6 +29,9 @@ A powerful CLI tool for managing Obsidian markdown note vaults with automated ba
 git clone https://github.com/eoinhurrell/mdnotes.git
 cd mdnotes
 go build -o mdnotes ./cmd
+
+# Or using make
+make build
 ```
 
 ### Basic Usage
@@ -39,7 +41,7 @@ go build -o mdnotes ./cmd
 mdnotes frontmatter ensure --field tags --default "[]" /path/to/vault
 
 # Validate frontmatter consistency  
-mdnotes frontmatter validate --required title --required tags /path/to/vault
+mdnotes frontmatter check --required title --required tags /path/to/vault
 
 # Fix heading structure
 mdnotes headings fix --ensure-h1-title /path/to/vault
@@ -57,37 +59,19 @@ mdnotes watch --config .obsidian-admin.yaml
 mdnotes frontmatter ensure --field created --default "{{current_date}}" --dry-run /path/to/vault
 ```
 
-## 📚 Documentation
+## 📚 Complete Command Reference
 
-- **[User Guide](docs/USER_GUIDE.md)** - Comprehensive usage guide with examples
-- **[Development Guide](CLAUDE.md)** - Developer documentation and architecture
+### Global Shortcuts
 
-## 🎯 Use Cases
+mdnotes provides convenient shortcuts for frequently used commands:
 
-### Daily Vault Maintenance
-- Ensure consistent frontmatter across all notes
-- Validate field types and required fields
-- Fix heading structure issues
-- Check for broken internal links
-
-### Bulk Import Processing
-- Add missing frontmatter to imported files
-- Standardize field formats and types
-- Convert link formats for consistency
-
-### Content Export & Publishing
-- Export filtered collections for publishing workflows
-- Process links for external compatibility
-- Include referenced assets and backlinks
-- Optimize for performance with large vault exports
-
-### Vault Analysis & Quality Assessment
-- Generate comprehensive statistics and health reports
-- Find duplicate content and sync conflicts
-- Assess content quality with Zettelkasten scoring
-- Monitor vault trends and growth patterns
-
-## 📋 Complete Command Reference
+```bash
+mdnotes e [path]    # Shortcut for: frontmatter ensure
+mdnotes s [path]    # Shortcut for: frontmatter set  
+mdnotes f [path]    # Shortcut for: headings fix
+mdnotes c [path]    # Shortcut for: links check
+mdnotes q [path]    # Shortcut for: frontmatter query
+```
 
 ### Frontmatter Operations
 
@@ -114,23 +98,9 @@ mdnotes frontmatter ensure \
 ```bash
 # Set field to null (not the string "null")
 mdnotes frontmatter ensure --field optional_field --default null /path/to/vault
-
-# Mix null and regular defaults
-mdnotes frontmatter ensure \
-  --field optional_field --default null \
-  --field required_field --default "default_value" \
-  /path/to/vault
 ```
 
 **Template Variables:**
-```bash
-# Use template variables for dynamic defaults
-mdnotes frontmatter ensure --field id --default "{{filename|slug}}" /path/to/vault
-mdnotes frontmatter ensure --field modified --default "{{file_mtime}}" /path/to/vault
-mdnotes frontmatter ensure --field title --default "{{filename}}" /path/to/vault
-```
-
-**Available template variables:**
 - `{{current_date}}` - Current date (YYYY-MM-DD)
 - `{{current_datetime}}` - Current datetime (ISO format)
 - `{{filename}}` - Base filename without extension
@@ -140,26 +110,15 @@ mdnotes frontmatter ensure --field title --default "{{filename}}" /path/to/vault
 - `{{parent_dir}}` - Parent directory name
 - `{{uuid}}` - Generate random UUID v4
 
-**Template filters:**
-- `{{filename|upper}}` - Uppercase transformation
+**Template Filters:**
+- `{{filename|upper}}` - Uppercase transformation  
 - `{{filename|lower}}` - Lowercase transformation
 - `{{title|slug}}` - Convert to URL-friendly slug
 - `{{file_mtime|date:Jan 2, 2006}}` - Custom date formatting
 
-**Flags:**
-- `--field` (required, multiple): Field name to ensure
-- `--default` (required, multiple): Default value for field (must match number of --field flags)
-- `--type` (optional, multiple): Type rules in format field:type
-- `--recursive` (bool): Process subdirectories [default: true]
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- `--dry-run`: Preview changes without applying
-- `--verbose`: Show detailed output
-- `--quiet`: Only show errors and final summary
-
 #### `mdnotes frontmatter set` (alias: `s`)
 Set frontmatter fields to specific values (always overwrites existing values).
 
-**Basic Usage:**
 ```bash
 # Set status field to 'published' for all files
 mdnotes frontmatter set --field status --value "published" /path/to/vault
@@ -171,18 +130,9 @@ mdnotes frontmatter set \
   /path/to/vault
 ```
 
-**Flags:**
-- `--field` (required, multiple): Field name to set
-- `--value` (required, multiple): Value for field (must match number of --field flags)
-- `--type` (optional, multiple): Type rules in format field:type
-- `--recursive` (bool): Process subdirectories [default: true]
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--dry-run, --verbose, --quiet)
-
-#### `mdnotes frontmatter check` (alias: `ch`)
+#### `mdnotes frontmatter check`
 Validate frontmatter fields for completeness and type correctness.
 
-**Basic Usage:**
 ```bash
 # Check for required fields
 mdnotes frontmatter check --required title --required tags /path/to/vault
@@ -195,30 +145,13 @@ mdnotes frontmatter check \
   --required title --required created \
   --type tags:array --type priority:number --type published:boolean \
   /path/to/vault
-
-# Only check for YAML parsing issues
-mdnotes frontmatter check --parsing-only /path/to/vault
 ```
 
-**Supported types:**
-- `string` - Text values
-- `number` - Integer or float values
-- `boolean` - true/false values
-- `array` - List of values
-- `date` - Date values
-- `null` - Empty/null values
-
-**Flags:**
-- `--required` (multiple): Required field names
-- `--type` (multiple): Type rules in format field:type
-- `--parsing-only` (bool): Only check for YAML parsing issues, skip validation rules
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--dry-run, --verbose, --quiet)
+**Supported types:** `string`, `number`, `boolean`, `array`, `date`, `null`
 
 #### `mdnotes frontmatter query` (alias: `q`)
 Query and filter frontmatter fields using advanced query language.
 
-**Basic Usage:**
 ```bash
 # Find files with specific field values
 mdnotes frontmatter query --where "status = 'draft'" /path/to/vault
@@ -231,15 +164,9 @@ mdnotes frontmatter query --missing "created" /path/to/vault
 
 # Find duplicate values
 mdnotes frontmatter query --duplicates "title" /path/to/vault
-
-# Auto-fix missing fields
-mdnotes frontmatter query --missing "tags" --fix-with "[]" /path/to/vault
 ```
 
 **Enhanced Query Language:**
-
-The mdnotes query language supports sophisticated filtering with precise control over field matching:
-
 ```bash
 # Simple comparisons
 --where "status = 'draft'"
@@ -261,39 +188,7 @@ The mdnotes query language supports sophisticated filtering with precise control
 --where "(priority > 5 OR status = 'urgent') AND tags contains 'active'"
 ```
 
-### String Matching in Arrays - Handling Edge Cases
-
-The `contains` operator provides **exact substring matching** within array elements. Here's how to handle common edge cases:
-
-**Problem:** Distinguish between `learning` and `machine_learning` in tags array
-
-```bash
-# ❌ This matches BOTH 'learning' and 'machine_learning'
---where "tags contains 'learning'"
-
-# ✅ Match only exact 'learning' tag (not 'machine_learning')
---where "tags contains ' learning ' OR tags contains '[learning]' OR tags contains ',learning,' OR tags = 'learning'"
-
-# ✅ Alternative: Use word boundary matching
---where "tags matches '\\blearning\\b'"
-
-# ✅ Most reliable: Exact array element matching
---where "tags has 'learning'"
-```
-
-**Available String Operators:**
-
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `contains` | Substring match (anywhere in text) | `"title contains 'AI'"` |
-| `starts_with` | Text begins with value | `"filename starts_with 'draft'"` |
-| `ends_with` | Text ends with value | `"filename ends_with '.md'"` |
-| `matches` | Regular expression matching | `"title matches '^Project\\s+\\d+'"` |
-| `has` | Exact array element matching | `"tags has 'learning'"` |
-| `=` / `!=` | Exact equality/inequality | `"status = 'published'"` |
-
-**Array-Specific Examples:**
-
+**Array-Specific Queries:**
 ```bash
 # Exact element matching (recommended for arrays)
 --where "tags has 'learning'"                    # Matches ['learning', 'study']
@@ -306,83 +201,11 @@ The `contains` operator provides **exact substring matching** within array eleme
 # Complex array filtering
 --where "tags has 'work' AND NOT (tags has 'archive')"
 --where "count(tags) > 2 AND tags has 'priority'"
-
-# Pattern matching in arrays
---where "tags matches '.*_project$'"             # Tags ending with '_project'
---where "tags contains_word 'machine'"          # Word boundary matching
 ```
-
-**Field Type-Specific Queries:**
-
-```bash
-# Text fields
---where "title contains 'Weekly Report'"
---where "description starts_with 'TODO'"
-
-# Numeric fields  
---where "priority >= 5"
---where "word_count between 100 AND 500"
-
-# Date fields
---where "created after '2024-01-01'"
---where "modified within '7 days'"
---where "due_date before 'today'"
-
-# Boolean fields
---where "published = true"
---where "archived != true"
-
-# Array fields (tags, categories, etc.)
---where "tags has 'urgent'"
---where "categories contains 'work'"
---where "count(tags) > 3"
-```
-
-**Advanced Query Patterns:**
-
-```bash
-# Combining multiple conditions
---where "(tags has 'work' OR tags has 'project') AND priority > 3"
-
-# Negation patterns
---where "NOT (tags has 'archive' OR tags has 'draft')"
---where "status != 'done' AND NOT archived"
-
-# Null/empty checking
---where "tags is empty"              # No tags
---where "description is not null"    # Has description
---where "tags count = 0"            # Alternative empty check
-
-# Pattern-based filtering
---where "filename matches '^\\d{8}-.*\\.md$'"    # Date-prefixed files
---where "title matches '(?i)project.*report'"     # Case-insensitive regex
-```
-
-**Performance Tips:**
-
-- Use `has` instead of `contains` for exact array element matching (faster)
-- Field-specific operators (`starts_with`, `ends_with`) are faster than regex
-- Simple equality checks (`=`, `!=`) are fastest
-- Complex regex patterns (`matches`) are slowest but most flexible
-
-**Flags:**
-- **Query Criteria (mutually exclusive):**
-  - `--where` (string): Filter expression with enhanced query language
-  - `--missing` (string): Find files missing this field
-  - `--duplicates` (string): Find files with duplicate values for this field
-- **Output Control:**
-  - `--field` (multiple): Select specific fields to display
-  - `--format` (string): Output format: table, json, csv, yaml [default: table]
-  - `--count` (bool): Show only the count of matching files
-- **Auto-fix:**
-  - `--fix-with` (string): Auto-fix missing fields with this value (only with --missing)
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--dry-run, --verbose, --quiet)
 
 #### `mdnotes frontmatter cast` (alias: `c`)
 Convert frontmatter field types with auto-detection.
 
-**Basic Usage:**
 ```bash
 # Auto-detect and cast all fields
 mdnotes frontmatter cast --auto-detect /path/to/vault
@@ -393,55 +216,15 @@ mdnotes frontmatter cast \
   --field priority --type priority:number \
   --field published --type published:boolean \
   /path/to/vault
-
-# Preview casting changes
-mdnotes frontmatter cast --auto-detect --dry-run /path/to/vault
-```
-
-**Type casting examples:**
-```bash
-# String "2023-01-15" → Date 2023-01-15 (no quotes)
-mdnotes frontmatter cast --field start --type start:date /path/to/vault
-
-# String "true" → Boolean true
-mdnotes frontmatter cast --field published --type published:boolean /path/to/vault
-
-# String "tag1,tag2" → Array ["tag1", "tag2"]
-mdnotes frontmatter cast --field tags --type tags:array /path/to/vault
-
-# String "42" → Number 42
-mdnotes frontmatter cast --field priority --type priority:number /path/to/vault
 ```
 
 **Smart Date/DateTime Formatting:**
-mdnotes automatically detects and formats date fields intelligently:
 - **Dates at midnight** (00:00:00) → `YYYY-MM-DD` format (e.g., `2023-01-15`)
 - **Dates with time** → `YYYY-MM-DD HH:mm:ss` format (e.g., `2023-01-15 14:30:00`)
-
-```bash
-# Input: start: "2023-01-15"         → Output: start: 2023-01-15
-# Input: meeting: "2023-01-15 14:30" → Output: meeting: 2023-01-15 14:30:00
-# Input: created: 2023-01-15T10:30:45Z → Output: created: 2023-01-15 10:30:45
-```
-
-**Supported Types:**
-- `date`: ISO date strings to time.Time objects
-- `number`: String numbers to int/float
-- `boolean`: String booleans ("true"/"false") to bool
-- `array`: Comma-separated strings to []string
-- `null`: Empty strings to nil
-
-**Flags:**
-- `--field` (multiple): Field names to cast
-- `--type` (multiple): Target types for fields (field:type format)
-- `--auto-detect` (bool): Automatically detect and cast types
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--dry-run, --verbose, --quiet)
 
 #### `mdnotes frontmatter sync` (alias: `sy`)
 Synchronize frontmatter fields with file system metadata.
 
-**Basic Usage:**
 ```bash
 # Sync modification time
 mdnotes frontmatter sync --field modified --source file-mtime /path/to/vault
@@ -462,16 +245,9 @@ mdnotes frontmatter sync --field category --source "path:dir" /path/to/vault
 - `path:dir` - Parent directory name
 - `path:full` - Full relative path
 
-**Flags:**
-- `--field` (required, multiple): Field names to sync
-- `--source` (required, multiple): Data sources for fields (must match number of --field flags)
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--dry-run, --verbose, --quiet)
-
 #### `mdnotes frontmatter download` (alias: `d`)
 Download web resources from frontmatter fields and replace URLs with local file links.
 
-**Basic Usage:**
 ```bash
 # Download from all URL fields
 mdnotes frontmatter download /path/to/vault
@@ -480,24 +256,11 @@ mdnotes frontmatter download /path/to/vault
 mdnotes frontmatter download --field cover_image --field attachment /path/to/vault
 ```
 
-**Behavior:**
-1. Scans frontmatter for HTTP/HTTPS URLs
-2. Downloads resources to configured attachments directory
-3. Renames original field to `<field>-original`
-4. Replaces field value with wiki link to downloaded file
-
-**Flags:**
-- `--field` (multiple): Only download specific fields (default: all URL fields)
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- `--config` (string): Config file path
-- Standard global flags (--dry-run, --verbose, --quiet)
-
 ### Heading Operations
 
 #### `mdnotes headings analyze`
 Analyze heading structure and report issues.
 
-**Basic Usage:**
 ```bash
 # Analyze all heading issues
 mdnotes headings analyze /path/to/vault
@@ -509,14 +272,9 @@ mdnotes headings analyze /path/to/vault
 - Skipped heading levels (H1 → H3)
 - Missing H1 when title exists in frontmatter
 
-**Flags:**
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--verbose, --quiet)
-
 #### `mdnotes headings fix` (alias: `f`)
 Fix heading structure issues automatically.
 
-**Basic Usage:**
 ```bash
 # Ensure H1 matches title from frontmatter
 mdnotes headings fix --ensure-h1-title /path/to/vault
@@ -529,24 +287,13 @@ mdnotes headings fix --fix-sequence /path/to/vault
 
 # Apply all fixes
 mdnotes headings fix --ensure-h1-title --single-h1 --fix-sequence /path/to/vault
-
-# Preview fixes first
-mdnotes headings fix --ensure-h1-title --dry-run /path/to/vault
 ```
-
-**Flags:**
-- `--ensure-h1-title` (bool): Ensure H1 matches title field [default: true]
-- `--single-h1` (bool): Convert extra H1s to H2s [default: true]
-- `--fix-sequence` (bool): Fix skipped heading levels [default: false]
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--dry-run, --verbose, --quiet)
 
 ### Link Operations
 
 #### `mdnotes links check` (alias: `c`)
 Verify internal link integrity and find broken links.
 
-**Basic Usage:**
 ```bash
 # Check all internal links
 mdnotes links check /path/to/vault
@@ -560,19 +307,9 @@ mdnotes links check --file-relative /path/to/vault
 - Markdown links: `[text](note.md)`, `[text](path/note.md)`
 - Embed links: `![[image.png]]`, `![[note.md]]`
 
-**Link Resolution Behavior:**
-- **Wiki links and embeds**: Always relative to vault root (Obsidian behavior)
-- **Markdown links**: Default to vault root, or file-relative with `--file-relative`
-
-**Flags:**
-- `--file-relative` (bool): Check markdown links relative to each file's directory instead of vault root
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--verbose, --quiet)
-
 #### `mdnotes links convert` (alias: `co`)
 Convert between wiki and markdown link formats.
 
-**Basic Usage:**
 ```bash
 # Convert wiki links to markdown format
 mdnotes links convert --from wiki --to markdown /path/to/vault
@@ -584,33 +321,11 @@ mdnotes links convert --from markdown --to wiki /path/to/vault
 mdnotes links convert --from wiki --to markdown --dry-run /path/to/vault
 ```
 
-**Conversion examples:**
-```bash
-# Wiki to Markdown
-# [[Note Name]] → [Note Name](Note%20Name.md)
-# [[Note Name|Alias]] → [Alias](Note%20Name.md)
-
-# Markdown to Wiki  
-# [Note Name](Note%20Name.md) → [[Note Name]]
-# [Alias](Note%20Name.md) → [[Note Name|Alias]]
-```
-
-**Supported Formats:**
-- **Wiki format**: `[[note]]` or `[[note|alias]]`
-- **Markdown format**: `[text](note.md)`
-
-**Flags:**
-- `--from` (string): Source format (wiki, markdown) [default: wiki]
-- `--to` (string): Target format (wiki, markdown) [default: markdown]
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--dry-run, --verbose, --quiet)
-
 ### Analysis & Reporting
 
-#### `mdnotes analyze stats` (alias: `a`)
+#### `mdnotes analyze stats`
 Generate comprehensive vault statistics.
 
-**Basic Usage:**
 ```bash
 # Basic statistics
 mdnotes analyze stats /path/to/vault
@@ -622,97 +337,9 @@ mdnotes analyze stats --format json /path/to/vault
 mdnotes analyze stats --output stats.json --format json /path/to/vault
 ```
 
-**Statistics included:**
-- Total files and size
-- Frontmatter field usage
-- Content metrics (word count, links, headings)
-- File type distribution
-- Creation and modification patterns
-
-**Flags:**
-- `--format` (string): Output format (text, json) [default: text]
-- `--output` (string): Output file (default: stdout)
-- Standard global flags (--verbose, --quiet)
-
-#### `mdnotes analyze duplicates`
-Find duplicate content and similar files.
-
-**Basic Usage:**
-```bash
-# Find exact duplicates
-mdnotes analyze duplicates /path/to/vault
-
-# Find similar content (fuzzy matching)
-mdnotes analyze duplicates --similarity 0.8 /path/to/vault
-
-# Focus on specific duplicate types
-mdnotes analyze duplicates --type content /path/to/vault
-
-# Output detailed results
-mdnotes analyze duplicates --format json /path/to/vault
-```
-
-**Duplicate types:**
-- `all`: All types of duplicates (default)
-- `obsidian`: Obsidian sync conflicts
-- `sync-conflicts`: General sync conflicts
-- `content`: Content-based duplicates
-
-**Flags:**
-- `--format` (string): Output format (text, json) [default: text]
-- `--similarity` (float64): Minimum similarity threshold (0.0-1.0) [default: 0.8]
-- `--type` (string): Type of duplicates to find [default: all]
-- Standard global flags (--verbose, --quiet)
-
-#### `mdnotes analyze health`
-Assess overall vault health and generate recommendations.
-
-**Basic Usage:**
-```bash
-# Overall health assessment
-mdnotes analyze health /path/to/vault
-
-# JSON output for automation
-mdnotes analyze health --format json /path/to/vault
-```
-
-**Health metrics:**
-- Frontmatter completeness score
-- Link integrity percentage
-- Heading structure quality
-- Content organization score
-- Overall health rating (0-100)
-
-**Flags:**
-- `--format` (string): Output format (text, json) [default: text]
-- Standard global flags (--verbose, --quiet)
-
-#### `mdnotes analyze links` (alias: `l`)
-Analyze link structure and connectivity patterns.
-
-**Basic Usage:**
-```bash
-# Analyze link structure
-mdnotes analyze links /path/to/vault
-
-# Show text-based link graph
-mdnotes analyze links --graph /path/to/vault
-
-# Customize graph depth and connections
-mdnotes analyze links --graph --depth 2 --min-connections 3 /path/to/vault
-```
-
-**Flags:**
-- `--format` (string): Output format (text, json) [default: text]
-- `--graph` (bool): Show text-based link graph visualization
-- `--depth` (int): Maximum depth for graph visualization [default: 3]
-- `--min-connections` (int): Minimum connections to show in graph [default: 1]
-- Standard global flags (--verbose, --quiet)
-
-#### `mdnotes analyze content` (alias: `c`)
+#### `mdnotes analyze content`
 Analyze content quality using Zettelkasten principles.
 
-**Basic Usage:**
 ```bash
 # Analyze content quality with summary
 mdnotes analyze content /path/to/vault
@@ -736,39 +363,48 @@ The analysis evaluates content based on five Zettelkasten principles:
 4. **Atomicity** - One concept per note, appropriate length
 5. **Recency** - Recently modified content scores higher
 
-**Enhanced Features:**
-- **Worst-scoring files** shown in summary for immediate attention
-- **Verbose mode** displays individual metrics breakdown in tabular format
-- **Actionable suggestions** provided for each low-scoring file
-- **Score distribution** shows vault-wide quality patterns
+#### `mdnotes analyze duplicates`
+Find duplicate content and similar files.
 
-**Output Examples:**
 ```bash
-# Summary shows worst files needing attention:
-⚠️  Files Needing Attention (lowest scores):
-  1. 42.1  drafts/incomplete-note.md
-      → Add more links to related concepts
-  2. 45.8  notes/stub-article.md  
-      → Expand content - add more detail
+# Find exact duplicates
+mdnotes analyze duplicates /path/to/vault
 
-# Verbose mode shows detailed breakdown:
-📊 Individual File Scores (showing files >= 0.0):
-Score  File                          Read Link Comp Atom Rec
-52.4   poor-note.md                   77    0   10   75  100
-       Improvements: Add title; Link to related concepts
+# Find similar content (fuzzy matching)
+mdnotes analyze duplicates --similarity 0.8 /path/to/vault
+
+# Focus on specific duplicate types
+mdnotes analyze duplicates --type content /path/to/vault
 ```
 
-**Flags:**
-- `--format` (string): Output format (text, json) [default: text]
-- `--scores` (bool): Include individual file quality scores
-- `--min-score` (float64): Minimum quality score to display (0.0-100) [default: 0.0]
-- `--verbose` (global): Show detailed metric breakdown for each file
-- Standard global flags (--quiet)
+#### `mdnotes analyze health`
+Assess overall vault health and generate recommendations.
 
-#### `mdnotes analyze trends` (alias: `t`)
+```bash
+# Overall health assessment
+mdnotes analyze health /path/to/vault
+
+# JSON output for automation
+mdnotes analyze health --format json /path/to/vault
+```
+
+#### `mdnotes analyze links`
+Analyze link structure and connectivity patterns.
+
+```bash
+# Analyze link structure
+mdnotes analyze links /path/to/vault
+
+# Show text-based link graph
+mdnotes analyze links --graph /path/to/vault
+
+# Customize graph depth and connections
+mdnotes analyze links --graph --depth 2 --min-connections 3 /path/to/vault
+```
+
+#### `mdnotes analyze trends`
 Analyze vault growth trends and patterns.
 
-**Basic Usage:**
 ```bash
 # Analyze last year trends
 mdnotes analyze trends /path/to/vault
@@ -780,18 +416,11 @@ mdnotes analyze trends --timespan 3m --granularity week /path/to/vault
 mdnotes analyze trends --timespan all --granularity month /path/to/vault
 ```
 
-**Flags:**
-- `--format` (string): Output format (text, json) [default: text]
-- `--timespan` (string): Time span to analyze (1w, 1m, 3m, 6m, 1y, all) [default: 1y]
-- `--granularity` (string): Time granularity (day, week, month, quarter) [default: month]
-- Standard global flags (--verbose, --quiet)
-
 ### File Operations
 
 #### `mdnotes rename` (alias: `r`)
 Rename a file and update all references throughout the vault.
 
-**Basic Usage:**
 ```bash
 # Rename with explicit new name
 mdnotes rename "old-note.md" "new-note.md"
@@ -806,35 +435,14 @@ mdnotes rename "note.md" --template "{{created|date:20060102150405}}-{{filename|
 mdnotes rename "note.md" "better-name.md" --vault "/path/to/vault"
 ```
 
-**Template Variables:**
-- `{{created|date:20060102150405}}`: Formatted creation time from frontmatter
-- `{{filename|slug}}`: Slugified filename
-- `{{filename}}`: Original filename
-- `{{file_mtime}}`: File modification time
-- `{{current_date}}`: Current date
-
-**Behavior:**
-1. Renames the source file to the target name
-2. Uses ripgrep (if available) to quickly find files containing references
-3. Updates all wiki links and markdown links pointing to the renamed file
-4. Creates target directories if needed
-5. Falls back to full vault scan if ripgrep is unavailable
-
 **Performance Optimization:**
 - **Ripgrep Integration**: Uses ripgrep for ultra-fast file discovery, processing only files that contain references
 - **Smart Fallback**: If ripgrep isn't available, gracefully falls back to comprehensive vault scanning
 - **Typical Speedup**: 10x-100x faster than traditional approaches, especially for large vaults
 
-**Flags:**
-- `--template` (string): Template for default rename target [default: "{{created|date:20060102150405}}-{{filename|slug}}.md"]
-- `--vault` (string): Vault root directory for link updates [default: "."]
-- `--ignore` (multiple): Ignore patterns for scanning vault [default: [".obsidian/*", "*.tmp"]]
-- Standard global flags (--dry-run, --verbose, --quiet)
-
 #### `mdnotes export` (alias: `e`)
 Export markdown files from vault to another location with filtering and processing options.
 
-**Basic Usage:**
 ```bash
 # Export entire vault to backup folder
 mdnotes export ./backup
@@ -887,63 +495,9 @@ mdnotes export ./large-vault --optimize-memory
 mdnotes export ./huge-vault --timeout 30m
 ```
 
-**Preview and Debugging:**
-```bash
-# Preview what would be exported without copying
-mdnotes export ./output --dry-run
-
-# Show detailed progress information
-mdnotes export ./output --verbose
-
-# Minimize output (errors only)
-mdnotes export ./output --quiet
-```
-
-**Behavior:**
-1. Scans vault for markdown files
-2. Filters files based on query (if provided)
-3. Optionally expands selection with backlinks
-4. Normalizes filenames (if requested)
-5. Copies files while preserving directory structure
-6. Processes links according to strategy
-7. Copies referenced assets (if requested)
-
-**Error Handling:**
-The export command provides clear error messages for common issues:
-- Invalid query syntax with suggestions
-- Missing vault directories with helpful paths
-- Permission errors with recommended fixes
-- Output directory conflicts with resolution options
-
-**Performance Guidelines:**
-- For vaults with <100 files: ~1 second processing time
-- For vaults with <1000 files: ~10 seconds processing time
-- Use `--parallel` flag for vaults with >50 files
-- Use `--optimize-memory` for vaults with >1000 files
-- Large vaults benefit from SSD storage and adequate RAM
-
-**Flags:**
-- **Query & Filtering:**
-  - `--query` (string): Query to filter which files are exported (uses frontmatter query syntax)
-  - `--ignore` (multiple): Ignore patterns for scanning vault [default: [".obsidian/*", "*.tmp"]]
-- **Link Processing:**
-  - `--process-links` (bool): Process and rewrite links in exported files [default: true]
-  - `--link-strategy` (string): Strategy for handling external links: 'remove' (convert to plain text) or 'url' (use frontmatter URL field) [default: remove]
-- **Advanced Features:**
-  - `--include-assets` (bool): Copy referenced assets (images, PDFs, etc.) to output directory
-  - `--with-backlinks` (bool): Include files that link to exported files (recursive)
-  - `--slugify` (bool): Convert filenames to URL-safe slugs
-  - `--flatten` (bool): Put all files in a single directory
-- **Performance:**
-  - `--parallel` (int): Number of parallel workers for file processing (0 = auto-detect) [default: 0]
-  - `--optimize-memory` (bool): Use memory-optimized processing for large vaults
-  - `--timeout` (duration): Maximum time to wait for export to complete [default: 10m]
-- Standard global flags (--dry-run, --verbose, --quiet)
-
 #### `mdnotes watch`
 Monitor file system for changes and automatically execute mdnotes commands.
 
-**Basic Usage:**
 ```bash
 # Start watching with default config
 mdnotes watch
@@ -978,35 +532,11 @@ watch:
       actions: ["mdnotes linkding sync {{file}}"]
 ```
 
-**Watch Events:**
-- `create`: File created
-- `write`: File modified
-- `remove`: File deleted
-- `rename`: File moved/renamed
-- `chmod`: File permissions changed
-
-**Action Placeholders:**
-- `{{file}}`: Full file path
-- `{{dir}}`: Directory containing the file
-- `{{basename}}`: Filename only
-
-**Behavior:**
-1. Monitors specified paths for markdown file changes
-2. Debounces rapid events to avoid duplicate processing
-3. Executes configured actions when events match rules
-4. Runs in foreground by default, or background with `--daemon`
-
-**Flags:**
-- `--config` (string): Path to configuration file
-- `--daemon` (bool): Run in daemon mode (background)
-- Standard global flags (--verbose, --quiet)
-
 ### External Integrations
 
 #### `mdnotes linkding sync` (alias: `s`)
 Synchronize URLs from vault files to Linkding bookmarks.
 
-**Basic Usage:**
 ```bash
 # Sync all files with URLs to Linkding
 mdnotes linkding sync /path/to/vault
@@ -1045,14 +575,6 @@ linkding_id: 123
 ---
 ```
 
-**Flags:**
-- `--url-field` (string): Frontmatter field containing the URL [default: "url"]
-- `--title-field` (string): Frontmatter field containing the title [default: "title"]
-- `--tags-field` (string): Frontmatter field containing tags [default: "tags"]
-- `--sync-title` (bool): Sync title to Linkding [default: false]
-- `--sync-tags` (bool): Sync tags to Linkding [default: false]
-- Standard global flags (--dry-run, --verbose, --quiet)
-
 #### `mdnotes linkding list` (alias: `l`)
 List vault files containing URLs and their sync status.
 
@@ -1067,13 +589,9 @@ mdnotes linkding list /path/to/vault
 # bookmarks/todo.md                 unsynced     https://todo.com
 ```
 
-**Flags:**
-- Standard global flags (--verbose, --quiet)
-
 #### `mdnotes linkding get` (alias: `g`)
 Retrieve HTML content from a note's Linkding bookmark snapshot or live URL.
 
-**Basic Usage:**
 ```bash
 # Get content from snapshot or live URL
 mdnotes linkding get note.md
@@ -1095,75 +613,7 @@ mdnotes linkding get note.md --timeout 30s --max-size 5000000
 4. **Text Extraction**: Strips HTML tags and returns clean text to stdout
 5. **Smart Cleanup**: Automatically removes temporary files
 
-**Required Frontmatter:**
-The note must have either a `linkding_id` (preferred) or `url` field:
-
-```yaml
----
-title: "Useful Article"
-url: "https://example.com/article"
-linkding_id: 123  # Added after sync
----
-```
-
-**Configuration:**
-```yaml
-# .obsidian-admin.yaml
-linkding:
-  api_url: "${LINKDING_URL}"
-  api_token: "${LINKDING_TOKEN}"
-```
-
-**Practical Examples:**
-```bash
-# Pipe content to a file
-mdnotes ld get research-article.md > content.txt
-
-# Use in scripts for content analysis
-CONTENT=$(mdnotes ld get note.md)
-echo "$CONTENT" | wc -w  # Count words
-
-# Process multiple notes
-for note in research/*.md; do
-  echo "=== $note ==="
-  mdnotes ld get "$note" | head -5  # First 5 lines
-done
-
-# Preview mode for debugging
-mdnotes ld get note.md --dry-run --verbose
-```
-
-**Error Handling:**
-- **No linkding_id or url**: Clear error with suggestions
-- **Snapshot not found**: Automatically falls back to live URL
-- **Network issues**: Retry logic with helpful error messages
-- **Large content**: Size limit protection with configurable thresholds
-- **Invalid HTML**: Graceful text extraction with error recovery
-
-**Performance:**
-- **Snapshots**: Typically faster, cached by Linkding
-- **Live URLs**: Subject to website response time
-- **Size limits**: Default 1MB limit prevents excessive downloads
-- **Timeout**: Default 10s timeout prevents hanging
-
-**Flags:**
-- `--max-size` (uint64): Maximum bytes to fetch from live URL [default: 1000000]
-- `--timeout` (duration): Request timeout [default: 10s]
-- `--tmp-dir` (string): Temporary directory for downloads [default: OS temp]
-- Standard global flags (--dry-run, --verbose, --quiet)
-
-### Global Commands and Options
-
-#### Command Aliases
-mdnotes provides convenient aliases for frequently used commands:
-- `e` → `frontmatter ensure`
-- `s` → `frontmatter set`
-- `f` → `headings fix`
-- `c` → `links check`
-- `q` → `frontmatter query`
-- `ld` → `linkding` (with subcommands: `sync`, `list`, `get`)
-
-#### Shell Completion
+### Shell Completion
 
 mdnotes provides comprehensive shell completion that's dynamically generated for all commands, subcommands, and flags.
 
@@ -1189,60 +639,25 @@ mdnotes completion fish | source   # fish
 - **Default value templates**: Template variables (`{{current_date}}`, `{{filename}}`, `{{uuid}}`) and common values
 - **Output format completion**: Valid formats (text, json, csv, yaml, table) for all analyze commands
 - **Link format completion**: Wiki and markdown formats for link conversion commands
-- **Sync source completion**: File metadata sources (file-mtime, filename patterns, path components)
 - **Query filter completion**: Pre-built filter expressions for complex queries
 - **Global shortcut support**: Full completion for ultra-short commands (e, s, f, c, q)
+
+### Global Flags
 
 **Persistent Flags (available for all commands):**
 - `--dry-run`: Preview changes without applying them
 - `--verbose`: Enable detailed output showing every file examined and actions taken
 - `--quiet`: Suppress all output except errors and final summary (overrides --verbose)
 - `--config` (string): Config file path [default: .obsidian-admin.yaml]
-- `--help`: Show command help
+- `--query` (string): Filter files using query expression (e.g., "tags contains 'published'")
+- `--from-file` (string): Read file list from specified file (one file path per line)
+- `--from-stdin`: Read file list from stdin (one file path per line)
+- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]]
 
 **Common Command-Specific Flags:**
 - `--format` (string): Output format (text, json) [available on analysis commands]
 - `--output` (string): Output file path [available on analysis commands]
-- `--ignore` (multiple): Ignore patterns [default: [".obsidian/*", "*.tmp"]] [available on most commands]
 - `--recursive` (bool): Process subdirectories [default: true] [available on frontmatter commands]
-
-### Development and Profiling
-
-#### `mdnotes profile` (hidden command)
-Performance profiling and benchmarking tools.
-
-**CPU Profiling:**
-```bash
-# Generate CPU profile
-mdnotes profile cpu --duration 30s --output cpu.prof /path/to/vault
-```
-
-**Memory Profiling:**
-```bash
-# Generate memory profile
-mdnotes profile memory --output memory.prof /path/to/vault
-```
-
-**Benchmarking:**
-```bash
-# Run performance benchmarks
-mdnotes profile benchmark --iterations 5 /path/to/vault
-
-# Generate test vault and benchmark
-mdnotes profile benchmark --generate 1000 --workers 8 --parallel /path/to/vault
-```
-
-**Profile Flags:**
-- **CPU profiling:**
-  - `--output` (string): Output file for CPU profile [default: "cpu.prof"]
-  - `--duration` (duration): Duration to run profile [default: 30s]
-- **Memory profiling:**
-  - `--output` (string): Output file for memory profile [default: "memory.prof"]
-- **Benchmarking:**
-  - `--iterations` (int): Number of benchmark iterations [default: 5]
-  - `--generate` (int): Generate test vault with N files [default: 0]
-  - `--workers` (int): Number of workers for parallel tests [default: runtime.NumCPU()]
-  - `--parallel` (bool): Enable parallel processing tests [default: true]
 
 ## ⚙️ Configuration
 
@@ -1350,220 +765,6 @@ mdnotes linkding sync /path/to/vault
 
 **Environment Variable Support:**
 Configuration values support environment variable expansion using `${VARIABLE_NAME}` syntax. This is recommended for sensitive values like API tokens.
-
-## ⚙️ Configuration
-
-mdnotes uses a YAML configuration file (`.obsidian-admin.yaml` or `mdnotes.yaml`) for advanced settings. The configuration file supports hierarchical loading: current directory → user home → `/etc`.
-
-### Complete Configuration Reference
-
-```yaml
-# mdnotes.yaml - Complete configuration example
-version: "1.0"
-
-# Vault settings
-vault:
-  path: "."  # Vault root path
-  ignore_patterns:
-    - ".obsidian/*"
-    - ".git/*"
-    - "*.tmp"
-    - "*.bak"
-    - "*.swp"
-    - ".DS_Store"
-
-# Frontmatter processing rules
-frontmatter:
-  required_fields:
-    - "title"
-    - "created"
-  type_rules:
-    fields:
-      tags: "array"
-      priority: "number"
-      published: "boolean"
-      created: "date"
-      modified: "date"
-
-# Linkding integration
-linkding:
-  api_url: "${LINKDING_URL}"
-  api_token: "${LINKDING_TOKEN}"
-  sync_title: true
-  sync_tags: true
-
-# Batch processing settings
-batch:
-  stop_on_error: false
-  create_backup: true
-  max_workers: 0  # 0 = auto-detect CPU cores
-
-# Safety and backup settings
-safety:
-  backup_retention: "24h"
-  max_backups: 50
-
-# Download settings for external resources
-downloads:
-  attachments_dir: "./resources/attachments"
-  timeout: "30s"
-  user_agent: "mdnotes/1.0"
-  max_file_size: 10485760  # 10MB
-
-# File watching automation
-watch:
-  enabled: false
-  debounce_timeout: "2s"
-  ignore_patterns:
-    - ".obsidian/*"
-    - ".git/*"
-    - "node_modules/*"
-    - "*.tmp"
-    - "*.bak"
-    - "*.swp"
-    - ".DS_Store"
-  rules:
-    - name: "Auto-ensure frontmatter"
-      paths: ["./notes/", "./inbox/"]
-      events: ["create", "write"]
-      actions:
-        - "mdnotes frontmatter ensure {{file}} --field created --default '{{current_date}}'"
-        - "mdnotes frontmatter ensure {{file}} --field tags --default '[]'"
-
-# Plugin system (Phase 4+)
-plugins:
-  enabled: false
-  paths:
-    - "~/.mdnotes/plugins"
-    - "./plugins"
-  plugins:
-    auto-frontmatter:
-      enabled: true
-      required_fields: ["title", "created", "tags"]
-    content-enhancer:
-      enabled: true
-      fix_spacing: true
-      fix_newlines: true
-
-# Performance optimization (Phase 5+)
-performance:
-  max_workers: 0        # 0 = auto-detect (recommended)
-  enable_ripgrep: true  # Use ripgrep for fast file searching
-  enable_caching: true  # Enable in-memory caching
-  cache_size: 1000      # Number of entries to cache
-  cache_ttl: "1h"       # Cache time-to-live
-  parallel_analysis: true  # Enable parallel content analysis
-  memory_limit: "200MB" # Memory usage limit
-```
-
-### Configuration Validation
-
-Validate your configuration file:
-
-```bash
-# Check configuration syntax and values
-mdnotes config validate
-
-# Show effective configuration (merged with defaults)
-mdnotes config show
-
-# Show configuration file location
-mdnotes config path
-```
-
-### Security Configuration
-
-mdnotes includes security hardening features:
-
-```yaml
-# Security settings (automatically applied)
-security:
-  path_sanitization: true     # Prevent path traversal attacks
-  input_validation: true      # Validate all user inputs
-  plugin_sandboxing: true     # Sandbox plugin execution
-  max_file_size: "10MB"      # Limit file sizes
-  allowed_extensions:         # Restrict file types
-    - ".md"
-    - ".markdown"
-    - ".mdown"
-    - ".mkd"
-```
-
-### Plugin Configuration
-
-Configure the plugin system for extensibility:
-
-```yaml
-plugins:
-  enabled: true
-  paths:
-    - "~/.mdnotes/plugins"
-    - "./plugins"
-  
-  # Security sandbox settings
-  sandbox:
-    max_memory_mb: 256
-    max_execution_time: "30s"
-    allow_networking: false
-    allow_file_write: true
-    allow_file_read: true
-    allowed_paths:
-      - "{{ vault_path }}"
-      - "{{ temp_dir }}"
-    denied_paths:
-      - "/etc"
-      - "/bin"
-      - "/usr/bin"
-      - "C:\\Windows"
-      - "C:\\Program Files"
-  
-  # Individual plugin configuration
-  plugins:
-    frontmatter-validator:
-      enabled: true
-      strict_mode: false
-      required_fields: ["title", "created"]
-    
-    content-enhancer:
-      enabled: true
-      fix_spacing: true
-      fix_newlines: true
-      normalize_quotes: false
-    
-    export-processor:
-      enabled: false
-      add_metadata: true
-      include_backlinks: true
-```
-
-### Environment Variables
-
-Override configuration with environment variables:
-
-```bash
-# Linkding settings
-export LINKDING_URL="https://bookmarks.example.com"
-export LINKDING_TOKEN="your-secret-token"
-
-# Performance settings
-export MDNOTES_MAX_WORKERS="8"
-export MDNOTES_MEMORY_LIMIT="512MB"
-export MDNOTES_CACHE_SIZE="2000"
-
-# Security settings
-export MDNOTES_PLUGIN_SANDBOX="true"
-export MDNOTES_MAX_FILE_SIZE="50MB"
-
-# Vault settings
-export MDNOTES_VAULT_PATH="/path/to/vault"
-export MDNOTES_IGNORE_PATTERNS=".obsidian/*,*.tmp,*.bak"
-```
-
-Configuration precedence (highest to lowest):
-1. Command-line flags
-2. Environment variables
-3. Configuration file
-4. Built-in defaults
 
 ## 🚀 Performance
 
