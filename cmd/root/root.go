@@ -14,6 +14,8 @@ import (
 	"github.com/eoinhurrell/mdnotes/cmd/profile"
 	"github.com/eoinhurrell/mdnotes/cmd/rename"
 	"github.com/eoinhurrell/mdnotes/cmd/watch"
+	"github.com/eoinhurrell/mdnotes/internal/processor"
+	"github.com/eoinhurrell/mdnotes/internal/selector"
 	"github.com/spf13/cobra"
 )
 
@@ -36,6 +38,12 @@ for managing frontmatter, headings, links, and file organization.`,
 	cmd.PersistentFlags().Bool("verbose", false, "Detailed output; prints filepath of every file examined and actions taken")
 	cmd.PersistentFlags().Bool("quiet", false, "Suppress all output except errors and final summary; overrides --verbose")
 	cmd.PersistentFlags().String("config", "", "Config file (default: .obsidian-admin.yaml)")
+	
+	// Add global file selection flags
+	cmd.PersistentFlags().String("query", "", "Filter files using query expression (e.g., \"tags contains 'published'\")")
+	cmd.PersistentFlags().String("from-file", "", "Read file list from specified file (one file path per line)")
+	cmd.PersistentFlags().Bool("from-stdin", false, "Read file list from stdin (one file path per line)")
+	cmd.PersistentFlags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns for file scanning")
 
 	// Add subcommands
 	cmd.AddCommand(analyze.NewAnalyzeCommand())
@@ -63,6 +71,59 @@ for managing frontmatter, headings, links, and file organization.`,
 	setupCustomCompletions(cmd)
 
 	return cmd
+}
+
+// GetGlobalSelectionConfig extracts global file selection flags from a cobra command
+// and returns the appropriate selection mode and configured FileSelector
+func GetGlobalSelectionConfig(cmd *cobra.Command) (selector.SelectionMode, *selector.FileSelector, error) {
+	// Get global flags - check both the command and its root for persistent flags
+	query, _ := cmd.Root().PersistentFlags().GetString("query")
+	fromFile, _ := cmd.Root().PersistentFlags().GetString("from-file")
+	fromStdin, _ := cmd.Root().PersistentFlags().GetBool("from-stdin")
+	ignorePatterns, _ := cmd.Root().PersistentFlags().GetStringSlice("ignore")
+	
+	// Determine selection mode based on flags
+	mode := selector.AutoDetect
+	if fromStdin {
+		mode = selector.FilesFromStdin
+	} else if fromFile != "" {
+		mode = selector.FilesFromFile
+	} else if query != "" {
+		mode = selector.FilesFromQuery
+	}
+	
+	// Create and configure FileSelector
+	fileSelector := selector.NewFileSelector().
+		WithIgnorePatterns(ignorePatterns).
+		WithQuery(query).
+		WithSourceFile(fromFile)
+	
+	return mode, fileSelector, nil
+}
+
+// ConfigureFileProcessor configures a FileProcessor with global flags from a cobra command
+func ConfigureFileProcessor(cmd *cobra.Command, processor *processor.FileProcessor) error {
+	// Get global flags
+	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
+	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+	
+	// Get file selection configuration
+	mode, fileSelector, err := GetGlobalSelectionConfig(cmd)
+	if err != nil {
+		return err
+	}
+	
+	// Configure processor
+	processor.DryRun = dryRun
+	processor.Verbose = verbose
+	processor.Quiet = quiet
+	processor.IgnorePatterns = fileSelector.IgnorePatterns
+	processor.QueryFilter = fileSelector.QueryFilter
+	processor.SelectionMode = mode
+	processor.SourceFile = fileSelector.SourceFile
+	
+	return nil
 }
 
 // newCompletionCommand creates the completion command
@@ -131,8 +192,13 @@ PowerShell:
 
 // setupCustomCompletions adds custom completion functions for file paths and other common arguments
 func setupCustomCompletions(cmd *cobra.Command) {
-	// Set completion for config files globally
+	// Set completion for global flags
 	cmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
+	cmd.RegisterFlagCompletionFunc("query", CompleteQueryExpressions)
+	cmd.RegisterFlagCompletionFunc("from-file", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"txt", "list"}, cobra.ShellCompDirectiveFilterFileExt
+	})
+	cmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
 
 	// Add completion for commands that need path arguments
 	for _, subCmd := range cmd.Commands() {

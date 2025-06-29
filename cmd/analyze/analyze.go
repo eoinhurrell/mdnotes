@@ -7,10 +7,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/eoinhurrell/mdnotes/cmd/root"
 	"github.com/eoinhurrell/mdnotes/internal/analyzer"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/errors"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
+	"github.com/eoinhurrell/mdnotes/internal/selector"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"github.com/spf13/cobra"
 )
@@ -59,12 +61,19 @@ func newStatsCommand() *cobra.Command {
 				return errors.NewConfigError("", err.Error())
 			}
 
-			// Scan vault files with error tolerance
-			scanner := vault.NewScanner(
-				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
-				vault.WithContinueOnErrors(),
-			)
-			files, err := scanner.Walk(vaultPath)
+			// Get file selection configuration from global flags
+			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
+			if err != nil {
+				return errors.WrapError(err, "file selection config", "")
+			}
+			
+			// Merge config ignore patterns with global ignore patterns if needed
+			if len(fileSelector.IgnorePatterns) == 0 {
+				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
+			}
+			
+			// Select files using unified architecture
+			selection, err := fileSelector.SelectFiles(vaultPath, mode)
 			if err != nil {
 				if os.IsNotExist(err) {
 					return errors.NewFileNotFoundError(vaultPath,
@@ -77,14 +86,15 @@ func newStatsCommand() *cobra.Command {
 			}
 
 			// Report any parsing errors encountered
-			parseErrors := scanner.GetParseErrors()
-			if len(parseErrors) > 0 {
-				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(parseErrors))
-				for _, parseErr := range parseErrors {
+			if len(selection.ParseErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
+				for _, parseErr := range selection.ParseErrors {
 					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
 				}
 				fmt.Fprintf(os.Stderr, "\n")
 			}
+			
+			files := selection.Files
 
 			// Generate statistics
 			ana := analyzer.NewAnalyzer()
@@ -151,12 +161,19 @@ Example:
 				return fmt.Errorf("loading config: %w", err)
 			}
 
-			// Scan vault files with error tolerance
-			scanner := vault.NewScanner(
-				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
-				vault.WithContinueOnErrors(),
-			)
-			files, err := scanner.Walk(vaultPath)
+			// Get file selection configuration from global flags
+			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
+			if err != nil {
+				return errors.WrapError(err, "file selection config", "")
+			}
+			
+			// Merge config ignore patterns with global ignore patterns if needed
+			if len(fileSelector.IgnorePatterns) == 0 {
+				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
+			}
+			
+			// Select files using unified architecture
+			selection, err := fileSelector.SelectFiles(vaultPath, mode)
 			if err != nil {
 				if os.IsNotExist(err) {
 					return errors.NewFileNotFoundError(vaultPath,
@@ -167,12 +184,13 @@ Example:
 				}
 				return errors.WrapError(err, "vault scanning", vaultPath)
 			}
+			
+			files := selection.Files
 
 			// Report any parsing errors encountered
-			parseErrors := scanner.GetParseErrors()
-			if len(parseErrors) > 0 {
-				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(parseErrors))
-				for _, parseErr := range parseErrors {
+			if len(selection.ParseErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
+				for _, parseErr := range selection.ParseErrors {
 					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
 				}
 				fmt.Fprintf(os.Stderr, "\n")
@@ -272,12 +290,20 @@ func newHealthCommand() *cobra.Command {
 				return fmt.Errorf("loading config: %w", err)
 			}
 
-			// Scan vault files with error tolerance
-			scanner := vault.NewScanner(
-				vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns),
-				vault.WithContinueOnErrors(),
-			)
-			files, err := scanner.Walk(vaultPath)
+			// Get file selection configuration from global flags
+			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
+			if err != nil {
+				return errors.WrapError(err, "file selection config", "")
+			}
+			
+			// Merge config ignore patterns with global ignore patterns if needed
+			if len(fileSelector.IgnorePatterns) == 0 {
+				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
+			}
+			
+			// Select files using unified architecture
+			selection, err := fileSelector.SelectFiles(vaultPath, mode)
+			files := selection.Files
 			if err != nil {
 				if os.IsNotExist(err) {
 					return errors.NewFileNotFoundError(vaultPath,
@@ -290,10 +316,9 @@ func newHealthCommand() *cobra.Command {
 			}
 
 			// Report any parsing errors encountered
-			parseErrors := scanner.GetParseErrors()
-			if len(parseErrors) > 0 {
-				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(parseErrors))
-				for _, parseErr := range parseErrors {
+			if len(selection.ParseErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
+				for _, parseErr := range selection.ParseErrors {
 					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
 				}
 				fmt.Fprintf(os.Stderr, "\n")

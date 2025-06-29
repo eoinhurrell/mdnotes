@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eoinhurrell/mdnotes/cmd/root"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
+	"github.com/eoinhurrell/mdnotes/internal/selector"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"github.com/spf13/cobra"
 )
@@ -66,12 +68,39 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		verbose = false
 	}
 
-	// Scan files
-	scanner := vault.NewScanner(vault.WithIgnorePatterns(ignorePatterns))
-	files, err := scanner.Walk(path)
+	// Get file selection configuration from global flags
+	mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("scanning directory: %w", err)
+		return fmt.Errorf("getting file selection config: %w", err)
 	}
+	
+	// Merge local ignore patterns with global ignore patterns
+	localIgnore := ignorePatterns
+	if len(fileSelector.IgnorePatterns) > 0 {
+		// Combine both sets of ignore patterns
+		combinedIgnore := append(fileSelector.IgnorePatterns, localIgnore...)
+		fileSelector = fileSelector.WithIgnorePatterns(combinedIgnore)
+	} else {
+		fileSelector = fileSelector.WithIgnorePatterns(localIgnore)
+	}
+	
+	// Select files using unified architecture
+	selection, err := fileSelector.SelectFiles(path, mode)
+	if err != nil {
+		return fmt.Errorf("selecting files: %w", err)
+	}
+	
+	// Print selection summary if verbose
+	if verbose {
+		fmt.Printf("%s\n", selection.GetSelectionSummary())
+	}
+	
+	// Print parse errors if any
+	if len(selection.ParseErrors) > 0 && verbose {
+		selection.PrintParseErrors()
+	}
+	
+	files := selection.Files
 
 	if len(files) == 0 {
 		if !quiet {

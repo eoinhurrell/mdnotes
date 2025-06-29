@@ -1012,7 +1012,14 @@ Other query types:
   mdnotes fm query . --where "status = 'draft'" --count
   
   # Auto-fix missing fields
-  mdnotes fm query . --missing "created" --fix-with "{{current_date}}"`,
+  mdnotes fm query . --missing "created" --fix-with "{{current_date}}"
+  
+Piping support:
+  # Output paths for piping to other commands
+  mdnotes fm query . --where "status = 'draft'" --paths-only
+  
+  # Pipe to other mdnotes commands
+  mdnotes fm query . --where "status = 'draft'" --paths-only | xargs -I {} mdnotes fm upsert --field status --default "published" "{}"`,
 		Args: cobra.ExactArgs(1),
 		RunE: runQuery,
 	}
@@ -1024,8 +1031,9 @@ Other query types:
 
 	// Output control flags (consistent with other commands)
 	cmd.Flags().StringSlice("field", nil, "Select specific fields to display (comma-separated)")
-	cmd.Flags().String("format", "table", "Output format: table, json, csv, yaml")
+	cmd.Flags().String("format", "table", "Output format: table, json, csv, yaml, paths")
 	cmd.Flags().Bool("count", false, "Show only the count of matching files")
+	cmd.Flags().Bool("paths-only", false, "Output only file paths (for piping to other commands)")
 	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
 
 	// Auto-fix functionality (matches ensure command pattern)
@@ -1044,6 +1052,7 @@ func runQuery(cmd *cobra.Command, args []string) error {
 	fields, _ := cmd.Flags().GetStringSlice("field")
 	format, _ := cmd.Flags().GetString("format")
 	count, _ := cmd.Flags().GetBool("count")
+	pathsOnly, _ := cmd.Flags().GetBool("paths-only")
 	ignorePatterns, _ := cmd.Flags().GetStringSlice("ignore")
 	fixWith, _ := cmd.Flags().GetString("fix-with")
 	dryRun, _ := cmd.Root().PersistentFlags().GetBool("dry-run")
@@ -1071,6 +1080,14 @@ func runQuery(cmd *cobra.Command, args []string) error {
 
 	if fixWith != "" && missingField == "" {
 		return fmt.Errorf("--fix-with can only be used with --missing")
+	}
+	
+	if pathsOnly && format != "table" {
+		return fmt.Errorf("--paths-only cannot be used with --format (use --paths-only OR --format)")
+	}
+	
+	if pathsOnly {
+		format = "paths"
 	}
 
 	// Load files using existing helper
@@ -1254,8 +1271,10 @@ func outputResults(files []*vault.VaultFile, fields []string, format string, qui
 		return outputCSV(files, fields)
 	case "yaml":
 		return outputYAML(files, fields)
+	case "paths":
+		return outputPaths(files)
 	default:
-		return fmt.Errorf("unsupported format: %s (supported: table, json, csv, yaml)", format)
+		return fmt.Errorf("unsupported format: %s (supported: table, json, csv, yaml, paths)", format)
 	}
 }
 
@@ -1432,5 +1451,13 @@ func outputYAML(files []*vault.VaultFile, fields []string) error {
 		}
 	}
 
+	return nil
+}
+
+// outputPaths outputs only the file paths, one per line, for piping to other commands
+func outputPaths(files []*vault.VaultFile) error {
+	for _, file := range files {
+		fmt.Println(file.Path)
+	}
 	return nil
 }

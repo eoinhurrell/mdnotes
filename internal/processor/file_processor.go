@@ -3,9 +3,8 @@ package processor
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
+	"github.com/eoinhurrell/mdnotes/internal/selector"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
@@ -15,6 +14,9 @@ type FileProcessor struct {
 	Verbose        bool
 	Quiet          bool
 	IgnorePatterns []string
+	QueryFilter    string              // Query to filter files
+	SelectionMode  selector.SelectionMode // How to select files
+	SourceFile     string              // For FilesFromFile mode
 
 	// Callbacks
 	ProcessFile     func(file *vault.VaultFile) (modified bool, err error)
@@ -27,27 +29,55 @@ type ProcessResult struct {
 	TotalFiles     int
 	ProcessedFiles int
 	Errors         []error
+	Selection      *selector.SelectionResult // Information about file selection
 }
 
-// ProcessPath processes files at the given path (file or directory)
+// ProcessPath processes files at the given path using the configured selection mode
 func (fp *FileProcessor) ProcessPath(path string) (*ProcessResult, error) {
-	// Load files
-	files, err := fp.loadFiles(path)
+	// Create file selector with processor settings
+	fileSelector := selector.NewFileSelector().
+		WithIgnorePatterns(fp.IgnorePatterns).
+		WithQuery(fp.QueryFilter).
+		WithSourceFile(fp.SourceFile)
+
+	// Determine selection mode (default to AutoDetect)
+	mode := fp.SelectionMode
+	if mode == 0 {
+		mode = selector.AutoDetect
+	}
+
+	// Select files
+	selection, err := fileSelector.SelectFiles(path, mode)
 	if err != nil {
 		return nil, err
 	}
 
+	// Print parse errors if in verbose mode
+	if fp.Verbose && len(selection.ParseErrors) > 0 {
+		selection.PrintParseErrors()
+	}
+
+	files := selection.Files
 	if len(files) == 0 {
 		if fp.Verbose {
-			fmt.Println("No markdown files found")
+			fmt.Printf("No markdown files selected from %s\n", selection.Source)
 		}
-		return &ProcessResult{TotalFiles: 0, ProcessedFiles: 0}, nil
+		return &ProcessResult{
+			TotalFiles: 0, 
+			ProcessedFiles: 0,
+			Selection: selection,
+		}, nil
+	}
+
+	if fp.Verbose {
+		fmt.Printf("%s\n", selection.GetSelectionSummary())
 	}
 
 	// Process files
 	result := &ProcessResult{
 		TotalFiles: len(files),
 		Errors:     []error{},
+		Selection:  selection,
 	}
 
 	for i, file := range files {
@@ -84,53 +114,6 @@ func (fp *FileProcessor) ProcessPath(path string) (*ProcessResult, error) {
 	return result, nil
 }
 
-// loadFiles loads files from the given path (file or directory)
-func (fp *FileProcessor) loadFiles(path string) ([]*vault.VaultFile, error) {
-	// Check if path exists
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, fmt.Errorf("path error: %w", err)
-	}
-
-	var files []*vault.VaultFile
-
-	if info.IsDir() {
-		// Scan directory
-		scanner := vault.NewScanner(vault.WithIgnorePatterns(fp.IgnorePatterns))
-		files, err = scanner.Walk(path)
-		if err != nil {
-			return nil, fmt.Errorf("scanning directory: %w", err)
-		}
-	} else {
-		// Single file
-		if !strings.HasSuffix(path, ".md") {
-			return nil, fmt.Errorf("file must have .md extension")
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("reading file: %w", err)
-		}
-
-		// Get file info for modification time
-		fileInfo, err := os.Stat(path)
-		if err != nil {
-			return nil, fmt.Errorf("getting file info: %w", err)
-		}
-
-		vf := &vault.VaultFile{
-			Path:         path,
-			RelativePath: filepath.Base(path),
-			Modified:     fileInfo.ModTime(),
-		}
-		if err := vf.Parse(content); err != nil {
-			return nil, fmt.Errorf("parsing file: %w", err)
-		}
-		files = []*vault.VaultFile{vf}
-	}
-
-	return files, nil
-}
 
 // writeFile writes a vault file back to disk, preserving frontmatter order
 func (fp *FileProcessor) writeFile(file *vault.VaultFile) error {

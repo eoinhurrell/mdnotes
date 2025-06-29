@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/eoinhurrell/mdnotes/cmd/root"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/linkding"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
+	"github.com/eoinhurrell/mdnotes/internal/selector"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"github.com/spf13/cobra"
 )
@@ -89,12 +91,34 @@ Configuration:
 			// Create Linkding client
 			client := linkding.NewClient(cfg.Linkding.APIURL, cfg.Linkding.APIToken)
 
-			// Scan vault files
-			scanner := vault.NewScanner(vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns))
-			files, err := scanner.Walk(vaultPath)
+			// Get file selection configuration from global flags
+			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
 			if err != nil {
-				return fmt.Errorf("scanning vault: %w", err)
+				return fmt.Errorf("getting file selection config: %w", err)
 			}
+			
+			// Merge config ignore patterns with global ignore patterns if needed
+			if len(fileSelector.IgnorePatterns) == 0 {
+				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
+			}
+			
+			// Select files using unified architecture
+			selection, err := fileSelector.SelectFiles(vaultPath, mode)
+			if err != nil {
+				return fmt.Errorf("selecting files: %w", err)
+			}
+			
+			// Print selection summary if verbose
+			if verbose {
+				fmt.Printf("%s\n", selection.GetSelectionSummary())
+			}
+			
+			// Print parse errors if any
+			if len(selection.ParseErrors) > 0 && verbose {
+				selection.PrintParseErrors()
+			}
+			
+			files := selection.Files
 
 			// Create sync configuration
 			syncConfig := processor.LinkdingSyncConfig{
@@ -262,6 +286,7 @@ func newListCommand() *cobra.Command {
 
 			// Get flags from persistent flags
 			quiet, _ := cmd.Root().PersistentFlags().GetBool("quiet")
+			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
 			// Load configuration
 			cfg, err := loadConfig(cmd)
@@ -269,12 +294,34 @@ func newListCommand() *cobra.Command {
 				return fmt.Errorf("loading config: %w", err)
 			}
 
-			// Scan vault files
-			scanner := vault.NewScanner(vault.WithIgnorePatterns(cfg.Vault.IgnorePatterns))
-			files, err := scanner.Walk(vaultPath)
+			// Get file selection configuration from global flags
+			mode, fileSelector, err := root.GetGlobalSelectionConfig(cmd)
 			if err != nil {
-				return fmt.Errorf("scanning vault: %w", err)
+				return fmt.Errorf("getting file selection config: %w", err)
 			}
+			
+			// Merge config ignore patterns with global ignore patterns if needed
+			if len(fileSelector.IgnorePatterns) == 0 {
+				fileSelector = fileSelector.WithIgnorePatterns(cfg.Vault.IgnorePatterns)
+			}
+			
+			// Select files using unified architecture
+			selection, err := fileSelector.SelectFiles(vaultPath, mode)
+			if err != nil {
+				return fmt.Errorf("selecting files: %w", err)
+			}
+			
+			// Print selection summary if verbose
+			if verbose {
+				fmt.Printf("%s\n", selection.GetSelectionSummary())
+			}
+			
+			// Print parse errors if any
+			if len(selection.ParseErrors) > 0 && verbose {
+				selection.PrintParseErrors()
+			}
+			
+			files := selection.Files
 
 			// Create sync processor to analyze files
 			syncConfig := processor.LinkdingSyncConfig{}
