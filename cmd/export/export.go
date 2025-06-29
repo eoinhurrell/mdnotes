@@ -500,7 +500,7 @@ func validateAndResolvePaths(vaultPath, outputPath string, dryRun bool) (string,
 	vaultInfo, err := os.Stat(vaultAbs)
 	if os.IsNotExist(err) {
 		return "", "", NewExportError(ErrFileSystem,
-			fmt.Sprintf("Vault path does not exist: %s", vaultAbs))
+			fmt.Sprintf("vault path does not exist: %s", vaultAbs))
 	}
 	if err != nil {
 		return "", "", NewExportErrorWithCause(ErrPermission,
@@ -543,7 +543,7 @@ func validateOutputPath(outputAbs string, dryRun bool) error {
 			}
 			if len(entries) > 0 {
 				return NewExportError(ErrInvalidInput,
-					fmt.Sprintf("Output directory is not empty: %s\\n\\nUse --dry-run to preview or choose an empty directory", outputAbs))
+					fmt.Sprintf("output directory is not empty: %s\\n\\nUse --dry-run to preview or choose an empty directory", outputAbs))
 			}
 		}
 	} else if !os.IsNotExist(err) {

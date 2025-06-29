@@ -29,6 +29,8 @@ type WorkerPool struct {
 	cancel     context.CancelFunc
 	stats      Stats
 	mu         sync.RWMutex
+	closeOnce  sync.Once
+	closed     bool
 }
 
 // Stats tracks worker pool performance metrics
@@ -165,9 +167,19 @@ func (wp *WorkerPool) Shutdown(timeout time.Duration) error {
 
 // ForceShutdown immediately cancels all workers
 func (wp *WorkerPool) ForceShutdown() {
+	wp.mu.Lock()
+	if wp.closed {
+		wp.mu.Unlock()
+		return
+	}
+	wp.closed = true
+	wp.mu.Unlock()
+	
 	wp.cancel()
-	close(wp.taskQueue)
-	close(wp.resultChan)
+	wp.closeOnce.Do(func() {
+		close(wp.taskQueue)
+		close(wp.resultChan)
+	})
 }
 
 // Wait blocks until all submitted tasks are completed
@@ -233,12 +245,19 @@ func (wp *WorkerPool) worker(id int, taskTimeout time.Duration, enableStats bool
 				Completed: err == nil,
 			}
 
-			select {
-			case wp.resultChan <- result:
-			case <-wp.ctx.Done():
-				return
-			default:
-				// Result channel full, skip (we don't want to block workers)
+			// Check if pool is closed before sending
+			wp.mu.RLock()
+			poolClosed := wp.closed
+			wp.mu.RUnlock()
+			
+			if !poolClosed {
+				select {
+				case wp.resultChan <- result:
+				case <-wp.ctx.Done():
+					return
+				default:
+					// Result channel full, skip (we don't want to block workers)
+				}
 			}
 
 		case <-wp.ctx.Done():

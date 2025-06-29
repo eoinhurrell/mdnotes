@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -139,6 +140,13 @@ func (l *Loader) Load() (*Config, error) {
 	// Enable environment variable support
 	v.SetEnvPrefix("MDNOTES")
 	v.AutomaticEnv()
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	
+	// Bind specific environment variables for nested structures
+	v.BindEnv("vault.path", "MDNOTES_VAULT_PATH")
+	v.BindEnv("linkding.api_url", "MDNOTES_LINKDING_API_URL")  
+	v.BindEnv("linkding.api_token", "MDNOTES_LINKDING_API_TOKEN")
+	v.BindEnv("performance.max_workers", "MDNOTES_PERFORMANCE_MAX_WORKERS")
 
 	// Try to read configuration
 	if err := v.ReadInConfig(); err != nil {
@@ -181,7 +189,11 @@ func (l *Loader) expandPath(path string) string {
 		return filepath.Join(home, path[1:])
 	}
 
-	// Convert to absolute path
+	// Convert to absolute path only if it's a relative path
+	if filepath.IsAbs(path) {
+		return path // Already absolute, return as-is
+	}
+	
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return path // Return original if can't resolve

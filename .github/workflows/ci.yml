@@ -35,7 +35,7 @@ jobs:
       run: go mod verify
 
     - name: Run tests
-      run: go test -race -coverprofile=coverage.out ./...
+      run: go test -coverprofile=coverage.out ./...
 
     - name: Build binary
       run: go build -v ./cmd

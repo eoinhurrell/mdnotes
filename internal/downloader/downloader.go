@@ -291,11 +291,9 @@ func IsValidURL(str string) bool {
 
 // GenerateWikiLink creates a wiki link for the downloaded file
 func GenerateWikiLink(localPath string) string {
-	// Convert to forward slashes for consistency
-	linkPath := filepath.ToSlash(localPath)
+	// Extract just the filename from the path
+	filename := filepath.Base(localPath)
 
-	// Remove leading ./ if present
-	linkPath = strings.TrimPrefix(linkPath, "./")
-
-	return fmt.Sprintf("[[%s]]", linkPath)
+	// Return as embed link format (with !)
+	return fmt.Sprintf("![[%s]]", filename)
 }

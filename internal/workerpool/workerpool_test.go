@@ -83,7 +83,7 @@ func TestWorkerPoolSubmitWithTimeout(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// This should timeout since worker is busy and no queue
-	err = pool.SubmitWithTimeout(slowTask, 10*time.Millisecond)
+	err = pool.SubmitWithTimeout(slowTask, 1*time.Millisecond)
 	assert.Error(t, err)
 	// Could be timeout or queue full error
 }

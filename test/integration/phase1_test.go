@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/eoinhurrell/mdnotes/cmd/mdnotes/root"
+	"github.com/eoinhurrell/mdnotes/cmd/root"
 	"github.com/eoinhurrell/mdnotes/internal/templates"
 	"github.com/eoinhurrell/mdnotes/pkg/config"
 	"github.com/spf13/cobra"

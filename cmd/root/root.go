@@ -73,6 +73,11 @@ for managing frontmatter, headings, links, and file organization.`,
 	return cmd
 }
 
+// Execute runs the root command
+func Execute() error {
+	return NewRootCommand().Execute()
+}
+
 // GetGlobalSelectionConfig extracts global file selection flags from a cobra command
 // and returns the appropriate selection mode and configured FileSelector
 func GetGlobalSelectionConfig(cmd *cobra.Command) (selector.SelectionMode, *selector.FileSelector, error) {

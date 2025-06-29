@@ -45,8 +45,9 @@ func TestLoader_Load_NoConfigFile(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, config)
 
-	// Should return defaults
-	assert.Equal(t, ".", config.Vault.Path)
+	// Should return defaults (with path expanded to absolute)
+	expectedPath, _ := filepath.Abs(".")
+	assert.Equal(t, expectedPath, config.Vault.Path)
 	assert.Equal(t, "remove", config.Export.DefaultStrategy)
 }
 
@@ -158,6 +159,7 @@ func TestLoader_Validate(t *testing.T) {
 			name: "negative max workers",
 			config: &Config{
 				Vault:       VaultConfig{Path: "."},
+				Export:      ExportConfig{DefaultStrategy: "remove"},
 				Performance: PerformanceConfig{MaxWorkers: -1},
 			},
 			expectError: true,
@@ -318,10 +320,12 @@ func TestLoader_EnvironmentVariableOverrides(t *testing.T) {
 	// Set environment variables
 	os.Setenv("MDNOTES_VAULT_PATH", "/env/vault")
 	os.Setenv("MDNOTES_LINKDING_API_URL", "https://env.example.com")
+	os.Setenv("MDNOTES_LINKDING_API_TOKEN", "env-token")
 	os.Setenv("MDNOTES_PERFORMANCE_MAX_WORKERS", "8")
 	defer func() {
 		os.Unsetenv("MDNOTES_VAULT_PATH")
 		os.Unsetenv("MDNOTES_LINKDING_API_URL")
+		os.Unsetenv("MDNOTES_LINKDING_API_TOKEN")
 		os.Unsetenv("MDNOTES_PERFORMANCE_MAX_WORKERS")
 	}()
 
@@ -339,5 +343,6 @@ func TestLoader_EnvironmentVariableOverrides(t *testing.T) {
 	// Environment variables should override defaults
 	assert.Equal(t, "/env/vault", config.Vault.Path)
 	assert.Equal(t, "https://env.example.com", config.Linkding.APIURL)
+	assert.Equal(t, "env-token", config.Linkding.APIToken)
 	assert.Equal(t, 8, config.Performance.MaxWorkers)
 }

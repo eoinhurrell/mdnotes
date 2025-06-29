@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -111,9 +112,9 @@ func TestParallelFileProcessor_LargeFileSet(t *testing.T) {
 	}
 
 	// Mock processor function that simulates work
-	processCount := 0
+	var processCount int64
 	fileProcessor := func(file *vault.VaultFile, outputPath string, opts ExportOptions) (*FileProcessingResult, error) {
-		processCount++
+		atomic.AddInt64(&processCount, 1)
 		// Simulate some processing time
 		time.Sleep(1 * time.Millisecond)
 		return &FileProcessingResult{
@@ -129,7 +130,7 @@ func TestParallelFileProcessor_LargeFileSet(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, 20, processCount)
+	assert.Equal(t, int64(20), atomic.LoadInt64(&processCount))
 
 	// Parallel processing should be faster than sequential
 	// With 2 workers and 1ms per file, should be roughly 10-15ms instead of 20ms
