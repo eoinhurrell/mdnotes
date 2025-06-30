@@ -305,10 +305,39 @@ func (la *ExportLinkAnalyzer) resolveTargetPath(target, sourceRelativePath strin
 		return targetWithExt
 	}
 
-	// Search across the entire vault for exact filename matches
+	// Search across the entire vault for filename matches
+	// Try exact match first
 	for vaultFile := range la.vaultFiles {
 		if filepath.Base(vaultFile) == targetWithExt {
 			return vaultFile
+		}
+	}
+
+	// Try case-insensitive match
+	targetLower := strings.ToLower(targetWithExt)
+	for vaultFile := range la.vaultFiles {
+		if strings.ToLower(filepath.Base(vaultFile)) == targetLower {
+			return vaultFile
+		}
+	}
+
+	// Try fuzzy matching for common filename variations
+	// Convert "Marcus Aurelius.md" to variations like "marcus-aurelius.md", "marcus_aurelius.md"
+	if strings.Contains(targetWithExt, " ") {
+		// Try hyphen version
+		hyphenVersion := strings.ReplaceAll(strings.ToLower(targetWithExt), " ", "-")
+		for vaultFile := range la.vaultFiles {
+			if strings.ToLower(filepath.Base(vaultFile)) == hyphenVersion {
+				return vaultFile
+			}
+		}
+
+		// Try underscore version
+		underscoreVersion := strings.ReplaceAll(strings.ToLower(targetWithExt), " ", "_")
+		for vaultFile := range la.vaultFiles {
+			if strings.ToLower(filepath.Base(vaultFile)) == underscoreVersion {
+				return vaultFile
+			}
 		}
 	}
 

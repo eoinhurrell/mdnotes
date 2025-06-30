@@ -91,8 +91,8 @@ Book by Ken Baumann.
 	})
 
 	t.Run("rename processor finds and updates URL-encoded links", func(t *testing.T) {
-		// Use the test-vault copy approach like the working tests
-		vaultPath := filepath.Join("..", "..", "test-vault")
+		// Use the test/test-vault copy approach like the working tests
+		vaultPath := filepath.Join("..", "..", "test/test-vault")
 		absVaultPath, err := filepath.Abs(vaultPath)
 		if err != nil {
 			t.Fatalf("Failed to get abs path: %v", err)

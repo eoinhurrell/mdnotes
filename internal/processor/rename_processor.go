@@ -442,7 +442,7 @@ func (rp *RenameProcessor) findCandidateFilesWithRgsearch(ctx context.Context, m
 		IncludePatterns: []string{"*.md"},
 		MaxMatches:      1000,
 		Timeout:         30 * time.Second,
-		AdditionalArgs:  []string{"--no-ignore"}, // Disable gitignore to search test-vault
+		AdditionalArgs:  []string{"--no-ignore"}, // Disable gitignore to search test/test-vault
 	}
 
 	// Use rgsearch to find files containing potential references

@@ -63,29 +63,63 @@ func TestWorkerPoolSubmit(t *testing.T) {
 
 func TestWorkerPoolSubmitWithTimeout(t *testing.T) {
 	config := DefaultConfig()
-	config.QueueSize = 0  // No queue buffer
-	config.MaxWorkers = 1 // Single worker
+	config.QueueSize = 1    // Small queue
+	config.MaxWorkers = 1   // Single worker
 
 	pool := NewWorkerPool(config)
 	defer pool.ForceShutdown()
 
-	// Fill the worker with a blocking task
-	slowTask := func(ctx context.Context) error {
-		time.Sleep(200 * time.Millisecond)
-		return nil
+	// Use synchronization channels
+	task1Started := make(chan struct{})
+	task2Started := make(chan struct{})
+	
+	// Create blocking tasks
+	blockingTask1 := func(ctx context.Context) error {
+		close(task1Started)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+			return nil
+		}
+	}
+	
+	blockingTask2 := func(ctx context.Context) error {
+		close(task2Started)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+			return nil
+		}
 	}
 
-	// Submit task to occupy the worker
-	err := pool.Submit(slowTask)
+	// Submit first task (will be picked up by worker)
+	err := pool.Submit(blockingTask1)
+	assert.NoError(t, err)
+	
+	// Wait for first task to start
+	<-task1Started
+
+	// Submit second task (will fill the queue)
+	err = pool.Submit(blockingTask2)
 	assert.NoError(t, err)
 
-	// Give worker time to start and be busy
-	time.Sleep(50 * time.Millisecond)
-
-	// This should timeout since worker is busy and no queue
-	err = pool.SubmitWithTimeout(slowTask, 5*time.Millisecond)
-	assert.Error(t, err)
-	// Could be timeout or queue full error
+	// Now both worker and queue are busy, this should timeout
+	quickTask := func(ctx context.Context) error {
+		return nil
+	}
+	
+	err = pool.SubmitWithTimeout(quickTask, 10*time.Millisecond)
+	assert.Error(t, err, "Expected timeout when worker and queue are full")
+	
+	if err != nil {
+		// Should be either timeout or queue full error
+		assert.True(t, 
+			err.Error() == "task queue is full" || 
+			err.Error() == "timeout submitting task to queue",
+			"Expected queue full or timeout error, got: %s", err.Error())
+	}
 }
 
 func TestWorkerPoolResults(t *testing.T) {

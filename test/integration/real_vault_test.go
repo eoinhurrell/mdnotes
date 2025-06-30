@@ -13,16 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRealVaultLinkUpdating tests the rename functionality with the actual test-vault
+// TestRealVaultLinkUpdating tests the rename functionality with the actual test/test-vault
 func TestRealVaultLinkUpdating(t *testing.T) {
 	// Get the test vault path
-	vaultPath := filepath.Join("..", "..", "test-vault")
+	vaultPath := filepath.Join("..", "..", "test/test-vault")
 	absVaultPath, err := filepath.Abs(vaultPath)
 	require.NoError(t, err)
 
 	// Verify the vault exists
 	_, err = os.Stat(absVaultPath)
-	require.NoError(t, err, "test-vault directory should exist")
+	require.NoError(t, err, "test/test-vault directory should exist")
 
 	t.Run("rename book file and verify link updates", func(t *testing.T) {
 		// Copy the vault to a temporary location for testing

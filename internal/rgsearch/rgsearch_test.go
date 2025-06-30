@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -121,7 +122,9 @@ func TestSearchInTestFiles(t *testing.T) {
 		assert.Equal(t, "match", result.Type)
 		assert.NotEmpty(t, result.Data.Path.Text)
 		assert.NotEmpty(t, result.Data.Lines.Text)
-		assert.Contains(t, result.Data.Lines.Text, "test")
+		// Check if the result contains the search term (case-insensitive)
+		lowerText := strings.ToLower(result.Data.Lines.Text)
+		assert.Contains(t, lowerText, "test")
 	}
 }
 
@@ -284,13 +287,20 @@ func TestSearchWithCaseSensitivity(t *testing.T) {
 
 	results, err := searcher.Search(context.Background(), options)
 	require.NoError(t, err)
-	assert.Len(t, results, 2) // Should match both "TEST" and "test"
+	// Case insensitive should find 1 result with 2 submatches (TEST and test in same line)
+	assert.Len(t, results, 1)
+	if len(results) > 0 {
+		assert.Len(t, results[0].Data.Submatches, 2) // Both "TEST" and "test" as submatches
+	}
 
 	// Case sensitive search
 	options.CaseSensitive = true
 	results, err = searcher.Search(context.Background(), options)
 	require.NoError(t, err)
 	assert.Len(t, results, 1) // Should match only "test"
+	if len(results) > 0 {
+		assert.Len(t, results[0].Data.Submatches, 1) // Only "test" as submatch
+	}
 }
 
 func TestCountMatches(t *testing.T) {
@@ -310,6 +320,12 @@ func TestCountMatches(t *testing.T) {
 	options.Pattern = "test"
 	options.Path = tmpDir
 
+	// Test files search first to verify matches exist
+	files, err := searcher.SearchFiles(context.Background(), options)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(files)) // One file with matches
+
+	// Now test count matches - this counts files with matches
 	count, err := searcher.CountMatches(context.Background(), options)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count) // One file with matches
@@ -362,17 +378,31 @@ func TestSearchWithContext(t *testing.T) {
 	err := os.WriteFile(testFile, []byte(content), 0644)
 	require.NoError(t, err)
 
+	// First test without context to get baseline
 	options := DefaultSearchOptions()
 	options.Pattern = "match"
 	options.Path = tmpDir
+
+	baselineResults, err := searcher.Search(context.Background(), options)
+	require.NoError(t, err)
+	assert.Len(t, baselineResults, 1) // Should find 1 match
+
+	// Now test with context - this should include context in the same result
 	options.ContextBefore = 1
 	options.ContextAfter = 1
 
 	results, err := searcher.Search(context.Background(), options)
 	require.NoError(t, err)
 
-	// With context, we should get multiple results (the match and context lines)
-	assert.Greater(t, len(results), 1)
+	// With context, ripgrep still returns 1 match result but with more line content
+	assert.Len(t, results, 1)
+	// The result should contain more text due to context
+	if len(results) > 0 {
+		// Context should make the result contain more than just "match line"
+		assert.Contains(t, results[0].Data.Lines.Text, "match")
+		// Should have context lines included
+		assert.True(t, len(results[0].Data.Lines.Text) > len("match line"))
+	}
 }
 
 func TestSearchTimeout(t *testing.T) {

@@ -92,6 +92,13 @@ func NewWorkerPool(config Config) *WorkerPool {
 
 // Submit adds a task to the worker pool queue
 func (wp *WorkerPool) Submit(task Task) error {
+	wp.mu.RLock()
+	if wp.closed {
+		wp.mu.RUnlock()
+		return fmt.Errorf("worker pool is closed")
+	}
+	wp.mu.RUnlock()
+	
 	select {
 	case wp.taskQueue <- task:
 		wp.mu.Lock()
@@ -107,6 +114,13 @@ func (wp *WorkerPool) Submit(task Task) error {
 
 // SubmitWithTimeout adds a task with a timeout for queue submission
 func (wp *WorkerPool) SubmitWithTimeout(task Task, timeout time.Duration) error {
+	wp.mu.RLock()
+	if wp.closed {
+		wp.mu.RUnlock()
+		return fmt.Errorf("worker pool is closed")
+	}
+	wp.mu.RUnlock()
+	
 	ctx, cancel := context.WithTimeout(wp.ctx, timeout)
 	defer cancel()
 
@@ -175,15 +189,28 @@ func (wp *WorkerPool) ForceShutdown() {
 	wp.closed = true
 	wp.mu.Unlock()
 	
+	// Cancel context first to stop workers
 	wp.cancel()
+	
+	// Then close channels safely
 	wp.closeOnce.Do(func() {
-		// Use select to prevent panic on closed channels
+		// Close task queue first to stop new submissions
 		defer func() {
 			if r := recover(); r != nil {
 				// Channel already closed, ignore
 			}
 		}()
 		close(wp.taskQueue)
+		
+		// Wait a bit for workers to finish current tasks
+		time.Sleep(10 * time.Millisecond)
+		
+		// Close result channel
+		defer func() {
+			if r := recover(); r != nil {
+				// Channel already closed, ignore
+			}
+		}()
 		close(wp.resultChan)
 	})
 }
@@ -212,6 +239,11 @@ func (wp *WorkerPool) WaitWithTimeout(timeout time.Duration) error {
 // worker runs in a goroutine and processes tasks from the queue
 func (wp *WorkerPool) worker(id int, taskTimeout time.Duration, enableStats bool) {
 	defer wp.wg.Done()
+	defer func() {
+		if r := recover(); r != nil {
+			// Handle any panics from sending on closed channels
+		}
+	}()
 
 	for {
 		select {
@@ -251,19 +283,14 @@ func (wp *WorkerPool) worker(id int, taskTimeout time.Duration, enableStats bool
 				Completed: err == nil,
 			}
 
-			// Check if pool is closed before sending
-			wp.mu.RLock()
-			poolClosed := wp.closed
-			wp.mu.RUnlock()
-			
-			if !poolClosed {
-				select {
-				case wp.resultChan <- result:
-				case <-wp.ctx.Done():
-					return
-				default:
-					// Result channel full, skip (we don't want to block workers)
-				}
+			// Try to send result (non-blocking)
+			select {
+			case wp.resultChan <- result:
+				// Result sent successfully
+			case <-wp.ctx.Done():
+				return
+			default:
+				// Result channel full or closed, skip (we don't want to block workers)
 			}
 
 		case <-wp.ctx.Done():

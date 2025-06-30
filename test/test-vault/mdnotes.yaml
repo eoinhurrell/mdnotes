@@ -1,0 +1,27 @@
+version: "1.0"
+
+vault:
+  path: "."
+  ignore_patterns:
+    - ".obsidian/*"
+    - ".obsidian-mobile/*"
+    - "*.tmp"
+    - "resources/templates/*"
+
+linkding:
+  api_url: "http://192.168.0.32:9191"
+  api_token: "6783adc9c10c05f5d20bd8fdc8b419763c98065f"
+  sync_title: true
+  sync_tags: true
+
+export:
+  default_strategy: "remove"
+  include_assets: true
+watch:
+  debounce: "2s"
+  rules: []
+performance:
+  max_workers: 0
+# plugins:
+#   enabled: true
+#   paths: ["~/.mdnotes/plugins"]

@@ -228,8 +228,43 @@ func needsURLEncoding(path string) bool {
 }
 
 func obsidianURLEncode(path string) string {
-	// Obsidian only URL-encodes spaces in practice
-	return strings.ReplaceAll(path, " ", "%20")
+	// URL encode characters that need encoding for markdown links
+	// Based on RFC 3986 and common markdown link requirements
+	result := path
+	
+	// Character mappings for URL encoding
+	encodings := map[string]string{
+		" ":  "%20", // space
+		"&":  "%26", // ampersand
+		"'":  "%27", // single quote
+		"\"": "%22", // double quote
+		"(":  "%28", // left parenthesis
+		")":  "%29", // right parenthesis
+		"[":  "%5B", // left bracket
+		"]":  "%5D", // right bracket
+		"{":  "%7B", // left brace
+		"}":  "%7D", // right brace
+		"#":  "%23", // hash
+		"+":  "%2B", // plus
+		",":  "%2C", // comma
+		";":  "%3B", // semicolon
+		"=":  "%3D", // equals
+		"?":  "%3F", // question mark
+		"@":  "%40", // at symbol
+		"<":  "%3C", // less than
+		">":  "%3E", // greater than
+		"|":  "%7C", // pipe
+		"\\": "%5C", // backslash
+		":":  "%3A", // colon
+		"*":  "%2A", // asterisk
+	}
+	
+	// Apply encodings
+	for char, encoded := range encodings {
+		result = strings.ReplaceAll(result, char, encoded)
+	}
+	
+	return result
 }
 
 // Position represents a position in text

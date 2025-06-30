@@ -89,7 +89,7 @@ func TestDownloadResource_InvalidURL(t *testing.T) {
 
 	_, err := downloader.DownloadResource(ctx, "invalid-url", "test", "attr")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid URL")
+	assert.Contains(t, err.Error(), "unsupported URL scheme")
 }
 
 func TestDownloadResource_HTTPError(t *testing.T) {

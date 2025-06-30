@@ -21,6 +21,7 @@ func TestExportLinkAnalyzer_AnalyzeFile(t *testing.T) {
 		{RelativePath: "folder/note2.md"},
 		{RelativePath: "folder/note3.md"},
 		{RelativePath: "assets/image.png"},
+		{RelativePath: "areas/philosophy/marcus-aurelius.md"},
 	}
 
 	analyzer := NewExportLinkAnalyzer(exportedFiles, allVaultFiles)
@@ -370,4 +371,48 @@ func TestLinkAnalysis_Summary(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestExportLinkAnalyzer_CaseInsensitiveMatching(t *testing.T) {
+	// Test the specific case from the integration test
+	exportedFiles := []*vault.VaultFile{
+		{RelativePath: "areas/philosophy/stoicism.md"},
+		{RelativePath: "areas/philosophy/marcus-aurelius.md"},
+	}
+
+	allVaultFiles := []*vault.VaultFile{
+		{RelativePath: "areas/philosophy/stoicism.md"},
+		{RelativePath: "areas/philosophy/marcus-aurelius.md"},
+	}
+
+	analyzer := NewExportLinkAnalyzer(exportedFiles, allVaultFiles)
+
+	file := &vault.VaultFile{
+		RelativePath: "areas/philosophy/stoicism.md",
+		Body: `## Philosophers
+- [[Marcus Aurelius]]
+- [[Epictetus]]
+- [[Seneca]]
+`,
+	}
+
+	analysis := analyzer.AnalyzeFile(file)
+
+	// Marcus Aurelius should be internal (exported and exists)
+	// Epictetus and Seneca should be external (don't exist)
+	assert.Equal(t, 1, analysis.InternalCount, "Internal count mismatch")
+	assert.Equal(t, 2, analysis.ExternalCount, "External count mismatch")
+	assert.Equal(t, 0, analysis.AssetCount, "Asset count mismatch")
+	assert.Equal(t, 0, analysis.URLCount, "URL count mismatch")
+
+	require.Len(t, analysis.Links, 3, "Number of links mismatch")
+	
+	// Check that Marcus Aurelius is categorized as internal
+	assert.Equal(t, InternalLink, analysis.Links[0].Category, "Marcus Aurelius should be internal")
+	assert.True(t, analysis.Links[0].Exists, "Marcus Aurelius should exist")
+	assert.Equal(t, "Marcus Aurelius", analysis.Links[0].Link.Target, "Target should match")
+	
+	// Check that the other two are external
+	assert.Equal(t, ExternalLink, analysis.Links[1].Category, "Epictetus should be external")
+	assert.Equal(t, ExternalLink, analysis.Links[2].Category, "Seneca should be external")
 }

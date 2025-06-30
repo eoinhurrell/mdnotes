@@ -268,14 +268,75 @@ func (s *Searcher) SearchInFiles(ctx context.Context, pattern string, files []st
 	return results, nil
 }
 
-// CountMatches returns the number of matches for a pattern
+// CountMatches returns the number of files that contain matches for a pattern
 func (s *Searcher) CountMatches(ctx context.Context, options SearchOptions) (int, error) {
 	if !s.available {
 		return 0, fmt.Errorf("ripgrep not available")
 	}
 
-	args := s.buildArgs(options)
+	// Build args without --json since --count can't be used with --json
+	args := []string{}
+	
+	// Pattern type
+	if options.FixedStrings {
+		args = append(args, "--fixed-strings")
+	}
+
+	// Case sensitivity
+	if options.CaseSensitive {
+		args = append(args, "--case-sensitive")
+	} else {
+		args = append(args, "--ignore-case")
+	}
+
+	// Word boundary
+	if options.WordBoundary {
+		args = append(args, "--word-regexp")
+	}
+
+	// Multiline
+	if options.Multiline {
+		args = append(args, "--multiline")
+	}
+
+	// Max depth
+	if options.MaxDepth > 0 {
+		args = append(args, fmt.Sprintf("--max-depth=%d", options.MaxDepth))
+	}
+
+	// Follow symlinks
+	if options.FollowSymlinks {
+		args = append(args, "--follow")
+	}
+
+	// Search zip files
+	if options.SearchZip {
+		args = append(args, "--search-zip")
+	}
+
+	// Include patterns
+	for _, pattern := range options.IncludePatterns {
+		args = append(args, "--glob", pattern)
+	}
+
+	// Exclude patterns
+	for _, pattern := range options.ExcludePatterns {
+		args = append(args, "--glob", "!"+pattern)
+	}
+
+	// Additional args
+	args = append(args, options.AdditionalArgs...)
+
+	// Add count flag (incompatible with --json)
 	args = append(args, "--count")
+
+	// Pattern
+	args = append(args, options.Pattern)
+
+	// Path (if specified)
+	if options.Path != "" {
+		args = append(args, options.Path)
+	}
 
 	cmd := exec.CommandContext(ctx, s.rgPath, args...)
 	output, err := cmd.Output()

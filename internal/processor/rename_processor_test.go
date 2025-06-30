@@ -209,8 +209,8 @@ Another file with references:
 	}
 
 	// Verify results
-	if result.FilesScanned != 4 { // All 4 test files should be scanned
-		t.Errorf("Expected 4 files scanned, got %d", result.FilesScanned)
+	if result.FilesScanned != 2 { // Only files with links to the renamed file should be scanned
+		t.Errorf("Expected 2 files scanned, got %d", result.FilesScanned)
 	}
 
 	if result.FilesModified != 2 { // file1.md and file3.md should be modified

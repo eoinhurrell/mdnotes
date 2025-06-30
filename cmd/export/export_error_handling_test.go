@@ -85,7 +85,7 @@ func TestValidateExportInputs(t *testing.T) {
 		{
 			name:         "Valid inputs",
 			outputPath:   "./test-output",
-			vaultPath:    "./test-vault",
+			vaultPath:    "./test/test-vault",
 			query:        "",
 			linkStrategy: "remove",
 			processLinks: true,
@@ -94,7 +94,7 @@ func TestValidateExportInputs(t *testing.T) {
 		{
 			name:         "Empty output path",
 			outputPath:   "",
-			vaultPath:    "/tmp/test-vault",
+			vaultPath:    "/tmp/test/test-vault",
 			query:        "",
 			linkStrategy: "remove",
 			processLinks: true,
@@ -114,7 +114,7 @@ func TestValidateExportInputs(t *testing.T) {
 		{
 			name:         "Invalid link strategy",
 			outputPath:   "./test-output",
-			vaultPath:    "./test-vault",
+			vaultPath:    "./test/test-vault",
 			query:        "",
 			linkStrategy: "invalid",
 			processLinks: true,
@@ -124,7 +124,7 @@ func TestValidateExportInputs(t *testing.T) {
 		{
 			name:         "Invalid query with unmatched quotes",
 			outputPath:   "./test-output",
-			vaultPath:    "./test-vault",
+			vaultPath:    "./test/test-vault",
 			query:        "title = \"unclosed quote",
 			linkStrategy: "remove",
 			processLinks: true,
@@ -134,7 +134,7 @@ func TestValidateExportInputs(t *testing.T) {
 		{
 			name:         "Invalid query with backslashes",
 			outputPath:   "./test-output",
-			vaultPath:    "./test-vault",
+			vaultPath:    "./test/test-vault",
 			query:        "title = \"test\\backslash\"",
 			linkStrategy: "remove",
 			processLinks: true,
@@ -144,7 +144,7 @@ func TestValidateExportInputs(t *testing.T) {
 		{
 			name:         "Unsafe output path - system directory",
 			outputPath:   "/usr/bin/test",
-			vaultPath:    "./test-vault",
+			vaultPath:    "./test/test-vault",
 			query:        "",
 			linkStrategy: "remove",
 			processLinks: true,

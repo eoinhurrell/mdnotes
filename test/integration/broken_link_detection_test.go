@@ -14,7 +14,7 @@ import (
 // TestBrokenLinkDetection validates that the rename system correctly handles broken vs valid links
 func TestBrokenLinkDetection(t *testing.T) {
 	// Get the test vault path
-	vaultPath := filepath.Join("..", "..", "test-vault")
+	vaultPath := filepath.Join("..", "..", "test/test-vault")
 	absVaultPath, err := filepath.Abs(vaultPath)
 	require.NoError(t, err)
 

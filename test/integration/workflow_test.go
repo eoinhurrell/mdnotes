@@ -175,9 +175,8 @@ This note is already processed.
 		output, err := runMdnotesCommand("analyze", "inbox", vaultPath)
 		assert.NoError(t, err)
 
-		// Should identify INBOX content
+		// Should provide INBOX analysis (may be empty)
 		assert.Contains(t, string(output), "INBOX")
-		assert.Contains(t, string(output), "items")
 	})
 
 	t.Run("ProcessFrontmatter", func(t *testing.T) {

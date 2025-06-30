@@ -263,7 +263,8 @@ func TestPathResolver_ResolveBestMatch(t *testing.T) {
 				Type:   vault.WikiLink,
 				Target: "note",
 			},
-			expectError: true, // Multiple basename matches
+			expectError: false, // Should find exact match with note.md
+			expected:    filepath.Join(tmpDir, "note.md"),
 		},
 		{
 			name: "no matches",

@@ -149,10 +149,8 @@ func (s *UpsertService) UpsertDirectory(dirPath string, options UpsertOptions, i
 
 		// Check ignore patterns
 		relPath, _ := filepath.Rel(dirPath, path)
-		for _, pattern := range ignorePatterns {
-			if matched, _ := filepath.Match(pattern, relPath); matched {
-				return nil
-			}
+		if shouldIgnore(relPath, ignorePatterns) {
+			return nil
 		}
 
 		// Process file
@@ -237,6 +235,25 @@ func (s *UpsertService) createTemplateContext(filePath string, doc *Document) (*
 	}
 
 	return ctx, nil
+}
+
+// shouldIgnore checks if a path matches any ignore pattern
+func shouldIgnore(path string, ignorePatterns []string) bool {
+	for _, pattern := range ignorePatterns {
+		if matched, _ := filepath.Match(pattern, path); matched {
+			return true
+		}
+
+		// Check if any parent directory matches the pattern
+		// This handles patterns like ".obsidian/*"
+		if strings.Contains(pattern, "/*") {
+			prefix := strings.TrimSuffix(pattern, "/*")
+			if strings.HasPrefix(path, prefix+"/") || path == prefix {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ValidateOptions validates upsert options

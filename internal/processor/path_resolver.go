@@ -113,7 +113,8 @@ func (pr *PathResolver) AnalyzeLinkMatch(link vault.Link, filePath string) Match
 	}
 
 	// For wiki links, check basename match (lower priority)
-	if link.Type == vault.WikiLink {
+	// Only do basename matching if the target doesn't contain a path separator
+	if link.Type == vault.WikiLink && !strings.Contains(targetBase, "/") && !strings.Contains(targetBase, "\\") {
 		fileBasename := filepath.Base(fileBase)
 		targetBasename := filepath.Base(targetBase)
 
