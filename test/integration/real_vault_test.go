@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eoinhurrell/mdnotes/internal/processor"
-	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/internal/processor"
+	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
 // TestRealVaultLinkUpdating tests the rename functionality with the actual test/test-vault

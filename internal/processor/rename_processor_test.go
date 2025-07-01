@@ -3,7 +3,6 @@ package processor
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -114,7 +113,7 @@ func TestRenameProcessor_LinkMatchesMove(t *testing.T) {
 
 func TestRenameProcessor_Performance(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "mdnotes_rename_test")
+	tempDir, err := os.MkdirTemp("", "mdnotes_rename_test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -231,7 +230,7 @@ Another file with references:
 
 func TestGenerateNameFromTemplate(t *testing.T) {
 	// Create a temporary test file
-	tempDir, err := ioutil.TempDir("", "mdnotes_template_test")
+	tempDir, err := os.MkdirTemp("", "mdnotes_template_test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -287,7 +286,7 @@ created: 2024-01-15
 
 func BenchmarkRenameProcessor(b *testing.B) {
 	// Create a larger test vault for benchmarking
-	tempDir, err := ioutil.TempDir("", "mdnotes_bench")
+	tempDir, err := os.MkdirTemp("", "mdnotes_bench")
 	if err != nil {
 		b.Fatalf("Failed to create temp dir: %v", err)
 	}

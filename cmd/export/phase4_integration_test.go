@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/internal/processor"
 )
 
 // TestPhase4Integration tests the complete Phase 4 implementation

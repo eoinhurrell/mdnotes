@@ -98,7 +98,7 @@ func (o *Organizer) MoveFile(file *vault.VaultFile, dirPattern, filenamePattern,
 	}
 
 	// Generate filename
-	filename := file.RelativePath
+	var filename string
 	if filenamePattern != "" {
 		filename = o.GenerateFilename(filenamePattern, file)
 		filename = filepath.Base(filename) // Remove any path components

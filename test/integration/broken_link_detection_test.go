@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/internal/processor"
 )
 
 // TestBrokenLinkDetection validates that the rename system correctly handles broken vs valid links

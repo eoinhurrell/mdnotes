@@ -7,13 +7,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/eoinhurrell/mdnotes/internal/analyzer"
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/errors"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/selector"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
-	"github.com/spf13/cobra"
 )
 
 // NewAnalyzeCommand creates the analyze command
@@ -386,24 +389,6 @@ Frontmatter Fields:
 		for tag, count := range stats.TagDistribution {
 			output += fmt.Sprintf("  #%s: %d files\n", tag, count)
 		}
-	}
-
-	return output
-}
-
-func formatDuplicatesText(duplicates []analyzer.Duplicate) string {
-	if len(duplicates) == 0 {
-		return "No duplicates found.\n"
-	}
-
-	output := fmt.Sprintf("Found %d duplicate groups:\n\n", len(duplicates))
-
-	for i, dup := range duplicates {
-		output += fmt.Sprintf("Group %d (field: %s, value: %v):\n", i+1, dup.Field, dup.Value)
-		for _, file := range dup.Files {
-			output += fmt.Sprintf("  - %s\n", file)
-		}
-		output += "\n"
 	}
 
 	return output
@@ -940,7 +925,7 @@ func formatObsidianCopiesText(copies []analyzer.ObsidianCopy) string {
 		output += fmt.Sprintf("  └─ Copy %d: %s\n", copy.CopyNumber, copy.CopyFile)
 	}
 
-	output += fmt.Sprintf("\n💡 Suggestion: Review these copies and consider merging or removing duplicates.\n")
+	output += "\n💡 Suggestion: Review these copies and consider merging or removing duplicates.\n"
 	output += "   Use 'mdnotes rename' to organize files or manually review content.\n"
 
 	return output
@@ -961,7 +946,7 @@ func formatSyncConflictsText(conflicts []analyzer.SyncConflictFile) string {
 	}
 
 	for conflictType, typeConflicts := range conflictTypes {
-		output += fmt.Sprintf("\n%s conflicts (%d):\n", strings.Title(conflictType), len(typeConflicts))
+		output += fmt.Sprintf("\n%s conflicts (%d):\n", cases.Title(language.English).String(conflictType), len(typeConflicts))
 		currentOriginal := ""
 		for _, conflict := range typeConflicts {
 			if conflict.OriginalFile != currentOriginal {
@@ -972,7 +957,7 @@ func formatSyncConflictsText(conflicts []analyzer.SyncConflictFile) string {
 		}
 	}
 
-	output += fmt.Sprintf("\n💡 Suggestion: Review and resolve sync conflicts by comparing content.\n")
+	output += "\n💡 Suggestion: Review and resolve sync conflicts by comparing content.\n"
 	output += "   Keep the most recent version and delete conflict files after verification.\n"
 
 	return output

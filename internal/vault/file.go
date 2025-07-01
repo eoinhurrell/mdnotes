@@ -231,7 +231,7 @@ func obsidianURLEncode(path string) string {
 	// URL encode characters that need encoding for markdown links
 	// Based on RFC 3986 and common markdown link requirements
 	result := path
-	
+
 	// Character mappings for URL encoding
 	encodings := map[string]string{
 		" ":  "%20", // space
@@ -258,12 +258,12 @@ func obsidianURLEncode(path string) string {
 		":":  "%3A", // colon
 		"*":  "%2A", // asterisk
 	}
-	
+
 	// Apply encodings
 	for char, encoded := range encodings {
 		result = strings.ReplaceAll(result, char, encoded)
 	}
-	
+
 	return result
 }
 

@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/fsnotify/fsnotify"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/internal/config"
 )
 
 func TestNewWatchProcessor(t *testing.T) {

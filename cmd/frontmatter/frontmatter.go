@@ -8,12 +8,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/downloader"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/query"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
-	"github.com/spf13/cobra"
 )
 
 // NewFrontmatterCommand creates the frontmatter command
@@ -1294,7 +1297,7 @@ func outputTable(files []*vault.VaultFile, fields []string, quiet bool) error {
 
 	// Initialize column widths with header lengths
 	for i, field := range fields {
-		colWidths[i] = len(strings.Title(field))
+		colWidths[i] = len(cases.Title(language.English).String(field))
 	}
 
 	// Collect all data and calculate maximum width for each column
@@ -1325,7 +1328,7 @@ func outputTable(files []*vault.VaultFile, fields []string, quiet bool) error {
 			if i > 0 {
 				fmt.Print(" │ ")
 			}
-			header := strings.Title(field)
+			header := cases.Title(language.English).String(field)
 			fmt.Printf("%-*s", colWidths[i], header)
 		}
 		fmt.Println()

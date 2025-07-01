@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
 func TestParallelFileProcessor_Creation(t *testing.T) {

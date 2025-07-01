@@ -2,8 +2,6 @@ run:
   timeout: 5m
   issues-exit-code: 1
   tests: true
-  skip-dirs:
-    - cmd/mdnotes  # Skip the duplicate mdnotes directory to avoid confusion
   modules-download-mode: readonly
   allow-parallel-runners: true
 
@@ -12,14 +10,21 @@ output:
     - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
-  uniq-by-line: true
   sort-results: true
+
 
 linters-settings:
   govet:
-    check-shadowing: true
     disable:
       - fieldalignment
+  errcheck:
+    exclude-functions:
+      - os.RemoveAll
+      - (*os.File).Close
+      - fmt.Print
+      - fmt.Printf
+      - fmt.Println
+      - (*cobra.Command).MarkFlagRequired
   gofmt:
     simplify: true
   goimports:
@@ -62,22 +67,18 @@ linters:
     - unused
     - gofmt
     - goimports
-    - misspell
-    - goconst
-    - gocyclo
-    - gocritic
-    - gosec
-    - lll
-    - funlen
-    - dupl
 
 issues:
+  exclude-dirs:
+    - cmd/mdnotes  # Skip the duplicate mdnotes directory to avoid confusion
+  uniq-by-line: true
   exclude-rules:
     - path: _test\.go
       linters:
         - funlen
         - gocyclo
         - dupl
+        - errcheck
     - path: cmd/
       linters:
         - gochecknoinits

@@ -6,9 +6,10 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/spf13/cobra"
+
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/pkg/plugins"
-	"github.com/spf13/cobra"
 )
 
 // NewPluginsCommand creates the plugins command

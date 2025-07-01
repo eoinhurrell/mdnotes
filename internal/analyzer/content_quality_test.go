@@ -127,19 +127,19 @@ func TestCalculateCompletenessScore(t *testing.T) {
 			name:        "Complete note",
 			frontmatter: map[string]interface{}{"title": "Test Note", "summary": "A test note"},
 			content:     strings.Repeat("This is a complete note with good content length for analysis. ", 10), // ~100 words, gets 0.3 for word count
-			expected:    1.0, // 0.4 (title) + 0.3 (summary) + 0.3 (>=50 words) = 1.0
+			expected:    1.0,                                                                                   // 0.4 (title) + 0.3 (summary) + 0.3 (>=50 words) = 1.0
 		},
 		{
 			name:        "Missing title",
 			frontmatter: map[string]interface{}{"summary": "A test note"},
 			content:     strings.Repeat("This note is missing a title but has other elements and sufficient length. ", 7), // ~70 words
-			expected:    0.6, // 0.0 (no title) + 0.3 (summary) + 0.3 (>=50 words) = 0.6
+			expected:    0.6,                                                                                              // 0.0 (no title) + 0.3 (summary) + 0.3 (>=50 words) = 0.6
 		},
 		{
 			name:        "Missing summary",
 			frontmatter: map[string]interface{}{"title": "Test Note"},
 			content:     strings.Repeat("This note has a title but no summary field and needs sufficient content length. ", 7), // ~70 words
-			expected:    0.7, // 0.4 (title) + 0.0 (no summary) + 0.3 (>=50 words) = 0.7
+			expected:    0.7,                                                                                                   // 0.4 (title) + 0.0 (no summary) + 0.3 (>=50 words) = 0.7
 		},
 		{
 			name:        "Too short",
@@ -253,7 +253,7 @@ func TestCalculateRecencyScore(t *testing.T) {
 		{
 			name:     "Old",
 			modified: now.AddDate(0, -6, 0), // 6 months ago
-			expected: 0.3, // According to algorithm: > 365 days = 0.1, <=365 = 0.3. 6 months = ~180 days, so 0.3
+			expected: 0.3,                   // According to algorithm: > 365 days = 0.1, <=365 = 0.3. 6 months = ~180 days, so 0.3
 		},
 		{
 			name:     "Very old",

@@ -145,7 +145,7 @@ func TestMemoryUsage(t *testing.T) {
 			// Run the command and verify it completes
 			// In a real implementation, you might use memory profiling tools
 			output, err := runMdnotesCommand(cmd...)
-			
+
 			// Note: links check returns exit status 1 when broken links are found, which is expected behavior
 			if cmd[0] == "links" && cmd[1] == "check" {
 				// For links check, we just verify it completes (exit code 1 is expected for broken links)
@@ -195,10 +195,4 @@ func BenchmarkCommonOperations(b *testing.B) {
 			}
 		})
 	}
-}
-
-// cleanupVault removes a test vault directory
-func cleanupVault(path string) {
-	// Note: os.RemoveAll is already called in defer statements in createLargeTestVault
-	// This function exists for consistency and potential future cleanup logic
 }

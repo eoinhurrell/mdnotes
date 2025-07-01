@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/internal/processor"
 )
 
 // TestFocusedRenameValidation demonstrates real-world rename scenarios with actual test vault files
@@ -50,8 +51,8 @@ func TestFocusedRenameValidation(t *testing.T) {
 		t.Run("case_underscore_mismatch", func(t *testing.T) {
 			// This test demonstrates URL encoding handling in filenames
 			// Note: The actual filename contains %20 characters, making link matching complex
-			
-			originalPath := "resources/books/20250525145132-Big%20Kids.md" 
+
+			originalPath := "resources/books/20250525145132-Big%20Kids.md"
 			newPath := "resources/books/20250525145132-BIG_KIDS_RENAMED.md"
 
 			result := performSafeRename(t, testVaultPath, originalPath, newPath)
@@ -59,7 +60,7 @@ func TestFocusedRenameValidation(t *testing.T) {
 			// Note: Due to URL encoding complexity in link matching, this may not update links
 			// This is a known limitation when filenames contain URL-encoded characters
 			t.Logf("URL encoding test: %d links updated", result.LinksUpdated)
-			
+
 			// Verify the file was renamed successfully
 			require.FileExists(t, filepath.Join(testVaultPath, newPath), "File should be renamed")
 			require.NoFileExists(t, filepath.Join(testVaultPath, originalPath), "Original file should not exist")
@@ -147,7 +148,7 @@ func TestFocusedRenameValidation(t *testing.T) {
 			case 1:
 				newPath = "resources/books/20250101134325-Dracula Tape v1.md"
 			case 2:
-				newPath = "resources/books/20250101134325-Dracula Tape v2.md"  // Simplified - removed complex special chars
+				newPath = "resources/books/20250101134325-Dracula Tape v2.md" // Simplified - removed complex special chars
 			case 3:
 				newPath = "resources/archived/20250101134325-Final Dracula Tape.md"
 			}
@@ -171,7 +172,7 @@ func TestFocusedRenameValidation(t *testing.T) {
 		require.NoError(t, err)
 		finalStr := string(finalContent)
 
-		assert.True(t, 
+		assert.True(t,
 			strings.Contains(finalStr, "Final Dracula Tape") || strings.Contains(finalStr, "Final%20Dracula%20Tape"),
 			"Should contain final renamed version")
 		assert.Contains(t, finalStr, "archived", "Should reference new archived directory")

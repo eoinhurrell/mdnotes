@@ -65,17 +65,15 @@ func (p *ExampleFrontmatterPlugin) ExecuteHook(ctx context.Context, hookType Hoo
 	// Ensure created field
 	if _, exists := result.NewFrontmatter["created"]; !exists {
 		result.NewFrontmatter["created"] = time.Now().Format("2006-01-02")
-		modified = true
 	}
 
-	// Ensure modified field
+	// Ensure modified field (always updated)
 	result.NewFrontmatter["modified"] = time.Now().Format("2006-01-02")
 	modified = true
 
 	// Ensure tags field exists
 	if _, exists := result.NewFrontmatter["tags"]; !exists {
 		result.NewFrontmatter["tags"] = []string{}
-		modified = true
 	}
 
 	result.Modified = modified

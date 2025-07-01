@@ -8,9 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/internal/processor"
 )
 
 // TestRenameStressTest conducts comprehensive rename testing using the real reading list
@@ -123,12 +124,12 @@ func TestRenameStressTest(t *testing.T) {
 
 		// Verify some of our renames are reflected (check for unique renamed parts)
 		assert.Contains(t, finalContentStr, "RENAMED", "Should contain RENAMED files")
-		
+
 		// Verify specific renames occurred (accounting for URL encoding in paths)
-		assert.True(t, 
-			strings.Contains(finalContentStr, "Blood's%20Hiding%20RENAMED") || 
-			strings.Contains(finalContentStr, "Blood's Hiding RENAMED") ||
-			strings.Contains(finalContentStr, "Blood%27s%20Hiding%20RENAMED"),
+		assert.True(t,
+			strings.Contains(finalContentStr, "Blood's%20Hiding%20RENAMED") ||
+				strings.Contains(finalContentStr, "Blood's Hiding RENAMED") ||
+				strings.Contains(finalContentStr, "Blood%27s%20Hiding%20RENAMED"),
 			"Should contain renamed Blood's Hiding")
 		assert.True(t,
 			strings.Contains(finalContentStr, "Flying%20to%20Nowhere%20RENAMED") || strings.Contains(finalContentStr, "Flying to Nowhere RENAMED"),

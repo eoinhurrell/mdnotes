@@ -3,8 +3,9 @@ package cli
 import (
 	"os"
 
-	"github.com/eoinhurrell/mdnotes/internal/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/eoinhurrell/mdnotes/internal/errors"
 )
 
 // HandleError processes errors consistently across all commands

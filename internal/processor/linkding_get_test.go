@@ -5,9 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/eoinhurrell/mdnotes/internal/linkding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/internal/linkding"
 )
 
 func TestPickLatestSnapshot(t *testing.T) {

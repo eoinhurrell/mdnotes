@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
-	"github.com/spf13/cobra"
 )
 
 // NewHeadingsCommand creates the headings command

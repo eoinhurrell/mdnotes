@@ -406,12 +406,12 @@ func TestExportLinkAnalyzer_CaseInsensitiveMatching(t *testing.T) {
 	assert.Equal(t, 0, analysis.URLCount, "URL count mismatch")
 
 	require.Len(t, analysis.Links, 3, "Number of links mismatch")
-	
+
 	// Check that Marcus Aurelius is categorized as internal
 	assert.Equal(t, InternalLink, analysis.Links[0].Category, "Marcus Aurelius should be internal")
 	assert.True(t, analysis.Links[0].Exists, "Marcus Aurelius should exist")
 	assert.Equal(t, "Marcus Aurelius", analysis.Links[0].Link.Target, "Target should match")
-	
+
 	// Check that the other two are external
 	assert.Equal(t, ExternalLink, analysis.Links[1].Category, "Epictetus should be external")
 	assert.Equal(t, ExternalLink, analysis.Links[2].Category, "Seneca should be external")

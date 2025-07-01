@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/eoinhurrell/mdnotes/internal/linkding"
-	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/eoinhurrell/mdnotes/internal/linkding"
+	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
 // MockLinkdingClient is a mock implementation of LinkdingClient

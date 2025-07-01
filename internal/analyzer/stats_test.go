@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
 func TestAnalyzer_GenerateStats(t *testing.T) {

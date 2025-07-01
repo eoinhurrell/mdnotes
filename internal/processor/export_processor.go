@@ -3,7 +3,6 @@ package processor
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -257,7 +256,6 @@ func (ep *ExportProcessor) ProcessExport(ctx context.Context, options ExportOpti
 			if err != nil {
 				return nil, fmt.Errorf("analyzing filename normalization: %w", err)
 			}
-			filenameMap = normalizationResult.FileMap
 			result.FilesRenamed = normalizationResult.RenamedFiles
 		}
 
@@ -352,142 +350,12 @@ func (ep *ExportProcessor) calculateTotalSize(files []*vault.VaultFile) int64 {
 	return totalSize
 }
 
-// copyFiles copies the selected files to the output directory
-func (ep *ExportProcessor) copyFiles(ctx context.Context, files []*vault.VaultFile, options ExportOptions) error {
-	// Create output directory if it doesn't exist
-	if err := os.MkdirAll(options.OutputPath, 0755); err != nil {
-		return fmt.Errorf("creating output directory: %w", err)
-	}
-
-	for _, file := range files {
-		// Check for context cancellation
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		// Determine output file path
-		outputFilePath := filepath.Join(options.OutputPath, file.RelativePath)
-
-		// Create output directory for this file
-		outputDir := filepath.Dir(outputFilePath)
-		if err := os.MkdirAll(outputDir, 0755); err != nil {
-			return fmt.Errorf("creating output directory %s: %w", outputDir, err)
-		}
-
-		// Copy the file
-		err := ep.copyFile(file.Path, outputFilePath)
-		if err != nil {
-			return fmt.Errorf("copying file %s: %w", file.RelativePath, err)
-		}
-
-		if ep.verbose {
-			fmt.Printf("Copied: %s\n", file.RelativePath)
-		}
-	}
-
-	return nil
-}
-
-// copyFile copies a single file from source to destination
-func (ep *ExportProcessor) copyFile(srcPath, dstPath string) error {
-	// Open source file
-	srcFile, err := os.Open(srcPath)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-	// Create destination file
-	dstFile, err := os.Create(dstPath)
-	if err != nil {
-		return err
-	}
-	defer dstFile.Close()
-
-	// Copy content
-	_, err = io.Copy(dstFile, srcFile)
-	if err != nil {
-		return err
-	}
-
-	// Copy file mode
-	srcInfo, err := os.Stat(srcPath)
-	if err != nil {
-		return err
-	}
-
-	return os.Chmod(dstPath, srcInfo.Mode())
-}
-
 // LinkProcessingResult contains the aggregate results of link processing
 type LinkProcessingResult struct {
 	ExternalLinksRemoved    int
 	ExternalLinksConverted  int
 	InternalLinksUpdated    int
 	FilesWithLinksProcessed int
-}
-
-// copyFilesWithLinkProcessing copies files and processes links during the copy
-func (ep *ExportProcessor) copyFilesWithLinkProcessing(ctx context.Context, selectedFiles, allFiles []*vault.VaultFile, options ExportOptions) (*LinkProcessingResult, error) {
-	// Create output directory
-	if err := os.MkdirAll(options.OutputPath, 0755); err != nil {
-		return nil, fmt.Errorf("creating output directory: %w", err)
-	}
-
-	// Create link analyzer and rewriter
-	analyzer := NewExportLinkAnalyzer(selectedFiles, allFiles)
-	strategy := LinkRewriteStrategy(options.LinkStrategy)
-	rewriter := NewExportLinkRewriter(analyzer, strategy)
-
-	result := &LinkProcessingResult{}
-
-	for _, file := range selectedFiles {
-		// Check for context cancellation
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		// Determine output file path
-		outputFilePath := filepath.Join(options.OutputPath, file.RelativePath)
-
-		// Create output directory for this file
-		outputDir := filepath.Dir(outputFilePath)
-		if err := os.MkdirAll(outputDir, 0755); err != nil {
-			return nil, fmt.Errorf("creating output directory %s: %w", outputDir, err)
-		}
-
-		// Process links in the file
-		linkResult := rewriter.RewriteFileContent(file)
-
-		// Aggregate link processing statistics
-		result.ExternalLinksRemoved += linkResult.ExternalLinksRemoved
-		result.ExternalLinksConverted += linkResult.ExternalLinksConverted
-		result.InternalLinksUpdated += linkResult.InternalLinksUpdated
-		if len(linkResult.ChangedLinks) > 0 {
-			result.FilesWithLinksProcessed++
-		}
-
-		// Write the processed content to the output file
-		err := ep.writeProcessedFile(linkResult.RewrittenContent, file, outputFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("writing processed file %s: %w", file.RelativePath, err)
-		}
-
-		if ep.verbose {
-			if len(linkResult.ChangedLinks) > 0 {
-				fmt.Printf("Copied with link processing: %s (%d links processed)\n",
-					file.RelativePath, len(linkResult.ChangedLinks))
-			} else {
-				fmt.Printf("Copied: %s\n", file.RelativePath)
-			}
-		}
-	}
-
-	return result, nil
 }
 
 // analyzeLinkProcessing analyzes what link processing would be done (for dry run)
@@ -513,32 +381,6 @@ func (ep *ExportProcessor) analyzeLinkProcessing(selectedFiles, allFiles []*vaul
 	}
 
 	return result
-}
-
-// writeProcessedFile writes processed content to a file, preserving frontmatter
-func (ep *ExportProcessor) writeProcessedFile(processedBody string, originalFile *vault.VaultFile, outputPath string) error {
-	// Create a copy of the original file with the processed body
-	processedFile := &vault.VaultFile{
-		Path:         outputPath,
-		RelativePath: originalFile.RelativePath,
-		Frontmatter:  originalFile.Frontmatter,
-		Body:         processedBody,
-		Modified:     originalFile.Modified,
-	}
-
-	// Serialize the file (this will include frontmatter + processed body)
-	content, err := processedFile.Serialize()
-	if err != nil {
-		return fmt.Errorf("serializing processed file: %w", err)
-	}
-
-	// Write to output file
-	err = os.WriteFile(outputPath, content, 0644)
-	if err != nil {
-		return fmt.Errorf("writing file: %w", err)
-	}
-
-	return nil
 }
 
 // processAssets handles asset discovery and copying for exported files

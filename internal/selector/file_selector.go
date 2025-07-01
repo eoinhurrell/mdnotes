@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/eoinhurrell/mdnotes/internal/query"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
-	"github.com/spf13/cobra"
 )
 
 // SelectionMode determines how files are selected

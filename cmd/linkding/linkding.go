@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/linkding"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/selector"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
-	"github.com/spf13/cobra"
 )
 
 // NewLinkdingCommand creates the linkding command

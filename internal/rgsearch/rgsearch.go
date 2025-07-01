@@ -276,7 +276,7 @@ func (s *Searcher) CountMatches(ctx context.Context, options SearchOptions) (int
 
 	// Build args without --json since --count can't be used with --json
 	args := []string{}
-	
+
 	// Pattern type
 	if options.FixedStrings {
 		args = append(args, "--fixed-strings")

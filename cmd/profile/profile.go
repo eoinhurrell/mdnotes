@@ -7,10 +7,11 @@ import (
 	"runtime/pprof"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/vault"
-	"github.com/spf13/cobra"
 )
 
 // NewProfileCommand creates the profile command for performance analysis

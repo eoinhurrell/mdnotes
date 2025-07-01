@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/eoinhurrell/mdnotes/cmd/analyze"
 	"github.com/eoinhurrell/mdnotes/cmd/export"
 	"github.com/eoinhurrell/mdnotes/cmd/frontmatter"
@@ -16,7 +18,6 @@ import (
 	"github.com/eoinhurrell/mdnotes/cmd/watch"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/eoinhurrell/mdnotes/internal/selector"
-	"github.com/spf13/cobra"
 )
 
 // NewRootCommand creates the root command for mdnotes

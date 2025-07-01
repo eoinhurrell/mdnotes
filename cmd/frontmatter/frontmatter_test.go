@@ -384,10 +384,10 @@ tags: "tag1,tag2,tag3"
 	require.NoError(t, err)
 
 	contentStr := string(updatedContent)
-	assert.Contains(t, contentStr, "created: 2023-01-01")      // Date without quotes
-	assert.Contains(t, contentStr, "priority: 5")              // Number without quotes
-	assert.Contains(t, contentStr, "published: true")          // Boolean without quotes
-	assert.Contains(t, contentStr, "- tag1") // YAML array format
+	assert.Contains(t, contentStr, "created: 2023-01-01") // Date without quotes
+	assert.Contains(t, contentStr, "priority: 5")         // Number without quotes
+	assert.Contains(t, contentStr, "published: true")     // Boolean without quotes
+	assert.Contains(t, contentStr, "- tag1")              // YAML array format
 }
 
 func TestSyncCommand_Basic(t *testing.T) {

@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"gopkg.in/yaml.v3"
+
+	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
 func TestTypeCaster_Cast(t *testing.T) {

@@ -5,12 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/eoinhurrell/mdnotes/cmd/root"
-	"github.com/eoinhurrell/mdnotes/internal/templates"
-	"github.com/eoinhurrell/mdnotes/pkg/config"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/cmd/root"
+	"github.com/eoinhurrell/mdnotes/internal/templates"
+	"github.com/eoinhurrell/mdnotes/pkg/config"
 )
 
 // TestPhase1ConfigurationSystem tests the unified configuration system
@@ -403,7 +404,7 @@ performance:
 		require.NoError(t, err)
 
 		// Test config loading via root command initialization
-		err = root.Execute()
+		_ = root.Execute()
 		// Command may show help since no subcommand is provided
 		// We're just testing that config loading doesn't panic or fail catastrophically
 		// The specific error depends on Cobra's behavior when no subcommand is provided

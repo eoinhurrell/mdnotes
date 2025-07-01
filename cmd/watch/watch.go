@@ -7,9 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/spf13/cobra"
+
 	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/eoinhurrell/mdnotes/internal/processor"
-	"github.com/spf13/cobra"
 )
 
 // Cmd represents the watch command

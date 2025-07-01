@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/eoinhurrell/mdnotes/internal/processor"
 	"github.com/spf13/cobra"
+
+	"github.com/eoinhurrell/mdnotes/internal/processor"
 )
 
 // NewExportCommand creates the export command

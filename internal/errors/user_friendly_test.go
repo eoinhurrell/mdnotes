@@ -46,7 +46,7 @@ func TestUserError_ErrorCode(t *testing.T) {
 
 func TestErrorBuilder(t *testing.T) {
 	originalErr := errors.New("test error")
-	
+
 	userErr := NewErrorBuilder().
 		WithOperation("test operation").
 		WithFile("/test/file.md").
@@ -210,8 +210,8 @@ func TestErrorHandler_FormatRegularError_Patterns(t *testing.T) {
 	handler := NewErrorHandler(false, false)
 
 	tests := []struct {
-		name          string
-		errorMsg      string
+		name               string
+		errorMsg           string
 		expectedSuggestion string
 	}{
 		{
@@ -245,7 +245,7 @@ func TestErrorHandler_FormatRegularError_Patterns(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := errors.New(tt.errorMsg)
 			result := handler.Handle(err)
-			
+
 			if tt.expectedSuggestion != "" {
 				assert.Contains(t, result, "Suggestion:")
 				assert.Contains(t, result, tt.expectedSuggestion)

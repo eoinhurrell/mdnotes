@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/eoinhurrell/mdnotes/internal/vault"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/eoinhurrell/mdnotes/internal/vault"
 )
 
 func TestNewExportBacklinksHandler(t *testing.T) {

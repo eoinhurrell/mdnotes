@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eoinhurrell/mdnotes/internal/config"
 	"github.com/fsnotify/fsnotify"
+
+	"github.com/eoinhurrell/mdnotes/internal/config"
 )
 
 // WatchProcessor monitors file system changes and executes configured actions

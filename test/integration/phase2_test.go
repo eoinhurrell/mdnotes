@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eoinhurrell/mdnotes/pkg/frontmatter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/eoinhurrell/mdnotes/pkg/frontmatter"
 )
 
 // TestPhase2UpsertFunctionality tests the fm upsert command end-to-end

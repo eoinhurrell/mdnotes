@@ -98,7 +98,7 @@ func (wp *WorkerPool) Submit(task Task) error {
 		return fmt.Errorf("worker pool is closed")
 	}
 	wp.mu.RUnlock()
-	
+
 	select {
 	case wp.taskQueue <- task:
 		wp.mu.Lock()
@@ -120,7 +120,7 @@ func (wp *WorkerPool) SubmitWithTimeout(task Task, timeout time.Duration) error 
 		return fmt.Errorf("worker pool is closed")
 	}
 	wp.mu.RUnlock()
-	
+
 	ctx, cancel := context.WithTimeout(wp.ctx, timeout)
 	defer cancel()
 
@@ -188,10 +188,10 @@ func (wp *WorkerPool) ForceShutdown() {
 	}
 	wp.closed = true
 	wp.mu.Unlock()
-	
+
 	// Cancel context first to stop workers
 	wp.cancel()
-	
+
 	// Then close channels safely
 	wp.closeOnce.Do(func() {
 		// Close task queue first to stop new submissions
@@ -201,10 +201,10 @@ func (wp *WorkerPool) ForceShutdown() {
 			}
 		}()
 		close(wp.taskQueue)
-		
+
 		// Wait a bit for workers to finish current tasks
 		time.Sleep(10 * time.Millisecond)
-		
+
 		// Close result channel
 		defer func() {
 			if r := recover(); r != nil {

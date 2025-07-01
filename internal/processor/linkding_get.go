@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/eoinhurrell/mdnotes/internal/linkding"
 	"golang.org/x/net/html"
+
+	"github.com/eoinhurrell/mdnotes/internal/linkding"
 )
 
 // LinkdingGetConfig configures the Linkding get processor
