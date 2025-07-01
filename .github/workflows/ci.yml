@@ -38,7 +38,7 @@ jobs:
       run: go test -coverprofile=coverage.out ./...
 
     - name: Build binary
-      run: go build -v ./cmd
+      run: go build -v -o mdnotes ./cmd
 
     - name: Test basic functionality
       run: |
