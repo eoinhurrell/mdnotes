@@ -180,6 +180,11 @@ func (s *Searcher) Search(ctx context.Context, options SearchOptions) ([]SearchR
 		}
 	}
 
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanning ripgrep output: %w", err)
+	}
+
 	// Wait for command to complete
 	if err := cmd.Wait(); err != nil {
 		// Exit code 1 means no matches found, which is not an error
@@ -256,6 +261,11 @@ func (s *Searcher) SearchInFiles(ctx context.Context, pattern string, files []st
 		if result.Type == "match" {
 			results = append(results, result)
 		}
+	}
+
+	// Check for scanner errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanning ripgrep output: %w", err)
 	}
 
 	if err := cmd.Wait(); err != nil {

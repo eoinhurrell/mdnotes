@@ -30,7 +30,7 @@ administrative tasks for Obsidian vaults. It provides powerful operations
 for managing frontmatter, headings, links, and file organization.`,
 		Version: "1.0.0",
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 
@@ -182,13 +182,13 @@ PowerShell:
 		Run: func(cmd *cobra.Command, args []string) {
 			switch args[0] {
 			case "bash":
-				cmd.Root().GenBashCompletion(os.Stdout)
+				_ = cmd.Root().GenBashCompletion(os.Stdout)
 			case "zsh":
-				cmd.Root().GenZshCompletion(os.Stdout)
+				_ = cmd.Root().GenZshCompletion(os.Stdout)
 			case "fish":
-				cmd.Root().GenFishCompletion(os.Stdout, true)
+				_ = cmd.Root().GenFishCompletion(os.Stdout, true)
 			case "powershell":
-				cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+				_ = cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
 			}
 		},
 	}
@@ -199,12 +199,12 @@ PowerShell:
 // setupCustomCompletions adds custom completion functions for file paths and other common arguments
 func setupCustomCompletions(cmd *cobra.Command) {
 	// Set completion for global flags
-	cmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
-	cmd.RegisterFlagCompletionFunc("query", CompleteQueryExpressions)
-	cmd.RegisterFlagCompletionFunc("from-file", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	_ = cmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
+	_ = cmd.RegisterFlagCompletionFunc("query", CompleteQueryExpressions)
+	_ = cmd.RegisterFlagCompletionFunc("from-file", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return []string{"txt", "list"}, cobra.ShellCompDirectiveFilterFileExt
 	})
-	cmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
+	_ = cmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
 
 	// Add completion for commands that need path arguments
 	for _, subCmd := range cmd.Commands() {
@@ -231,21 +231,21 @@ func setupCustomCompletions(cmd *cobra.Command) {
 		}
 
 		// Add completion for common flags across commands
-		subCmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
-		subCmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
-		subCmd.RegisterFlagCompletionFunc("format", CompleteOutputFormats)
+		_ = subCmd.RegisterFlagCompletionFunc("config", CompleteConfigFiles)
+		_ = subCmd.RegisterFlagCompletionFunc("ignore", CompleteIgnorePatterns)
+		_ = subCmd.RegisterFlagCompletionFunc("format", CompleteOutputFormats)
 
 		// Add completion for global shortcuts
 		if subCmd.Name() == "e" {
 			// Global ensure shortcut
-			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
-			subCmd.RegisterFlagCompletionFunc("default", CompleteDefaultValues)
+			_ = subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
+			_ = subCmd.RegisterFlagCompletionFunc("default", CompleteDefaultValues)
 		} else if subCmd.Name() == "s" {
 			// Global set shortcut
-			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
-			subCmd.RegisterFlagCompletionFunc("value", CompleteDefaultValues)
+			_ = subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
+			_ = subCmd.RegisterFlagCompletionFunc("value", CompleteDefaultValues)
 		}
 
 		// Add specific completions for different command types
@@ -308,25 +308,25 @@ func setupFrontmatterCompletions(cmd *cobra.Command) {
 		// Field completions for commands that work with fields
 		switch subCmd.Name() {
 		case "ensure", "set":
-			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
-			subCmd.RegisterFlagCompletionFunc("default", CompleteDefaultValues)
+			_ = subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
+			_ = subCmd.RegisterFlagCompletionFunc("default", CompleteDefaultValues)
 		case "cast":
-			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
+			_ = subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
 		case "sync":
-			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("source", CompleteSyncSources)
+			_ = subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("source", CompleteSyncSources)
 		case "check":
-			subCmd.RegisterFlagCompletionFunc("required", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
+			_ = subCmd.RegisterFlagCompletionFunc("required", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("type", CompleteFieldTypesWithFormat)
 		case "query":
-			subCmd.RegisterFlagCompletionFunc("missing", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("duplicates", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("filter", CompleteQueryFilters)
+			_ = subCmd.RegisterFlagCompletionFunc("missing", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("duplicates", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("field", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("filter", CompleteQueryFilters)
 		case "download":
-			subCmd.RegisterFlagCompletionFunc("field", CompleteCommonFields)
+			_ = subCmd.RegisterFlagCompletionFunc("field", CompleteCommonFields)
 		}
 	}
 }
@@ -344,7 +344,7 @@ func setupRenameCompletions(cmd *cobra.Command) {
 		return nil, cobra.ShellCompDirectiveDefault
 	}
 
-	cmd.RegisterFlagCompletionFunc("vault", CompleteDirs)
+	_ = cmd.RegisterFlagCompletionFunc("vault", CompleteDirs)
 }
 
 // CompleteCommonFields provides completion for common frontmatter fields
@@ -548,22 +548,22 @@ func setupAnalyzeCompletions(cmd *cobra.Command) {
 		subCmd.ValidArgsFunction = CompleteDirs
 
 		// All analyze commands have format flag
-		subCmd.RegisterFlagCompletionFunc("format", CompleteOutputFormats)
-		subCmd.RegisterFlagCompletionFunc("output", CompleteOutputFiles)
+		_ = subCmd.RegisterFlagCompletionFunc("format", CompleteOutputFormats)
+		_ = subCmd.RegisterFlagCompletionFunc("output", CompleteOutputFiles)
 
 		switch subCmd.Name() {
 		case "duplicates":
-			subCmd.RegisterFlagCompletionFunc("type", CompleteDuplicateTypes)
+			_ = subCmd.RegisterFlagCompletionFunc("type", CompleteDuplicateTypes)
 		case "trends":
-			subCmd.RegisterFlagCompletionFunc("timespan", CompleteTimeSpans)
-			subCmd.RegisterFlagCompletionFunc("granularity", CompleteGranularities)
+			_ = subCmd.RegisterFlagCompletionFunc("timespan", CompleteTimeSpans)
+			_ = subCmd.RegisterFlagCompletionFunc("granularity", CompleteGranularities)
 		case "links":
 			// Add depth and min-connections completions for links command
-			subCmd.RegisterFlagCompletionFunc("depth", CompleteDepthValues)
-			subCmd.RegisterFlagCompletionFunc("min-connections", CompleteMinConnectionValues)
+			_ = subCmd.RegisterFlagCompletionFunc("depth", CompleteDepthValues)
+			_ = subCmd.RegisterFlagCompletionFunc("min-connections", CompleteMinConnectionValues)
 		case "quality":
 			// Add min-score completion for quality command
-			subCmd.RegisterFlagCompletionFunc("min-score", CompleteQualityScores)
+			_ = subCmd.RegisterFlagCompletionFunc("min-score", CompleteQualityScores)
 		}
 	}
 }
@@ -574,8 +574,8 @@ func setupLinksCompletions(cmd *cobra.Command) {
 		subCmd.ValidArgsFunction = CompleteDirs
 
 		if subCmd.Name() == "convert" {
-			subCmd.RegisterFlagCompletionFunc("from", CompleteLinkFormats)
-			subCmd.RegisterFlagCompletionFunc("to", CompleteLinkFormats)
+			_ = subCmd.RegisterFlagCompletionFunc("from", CompleteLinkFormats)
+			_ = subCmd.RegisterFlagCompletionFunc("to", CompleteLinkFormats)
 		}
 	}
 }
@@ -586,7 +586,7 @@ func setupExportCompletions(cmd *cobra.Command) {
 	cmd.ValidArgsFunction = CompleteDirs
 
 	// Query flag can use existing query completions (to be enhanced in Task 1.2)
-	cmd.RegisterFlagCompletionFunc("query", CompleteQueryExpressions)
+	_ = cmd.RegisterFlagCompletionFunc("query", CompleteQueryExpressions)
 }
 
 // CompleteQueryExpressions provides completion for query expressions
@@ -608,9 +608,9 @@ func setupLinkdingCompletions(cmd *cobra.Command) {
 		subCmd.ValidArgsFunction = CompleteDirs
 
 		if subCmd.Name() == "sync" {
-			subCmd.RegisterFlagCompletionFunc("url-field", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("title-field", CompleteFrontmatterFields)
-			subCmd.RegisterFlagCompletionFunc("tags-field", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("url-field", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("title-field", CompleteFrontmatterFields)
+			_ = subCmd.RegisterFlagCompletionFunc("tags-field", CompleteFrontmatterFields)
 		}
 	}
 }

@@ -335,11 +335,11 @@ func (result *SelectionResult) PrintParseErrors() {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Warning: %d files had errors during selection:\n", len(result.ParseErrors))
+	_, _ = fmt.Fprintf(os.Stderr, "Warning: %d files had errors during selection:\n", len(result.ParseErrors))
 	for _, parseErr := range result.ParseErrors {
-		fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
+		_, _ = fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
 	}
-	fmt.Fprintf(os.Stderr, "\n")
+	_, _ = fmt.Fprintf(os.Stderr, "\n")
 }
 
 // GetGlobalSelectionConfig extracts global file selection flags from a cobra command

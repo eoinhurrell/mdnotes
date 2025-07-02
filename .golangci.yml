@@ -71,6 +71,7 @@ linters:
 issues:
   exclude-dirs:
     - cmd/mdnotes  # Skip the duplicate mdnotes directory to avoid confusion
+    - test/integration  # Skip test integration helpers (they contain intentionally unused functions)
   uniq-by-line: true
   exclude-rules:
     - path: _test\.go
@@ -82,10 +83,17 @@ issues:
     - path: cmd/
       linters:
         - gochecknoinits
+    - path: test/
+      linters:
+        - unused  # Allow unused functions in test helpers
     - linters:
         - lll
       source: "^//go:generate "
-  exclude-use-default: false
-  max-issues-per-linter: 0
-  max-same-issues: 0
+    # Allow unused functions in helper files
+    - path: helper\.go
+      linters:
+        - unused
+  exclude-use-default: true  # Use default exclusions to reduce noise
+  max-issues-per-linter: 50  # Limit issues per linter to prevent overwhelming output
+  max-same-issues: 10        # Limit duplicate issues
   new: false

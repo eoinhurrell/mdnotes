@@ -49,20 +49,20 @@ func (p *LinkdingGetProcessor) GetContent(ctx context.Context, linkdingID interf
 		bookmarkID, err := p.convertToInt(linkdingID)
 		if err == nil && bookmarkID > 0 {
 			if p.config.Verbose {
-				fmt.Fprintf(os.Stderr, "Querying Linkding API for bookmark %d assets...\n", bookmarkID)
+				_, _ = fmt.Fprintf(os.Stderr, "Querying Linkding API for bookmark %d assets...\n", bookmarkID)
 			}
 
 			text, err := p.getContentFromSnapshot(ctx, bookmarkID)
 			if err == nil {
 				if p.config.Verbose {
-					fmt.Fprintf(os.Stderr, "Successfully retrieved content from snapshot\n")
+					_, _ = fmt.Fprintf(os.Stderr, "Successfully retrieved content from snapshot\n")
 				}
 				return text, nil
 			}
 
 			if p.config.Verbose {
-				fmt.Fprintf(os.Stderr, "Snapshot retrieval failed: %v\n", err)
-				fmt.Fprintf(os.Stderr, "Falling back to live URL...\n")
+				_, _ = fmt.Fprintf(os.Stderr, "Snapshot retrieval failed: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "Falling back to live URL...\n")
 			}
 		}
 	}
@@ -71,7 +71,7 @@ func (p *LinkdingGetProcessor) GetContent(ctx context.Context, linkdingID interf
 	if fallbackURL != nil {
 		if urlStr, ok := fallbackURL.(string); ok && urlStr != "" {
 			if p.config.Verbose {
-				fmt.Fprintf(os.Stderr, "Fetching content from live URL: %s\n", urlStr)
+				_, _ = fmt.Fprintf(os.Stderr, "Fetching content from live URL: %s\n", urlStr)
 			}
 
 			text, err := p.getContentFromLiveURL(ctx, urlStr)
@@ -80,7 +80,7 @@ func (p *LinkdingGetProcessor) GetContent(ctx context.Context, linkdingID interf
 			}
 
 			if p.config.Verbose {
-				fmt.Fprintf(os.Stderr, "Successfully retrieved content from live URL\n")
+				_, _ = fmt.Fprintf(os.Stderr, "Successfully retrieved content from live URL\n")
 			}
 			return text, nil
 		}
@@ -114,11 +114,11 @@ func (p *LinkdingGetProcessor) getContentFromSnapshot(ctx context.Context, bookm
 		return "", fmt.Errorf("creating temp file: %w", err)
 	}
 	defer os.Remove(tmpFile.Name()) // Clean up
-	tmpFile.Close()                 // Close file so download can write to it
+	_ = tmpFile.Close()             // Close file so download can write to it
 
 	// Download the snapshot
 	if p.config.Verbose {
-		fmt.Fprintf(os.Stderr, "Downloading snapshot asset %d to %s...\n", snapshot.ID, tmpFile.Name())
+		_, _ = fmt.Fprintf(os.Stderr, "Downloading snapshot asset %d to %s...\n", snapshot.ID, tmpFile.Name())
 	}
 
 	if err := p.client.DownloadAsset(ctx, bookmarkID, snapshot.ID, tmpFile.Name()); err != nil {
@@ -163,7 +163,7 @@ func (p *LinkdingGetProcessor) getContentFromLiveURL(ctx context.Context, url st
 	if err != nil {
 		return "", fmt.Errorf("fetching URL: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
@@ -197,7 +197,7 @@ func (p *LinkdingGetProcessor) getContentFromLiveURL(ctx context.Context, url st
 	}
 
 	// Close file before reading
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	// Extract text from HTML
 	text, err := ExtractTextFromHTML(tmpFile.Name())

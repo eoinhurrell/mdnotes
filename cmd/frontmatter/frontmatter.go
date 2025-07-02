@@ -61,8 +61,8 @@ Special default values:
 	cmd.Flags().Bool("recursive", true, "Process subdirectories")
 	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
 
-	cmd.MarkFlagRequired("field")
-	cmd.MarkFlagRequired("default")
+	_ = cmd.MarkFlagRequired("field")
+	_ = cmd.MarkFlagRequired("default")
 
 	return cmd
 }
@@ -222,8 +222,8 @@ Special values:
 	cmd.Flags().Bool("recursive", true, "Process subdirectories")
 	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
 
-	cmd.MarkFlagRequired("field")
-	cmd.MarkFlagRequired("value")
+	_ = cmd.MarkFlagRequired("field")
+	_ = cmd.MarkFlagRequired("value")
 
 	return cmd
 }
@@ -496,8 +496,8 @@ Update fields based on filename patterns, modification times, or path structure.
 	cmd.Flags().StringSlice("source", nil, "Data sources for fields (field:source)")
 	cmd.Flags().StringSlice("ignore", []string{".obsidian/*", "*.tmp"}, "Ignore patterns")
 
-	cmd.MarkFlagRequired("field")
-	cmd.MarkFlagRequired("source")
+	_ = cmd.MarkFlagRequired("field")
+	_ = cmd.MarkFlagRequired("source")
 
 	return cmd
 }
@@ -1334,7 +1334,7 @@ func outputTable(files []*vault.VaultFile, fields []string, quiet bool) error {
 		fmt.Println()
 
 		// Print separator line
-		for i, _ := range fields {
+		for i := range fields {
 			if i > 0 {
 				fmt.Print("─┼─")
 			}

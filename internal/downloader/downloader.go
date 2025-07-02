@@ -111,7 +111,7 @@ func (d *Downloader) DownloadResource(ctx context.Context, urlStr, baseFilename,
 	if err != nil {
 		return nil, fmt.Errorf("downloading resource: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)

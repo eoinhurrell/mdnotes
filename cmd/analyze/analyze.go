@@ -89,11 +89,11 @@ func newStatsCommand() *cobra.Command {
 
 			// Report any parsing errors encountered
 			if len(selection.ParseErrors) > 0 {
-				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
+				_, _ = fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
 				for _, parseErr := range selection.ParseErrors {
-					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
+					_, _ = fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
 				}
-				fmt.Fprintf(os.Stderr, "\n")
+				_, _ = fmt.Fprintf(os.Stderr, "\n")
 			}
 
 			files := selection.Files
@@ -191,11 +191,11 @@ Example:
 
 			// Report any parsing errors encountered
 			if len(selection.ParseErrors) > 0 {
-				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
+				_, _ = fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
 				for _, parseErr := range selection.ParseErrors {
-					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
+					_, _ = fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
 				}
-				fmt.Fprintf(os.Stderr, "\n")
+				_, _ = fmt.Fprintf(os.Stderr, "\n")
 			}
 
 			ana := analyzer.NewAnalyzer()
@@ -319,11 +319,11 @@ func newHealthCommand() *cobra.Command {
 
 			// Report any parsing errors encountered
 			if len(selection.ParseErrors) > 0 {
-				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
+				_, _ = fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
 				for _, parseErr := range selection.ParseErrors {
-					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
+					_, _ = fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
 				}
-				fmt.Fprintf(os.Stderr, "\n")
+				_, _ = fmt.Fprintf(os.Stderr, "\n")
 			}
 
 			// Generate health report
@@ -1074,11 +1074,11 @@ func newInboxCommand() *cobra.Command {
 
 			// Report any parsing errors encountered
 			if len(selection.ParseErrors) > 0 {
-				fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
+				_, _ = fmt.Fprintf(os.Stderr, "Warning: %d files had parsing errors:\n", len(selection.ParseErrors))
 				for _, parseErr := range selection.ParseErrors {
-					fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
+					_, _ = fmt.Fprintf(os.Stderr, "  ✗ %s: %v\n", parseErr.Path, parseErr.Error)
 				}
-				fmt.Fprintf(os.Stderr, "\n")
+				_, _ = fmt.Fprintf(os.Stderr, "\n")
 			}
 
 			files := selection.Files

@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -414,7 +415,7 @@ func benchmarkParallelOperation(name string, vault *processor.Vault, iterations,
 			"default": []string{},
 		}
 
-		parallelProcessor.Process(nil, vault, params)
+		parallelProcessor.Process(context.TODO(), vault, params)
 		totalDuration += time.Since(start)
 	}
 

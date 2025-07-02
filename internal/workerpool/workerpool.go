@@ -316,13 +316,14 @@ func (wp *WorkerPool) ProcessBatch(tasks []Task) []TaskResult {
 	}
 
 	// Collect results
+loop:
 	for resultCount < len(tasks) {
 		select {
 		case result := <-wp.resultChan:
 			results = append(results, result)
 			resultCount++
 		case <-wp.ctx.Done():
-			break
+			break loop
 		}
 	}
 
@@ -352,6 +353,7 @@ func (wp *WorkerPool) ProcessBatchWithProgress(tasks []Task, progress chan<- int
 	}
 
 	// Collect results with progress updates
+progressLoop:
 	for resultCount < len(tasks) {
 		select {
 		case result := <-wp.resultChan:
@@ -364,7 +366,7 @@ func (wp *WorkerPool) ProcessBatchWithProgress(tasks []Task, progress chan<- int
 				}
 			}
 		case <-wp.ctx.Done():
-			break
+			break progressLoop
 		}
 	}
 

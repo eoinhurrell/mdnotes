@@ -98,7 +98,7 @@ func isRetryableError(err error) bool {
 
 	// Check for network errors that are typically transient
 	if netErr, ok := err.(net.Error); ok {
-		return netErr.Timeout() || netErr.Temporary()
+		return netErr.Timeout()
 	}
 
 	// Check for specific connection errors
@@ -144,7 +144,7 @@ func (c *Client) doRequestWithRetry(ctx context.Context, req *http.Request) (*ht
 			if _, err := body.ReadFrom(req.Body); err != nil {
 				return nil, fmt.Errorf("reading request body: %w", err)
 			}
-			req.Body.Close()
+			_ = req.Body.Close()
 
 			// Create clone with fresh body
 			reqClone = req.Clone(ctx)
@@ -253,7 +253,7 @@ func (c *Client) CreateBookmark(ctx context.Context, req CreateBookmarkRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := c.checkResponse(resp); err != nil {
 		return nil, err
@@ -281,7 +281,7 @@ func (c *Client) GetBookmarks(ctx context.Context) (*BookmarkListResponse, error
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := c.checkResponse(resp); err != nil {
 		return nil, err
@@ -314,7 +314,7 @@ func (c *Client) UpdateBookmark(ctx context.Context, id int, req UpdateBookmarkR
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := c.checkResponse(resp); err != nil {
 		return nil, err
@@ -342,7 +342,7 @@ func (c *Client) GetBookmark(ctx context.Context, id int) (*BookmarkResponse, er
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := c.checkResponse(resp); err != nil {
 		return nil, err
@@ -370,7 +370,7 @@ func (c *Client) DeleteBookmark(ctx context.Context, id int) error {
 	if err != nil {
 		return fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := c.checkResponse(resp); err != nil {
 		return err
@@ -458,7 +458,7 @@ func (c *Client) CheckBookmark(ctx context.Context, url string) (*CheckBookmarkR
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Handle response - for check endpoint, 404 means URL not bookmarked
 	switch resp.StatusCode {
@@ -474,12 +474,8 @@ func (c *Client) CheckBookmark(ctx context.Context, url string) (*CheckBookmarkR
 		return &CheckBookmarkResponse{Bookmark: nil}, nil
 	default:
 		// Use standard error handling for other status codes
-		if err := c.checkResponse(resp); err != nil {
-			return nil, err
-		}
+		return nil, c.checkResponse(resp)
 	}
-
-	return nil, fmt.Errorf("unexpected response handling") // Should never reach here
 }
 
 // ListAssets retrieves assets for a specific bookmark
@@ -496,7 +492,7 @@ func (c *Client) ListAssets(ctx context.Context, bookmarkID int) ([]Asset, error
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := c.checkResponse(resp); err != nil {
 		return nil, err
@@ -524,7 +520,7 @@ func (c *Client) DownloadAsset(ctx context.Context, bookmarkID, assetID int, des
 	if err != nil {
 		return fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := c.checkResponse(resp); err != nil {
 		return err

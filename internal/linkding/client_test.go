@@ -34,7 +34,7 @@ func TestClient_CreateBookmark(t *testing.T) {
 			Tags:  req.Tags,
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -64,7 +64,7 @@ func TestClient_GetBookmarks(t *testing.T) {
 				{ID: 2, URL: "https://example2.com", Title: "Example 2"},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -92,7 +92,7 @@ func TestClient_UpdateBookmark(t *testing.T) {
 			Title: req.Title,
 			Tags:  req.Tags,
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -116,7 +116,7 @@ func TestClient_RateLimiting(t *testing.T) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(BookmarkListResponse{})
+		_ = json.NewEncoder(w).Encode(BookmarkListResponse{})
 	}))
 	defer server.Close()
 
@@ -238,7 +238,7 @@ func TestClient_ListAssets(t *testing.T) {
 			},
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -262,7 +262,7 @@ func TestClient_ListAssets_EmptyResponse(t *testing.T) {
 			Results: []Asset{},
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 

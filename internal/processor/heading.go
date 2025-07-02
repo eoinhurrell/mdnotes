@@ -320,20 +320,17 @@ func (p *HeadingProcessor) replaceSquareBrackets(body string) (string, int) {
 			mdLinkMatches := p.mdLinkPattern.FindAllString(headingText, -1)
 
 			protectedText := headingText
-			placeholders := []string{}
 
 			// Replace wiki links with placeholders
 			for j, match := range wikiLinkMatches {
 				placeholder := "WIKILINK_PLACEHOLDER_" + fmt.Sprintf("%d", j)
 				protectedText = strings.Replace(protectedText, match, placeholder, 1)
-				placeholders = append(placeholders, match)
 			}
 
 			// Replace markdown links with placeholders
 			for j, match := range mdLinkMatches {
 				placeholder := "MDLINK_PLACEHOLDER_" + fmt.Sprintf("%d", j)
 				protectedText = strings.Replace(protectedText, match, placeholder, 1)
-				placeholders = append(placeholders, match)
 			}
 
 			// Now replace square brackets in the protected text
