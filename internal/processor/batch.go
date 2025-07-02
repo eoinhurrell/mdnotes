@@ -118,10 +118,11 @@ func (bp *BatchProcessor) Execute(ctx context.Context, vault *Vault, config Batc
 		case <-ctx.Done():
 			// Rollback on cancellation
 			if bp.lastBackup != nil && !config.DryRun {
-				bp.rollback(vault, bp.lastBackup)
+				_ = bp.rollback(vault, bp.lastBackup)
 			}
 			return results, ctx.Err()
 		default:
+			// Continue execution if not cancelled
 		}
 
 		result := bp.executeOperation(ctx, vault, operation, config.DryRun)
@@ -129,7 +130,7 @@ func (bp *BatchProcessor) Execute(ctx context.Context, vault *Vault, config Batc
 
 		if !result.Success && config.StopOnError {
 			if bp.lastBackup != nil && !config.DryRun {
-				bp.rollback(vault, bp.lastBackup)
+				_ = bp.rollback(vault, bp.lastBackup)
 			}
 			return results, fmt.Errorf("operation %d (%s) failed: %w", i, operation.Name, result.Error)
 		}
@@ -183,6 +184,7 @@ func (bp *BatchProcessor) executeOperation(ctx context.Context, vault *Vault, op
 
 			select {
 			case <-time.After(delay):
+				// Wait for retry delay
 			case <-ctx.Done():
 				result.Success = false
 				result.Error = ctx.Err()
@@ -363,7 +365,7 @@ func (p *HeadingsFixProcessor) Process(ctx context.Context, vault *Vault, params
 	}
 
 	for _, file := range vault.Files {
-		processor.Fix(file, rules)
+		_ = processor.Fix(file, rules)
 	}
 
 	return nil

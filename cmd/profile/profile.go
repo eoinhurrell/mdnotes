@@ -244,7 +244,7 @@ func runSampleOperations(files []*vault.VaultFile) error {
 			if strVal, ok := value.(string); ok {
 				detectedType := caster.AutoDetect(strVal)
 				if detectedType != "string" {
-					caster.Cast(strVal, detectedType)
+					_, _ = caster.Cast(strVal, detectedType)
 				}
 			}
 		}
@@ -310,7 +310,7 @@ tags: [test, benchmark]
 ---
 %s`, i, i, files[i].Body)
 
-		files[i].Parse([]byte(content))
+		_ = files[i].Parse([]byte(content))
 	}
 
 	return files
@@ -415,7 +415,7 @@ func benchmarkParallelOperation(name string, vault *processor.Vault, iterations,
 			"default": []string{},
 		}
 
-		parallelProcessor.Process(context.TODO(), vault, params)
+		_ = parallelProcessor.Process(context.TODO(), vault, params)
 		totalDuration += time.Since(start)
 	}
 

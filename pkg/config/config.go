@@ -143,10 +143,10 @@ func (l *Loader) Load() (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// Bind specific environment variables for nested structures
-	v.BindEnv("vault.path", "MDNOTES_VAULT_PATH")
-	v.BindEnv("linkding.api_url", "MDNOTES_LINKDING_API_URL")
-	v.BindEnv("linkding.api_token", "MDNOTES_LINKDING_API_TOKEN")
-	v.BindEnv("performance.max_workers", "MDNOTES_PERFORMANCE_MAX_WORKERS")
+	_ = v.BindEnv("vault.path", "MDNOTES_VAULT_PATH")
+	_ = v.BindEnv("linkding.api_url", "MDNOTES_LINKDING_API_URL")
+	_ = v.BindEnv("linkding.api_token", "MDNOTES_LINKDING_API_TOKEN")
+	_ = v.BindEnv("performance.max_workers", "MDNOTES_PERFORMANCE_MAX_WORKERS")
 
 	// Try to read configuration
 	if err := v.ReadInConfig(); err != nil {

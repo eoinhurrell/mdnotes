@@ -347,6 +347,7 @@ func (wp *WorkerPool) ProcessBatchWithProgress(tasks []Task, progress chan<- int
 				select {
 				case progress <- resultCount:
 				default:
+					// Non-blocking send - skip if channel is full
 				}
 			}
 		}
@@ -363,6 +364,7 @@ progressLoop:
 				select {
 				case progress <- resultCount:
 				default:
+					// Non-blocking send - skip if channel is full
 				}
 			}
 		case <-wp.ctx.Done():

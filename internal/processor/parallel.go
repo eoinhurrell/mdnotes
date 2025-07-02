@@ -50,6 +50,7 @@ func (p *ParallelProcessor) Process(ctx context.Context, vault *Vault, params ma
 					errors <- ctx.Err()
 					return
 				default:
+					// Continue processing - context not cancelled
 				}
 
 				if err := p.wrapped.Process(ctx, singleFileVault, params); err != nil {
@@ -159,6 +160,7 @@ func (bp *BatchProcessorV2) executeParallel(ctx context.Context, vault *Vault, c
 			}
 			return results, ctx.Err()
 		default:
+			// Continue processing - context not cancelled
 		}
 
 		result := bp.executeOperationParallel(ctx, vault, operation, config)
@@ -314,6 +316,7 @@ func (p *ChunkedProcessor) Process(ctx context.Context, vault *Vault, params map
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			// Continue processing - context not cancelled
 		}
 
 		end := i + p.chunkSize

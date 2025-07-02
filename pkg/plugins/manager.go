@@ -219,6 +219,7 @@ func (pm *PluginManager) ExecuteHook(ctx context.Context, hookType HookType, hoo
 		case <-ctx.Done():
 			return result, ctx.Err()
 		default:
+			// Continue processing - context not cancelled
 		}
 
 		// Execute the plugin

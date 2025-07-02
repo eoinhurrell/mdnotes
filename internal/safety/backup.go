@@ -39,7 +39,7 @@ type BackupManager struct {
 // NewBackupManager creates a new backup manager
 func NewBackupManager(backupDir string) *BackupManager {
 	// Ensure backup directory exists
-	os.MkdirAll(backupDir, 0755)
+	_ = os.MkdirAll(backupDir, 0755)
 
 	return &BackupManager{
 		backupDir: backupDir,
