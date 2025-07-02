@@ -300,6 +300,7 @@ func (ep *ExportProcessor) scanVaultFiles(ctx context.Context, vaultPath string)
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			// Continue processing - context not cancelled
 		}
 
 		files = append(files, file)
@@ -458,6 +459,7 @@ func (ep *ExportProcessor) copyFilesWithNormalization(ctx context.Context, files
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			// Continue processing - context not cancelled
 		}
 
 		// Determine output file path using filename mapping
@@ -512,6 +514,7 @@ func (ep *ExportProcessor) copyFilesWithLinkProcessingAndNormalization(ctx conte
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
+			// Continue processing - context not cancelled
 		}
 
 		// Determine output file path using filename mapping

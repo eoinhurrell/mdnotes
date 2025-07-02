@@ -220,6 +220,7 @@ func (pfp *ParallelFileProcessor) processFilesSequentially(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
+			// Continue processing if context not cancelled
 		}
 
 		filePath := filenameMap[file.RelativePath]
@@ -275,6 +276,7 @@ func (mofp *MemoryOptimizedFileProcessor) ProcessFilesInBatches(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
+			// Continue processing if context not cancelled
 		}
 
 		// Calculate batch boundaries

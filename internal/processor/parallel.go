@@ -68,6 +68,7 @@ func (p *ParallelProcessor) Process(ctx context.Context, vault *Vault, params ma
 			singleFileVault := &Vault{Files: vault.Files[i : i+1], Path: vault.Path}
 			select {
 			case jobs <- singleFileVault:
+				// Job sent successfully
 			case <-ctx.Done():
 				return
 			}
@@ -231,6 +232,7 @@ func (bp *BatchProcessorV2) executeOperationParallel(ctx context.Context, vault 
 
 			select {
 			case <-time.After(delay):
+				// Wait for retry delay
 			case <-ctx.Done():
 				result.Success = false
 				result.Error = ctx.Err()

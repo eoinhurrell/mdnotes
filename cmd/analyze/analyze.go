@@ -118,7 +118,7 @@ func newStatsCommand() *cobra.Command {
 				if outputFile != "" {
 					return os.WriteFile(outputFile, []byte(output), 0644)
 				}
-				fmt.Print(output)
+				_, _ = fmt.Print(output)
 			}
 
 			return nil
@@ -212,7 +212,7 @@ Example:
 					fmt.Println(string(data))
 				} else {
 					output := formatObsidianCopiesText(obsidianCopies)
-					fmt.Print(output)
+					_, _ = fmt.Print(output)
 				}
 			case "sync-conflicts":
 				syncConflicts := ana.FindSyncConflictFiles(files)
@@ -224,7 +224,7 @@ Example:
 					fmt.Println(string(data))
 				} else {
 					output := formatSyncConflictsText(syncConflicts)
-					fmt.Print(output)
+					_, _ = fmt.Print(output)
 				}
 			case "content":
 				contentDuplicates := ana.FindContentDuplicates(files, analyzer.ExactMatch)
@@ -236,7 +236,7 @@ Example:
 					fmt.Println(string(data))
 				} else {
 					output := formatContentDuplicatesText(contentDuplicates)
-					fmt.Print(output)
+					_, _ = fmt.Print(output)
 				}
 			default:
 				// Show all types by default
@@ -257,7 +257,7 @@ Example:
 					fmt.Println(string(data))
 				} else {
 					output := formatAllDuplicatesText(obsidianCopies, syncConflicts, contentDuplicates)
-					fmt.Print(output)
+					_, _ = fmt.Print(output)
 				}
 			}
 
@@ -340,7 +340,7 @@ func newHealthCommand() *cobra.Command {
 				fmt.Println(string(data))
 			} else {
 				output := formatHealthText(health)
-				fmt.Print(output)
+				_, _ = fmt.Print(output)
 			}
 
 			return nil
@@ -487,7 +487,7 @@ func newLinksCommand() *cobra.Command {
 				fmt.Println(string(data))
 			} else {
 				output := formatLinkAnalysisText(linkAnalysis, showGraph, maxDepth, minConnections)
-				fmt.Print(output)
+				_, _ = fmt.Print(output)
 			}
 
 			return nil
@@ -554,7 +554,7 @@ func newContentCommand() *cobra.Command {
 				fmt.Println(string(data))
 			} else {
 				output := formatContentAnalysisText(contentAnalysis, includeScores, minScore, verbose)
-				fmt.Print(output)
+				_, _ = fmt.Print(output)
 			}
 
 			return nil
@@ -617,7 +617,7 @@ func newTrendsCommand() *cobra.Command {
 				fmt.Println(string(data))
 			} else {
 				output := formatTrendsAnalysisText(trendsAnalysis)
-				fmt.Print(output)
+				_, _ = fmt.Print(output)
 			}
 
 			return nil
@@ -1096,7 +1096,7 @@ func newInboxCommand() *cobra.Command {
 				fmt.Println(string(data))
 			} else {
 				output := formatInboxAnalysisText(inboxAnalysis)
-				fmt.Print(output)
+				_, _ = fmt.Print(output)
 			}
 
 			return nil

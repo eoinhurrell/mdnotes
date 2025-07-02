@@ -95,6 +95,7 @@ func (ps *PluginSandbox) ExecuteWithRestrictions(ctx context.Context, fn func() 
 		err := fn()
 		select {
 		case resultChan <- err:
+			// Result sent successfully
 		case <-timeoutCtx.Done():
 			// Function completed but timeout context is done
 		}

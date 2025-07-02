@@ -158,13 +158,13 @@ func (d *Downloader) DownloadResource(ctx context.Context, urlStr, baseFilename,
 	bytesWritten, err := io.Copy(file, limitedReader)
 	if err != nil {
 		// Clean up partial file on error
-		os.Remove(localPath)
+		_ = os.Remove(localPath)
 		return nil, fmt.Errorf("copying file content: %w", err)
 	}
 
 	// Check if we exceeded the size limit
 	if bytesWritten > d.maxFileSize {
-		os.Remove(localPath)
+		_ = os.Remove(localPath)
 		return nil, fmt.Errorf("file too large: %d bytes (max: %d)", bytesWritten, d.maxFileSize)
 	}
 
